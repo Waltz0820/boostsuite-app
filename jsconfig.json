@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./*"]
+      // もしくは粒度を分けるなら：
+      // "@/app/*": ["app/*"],
+      // "@/lib/*": ["lib/*"],
+      // "@/components/*": ["components/*"]
     }
   }
 }
