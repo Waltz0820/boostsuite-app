@@ -29,7 +29,7 @@ export default function ColumnPage({ params }: Props) {
       {column.content && (
   <div
     className="prose max-w-none"
-    dangerouslySetInnerHTML={{ __html: column.content }}
+    dangerouslySetInnerHTML={{ __html: column.body }}
   />
 )}
 
