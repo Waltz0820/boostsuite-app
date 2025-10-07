@@ -26,7 +26,7 @@ export default function ColumnPage({ params }: Props) {
     <div className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-6">{column.title}</h1>
       <p className="text-gray-600 text-sm mb-4">{column.date}</p>
-      {column.content && (
+      {column.body && (
   <div
     className="prose max-w-none"
     dangerouslySetInnerHTML={{ __html: column.body }}
