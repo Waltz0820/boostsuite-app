@@ -1,39 +1,43 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Boost Suite | 売れない言葉を、もう一度意味から組み直す",
+  title: "Boost Suite｜売れない言葉を、もう一度意味から組み直す",
   description:
-    "日本市場に最適化された“売れる日本語”を自動構築。EC説明文・LP・CSまで一気通貫で整流。",
-  // public/favicon.ico がある前提（app/favicon.ico でも可）
-  icons: { icon: "/favicon.ico" },
+    "中韓英の原文から“刺さる日本語”へ。薬機/景表フィルター適用、セーフ/攻めの2案、CS Boostでアフターも整流。",
+  openGraph: {
+    title: "Boost Suite｜売れない言葉を、もう一度意味から組み直す",
+    description:
+      "中韓英の原文から“刺さる日本語”へ。薬機/景表フィルター適用、セーフ/攻めの2案、CS Boostでアフターも整流。",
+    url: "https://boostsuite-app.vercel.app/",
+    siteName: "Boost Suite",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Boost Suite" }],
+    locale: "ja_JP",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <body className="antialiased text-zinc-900 bg-white">
         <header className="border-b">
           <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-            <div className="font-semibold">Boost Suite</div>
+            <Link href="/" className="flex items-center gap-3">
+              {/* public/logo.png を置けば表示されます */}
+              <Image src="/logo.png" alt="Boost Suite" width={140} height={28} priority />
+              <span className="sr-only">Boost Suite</span>
+            </Link>
             <nav className="flex gap-6 text-sm">
-              <Link href="/tool" className="hover:opacity-70">
-                ツール
-              </Link>
-              <Link href="/pricing" className="hover:opacity-70">
-                価格
-              </Link>
-              <Link href="/column" className="hover:opacity-70">
-                コラム
-              </Link>
+              <Link href="/tool" className="hover:opacity-70">ツール</Link>
+              <Link href="/pricing" className="hover:opacity-70">価格</Link>
+              <Link href="/column" className="hover:opacity-70">コラム</Link>
               <a
-                href="https://boostsuite-app.vercel.app/"
+                href="/tool?from=header"
                 className="px-3 py-1.5 rounded-md bg-zinc-900 text-white hover:opacity-90"
               >
                 今すぐ試す
@@ -41,9 +45,7 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-
         <main>{children}</main>
-
         <footer className="mt-20 border-t">
           <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-zinc-500">
             © {new Date().getFullYear()} Boost Suite
