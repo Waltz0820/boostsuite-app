@@ -18,17 +18,17 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/65">
       <div className="mx-auto max-w-6xl px-4 py-2 md:py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          {/* ここがポイント：高さを明示して縮まないようにする */}
-          <Image
-            src="/logo.png"
-            alt="Boost Suite"
-            width={220}               // 実サイズは十分大きい画像を用意（例: 440x88）
-            height={44}
-            className="h-[28px] md:h-[32px] lg:h-[36px] w-auto shrink-0 select-none"
-            priority
-          />
-          <span className="sr-only">Boost Suite</span>
-        </Link>
+  <Image
+    src="/logo.png"
+    alt="Boost Suite"
+    width={180}           // SSR時もクライアント後も同じ寸法で固定
+    height={36}
+    priority
+    sizes="(max-width: 767px) 150px, 180px"
+    className="block w-[150px] md:w-[180px] h-auto"  // 高さは自動、幅だけ管理
+  />
+  <span className="sr-only">Boost Suite</span>
+</Link>
 
         {/* desktop nav */}
         <nav className="hidden md:flex gap-7 text-sm text-zinc-300">
