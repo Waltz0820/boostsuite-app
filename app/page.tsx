@@ -277,10 +277,6 @@ export default function Page() {
               ]}
             />
           </div>
-          <div className="pt-8 border-t text-center text-sm text-zinc-500">
-            <p>© {new Date().getFullYear()} Boost Suite</p>
-            <p className="mt-2">登録不要で始められる日本語整流ツール。競合の10分の1価格でECを加速。</p>
-          </div>
         </div>
       </footer>
     </>
