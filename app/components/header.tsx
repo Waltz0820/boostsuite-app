@@ -12,14 +12,14 @@ export default function Header() {
       <div className="mx-auto max-w-6xl px-4 py-1 md:py-2 flex items-center justify-between">
         {/* ロゴ */}
         <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="Boost Suite ロゴ"
-            width={400}
-            height={80}
-            className="h-6 md:h-7 w-auto"
-            priority
-          />
+         <Image
+  src="/logo.png"
+  alt="Boost Suite ロゴ"
+  width={400}
+  height={80}
+  className="h-8 md:h-9 w-auto"
+  priority
+/>
           <span className="sr-only">Boost Suite</span>
         </Link>
 
