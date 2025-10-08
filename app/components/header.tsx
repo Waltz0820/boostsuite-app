@@ -1,102 +1,93 @@
 // app/components/header.tsx
 "use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
 
-  return (
-    <header className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-black/60 bg-black/80 border-b border-white/10">
-      {/* 高さ：mobile 56px / md 60px / lg 68px */}
-      <div className="mx-auto max-w-6xl px-4 py-2 md:py-2.5 lg:py-3 flex items-center justify-between">
-       <Link href="/" className="flex items-center gap-3">
-  {/* ロゴ枠：ここで見た目サイズをガッと決める */}
-  <div className="relative h-8 w-[190px] md:h-9 md:w-[230px] lg:h-10 lg:w-[260px]">
-    <Image
-      src="/logo.png"
-      alt="Boost Suite"
-      fill
-      className="object-contain"  // 余白があってもロゴ自体が枠いっぱいにフィット
-      priority
-    />
-  </div>
-  <span className="sr-only">Boost Suite</span>
-</Link>
+  // メニュー開閉時にスクロール固定
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+  }, [open]);
 
-        {/* PCナビ */}
-        <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-200">
-          <Link href="/tool" className="hover:opacity-80">ツール</Link>
-          <Link href="/pricing" className="hover:opacity-80">価格</Link>
-          <Link href="/column" className="hover:opacity-80">コラム</Link>
+  return (
+    <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/65">
+      <div className="mx-auto max-w-6xl px-4 py-2 md:py-3 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3">
+          {/* ここがポイント：高さを明示して縮まないようにする */}
+          <Image
+            src="/logo.png"
+            alt="Boost Suite"
+            width={220}               // 実サイズは十分大きい画像を用意（例: 440x88）
+            height={44}
+            className="h-[28px] md:h-[32px] lg:h-[36px] w-auto shrink-0 select-none"
+            priority
+          />
+          <span className="sr-only">Boost Suite</span>
+        </Link>
+
+        {/* desktop nav */}
+        <nav className="hidden md:flex gap-7 text-sm text-zinc-300">
+          <Link className="hover:text-white transition" href="/tool">ツール</Link>
+          <Link className="hover:text-white transition" href="/pricing">価格</Link>
+          <Link className="hover:text-white transition" href="/column">コラム</Link>
           <a
             href="/tool?from=header"
-            className="ml-2 px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:opacity-90 text-sm"
+            className="px-3 py-1.5 rounded-md bg-white text-black font-medium hover:opacity-90 transition"
           >
             今すぐ試す
           </a>
         </nav>
 
-        {/* モバイル：ハンバーガー */}
+        {/* mobile hamburger */}
         <button
-          aria-label="メニューを開く"
+          className="md:hidden inline-flex items-center justify-center w-10 h-10 -mr-2 rounded-md text-zinc-300 hover:text-white focus:outline-none"
+          aria-label="Open menu"
           onClick={() => setOpen(true)}
-          className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-zinc-200 hover:text-white"
         >
-          {/* 少し大きめのアイコン感 */}
-          <span className="block h-[2px] w-6 bg-zinc-200 relative">
-            <span className="absolute -top-2 block h-[2px] w-6 bg-zinc-200" />
-            <span className="absolute top-2 block h-[2px] w-6 bg-zinc-200" />
-          </span>
+          <span className="sr-only">メニュー</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
         </button>
       </div>
 
-      {/* モバイルドロワー */}
+      {/* mobile drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute right-3 top-3 w-[82vw] max-w-[360px] rounded-2xl bg-zinc-900 text-zinc-50 shadow-2xl border border-white/10">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-              <span className="text-sm font-medium">メニュー</span>
+        <div className="md:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-0 h-full w-72 bg-zinc-900 border-l border-zinc-800 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <Image
+                src="/logo.png"
+                alt="Boost Suite"
+                width={200}
+                height={40}
+                className="h-[26px] w-auto shrink-0"
+                priority
+              />
               <button
-                aria-label="閉じる"
                 onClick={() => setOpen(false)}
-                className="p-2 text-zinc-300 hover:text-white"
+                className="p-2 rounded-md text-zinc-300 hover:text-white"
+                aria-label="Close menu"
               >
-                ✕
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
               </button>
             </div>
-            <nav className="p-2">
-              <Link
-                href="/tool"
-                onClick={() => setOpen(false)}
-                className="block px-5 py-3 text-base hover:bg-white/5 rounded-lg"
-              >
-                ツール
-              </Link>
-              <Link
-                href="/pricing"
-                onClick={() => setOpen(false)}
-                className="block px-5 py-3 text-base hover:bg-white/5 rounded-lg"
-              >
-                価格
-              </Link>
-              <Link
-                href="/column"
-                onClick={() => setOpen(false)}
-                className="block px-5 py-3 text-base hover:bg-white/5 rounded-lg"
-              >
-                コラム
-              </Link>
-
+            <nav className="flex flex-col gap-2">
+              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/tool" onClick={() => setOpen(false)}>ツール</Link>
+              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/pricing" onClick={() => setOpen(false)}>価格</Link>
+              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/column" onClick={() => setOpen(false)}>コラム</Link>
               <a
                 href="/tool?from=header"
+                className="mt-2 px-3 py-2 rounded-md bg-white text-black font-medium text-center"
                 onClick={() => setOpen(false)}
-                className="block m-4 mt-2 text-center px-4 py-3 rounded-lg bg-white text-zinc-900 font-medium hover:opacity-90"
               >
                 今すぐ試す
               </a>
