@@ -10,7 +10,6 @@ export default function Header() {
   const drawerId = useId();
   const pathname = usePathname();
 
-  // 画面幅が広がったら閉じる
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 768) setOpen(false);
@@ -19,12 +18,8 @@ export default function Header() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ルート遷移で閉じる
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useEffect(() => setOpen(false), [pathname]);
 
-  // メニュー表示中は背面スクロールをロック
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -34,7 +29,6 @@ export default function Header() {
     };
   }, [open]);
 
-  // Escで閉じる
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -48,8 +42,8 @@ export default function Header() {
     return (
       <Link
         href={href}
-        className={`hover:opacity-80 transition ${
-          active ? "text-zinc-900 font-medium" : "text-zinc-600"
+        className={`transition hover:opacity-80 ${
+          active ? "text-white font-semibold" : "text-zinc-300"
         }`}
       >
         {children}
@@ -58,7 +52,7 @@ export default function Header() {
   };
 
   return (
-    <header className="border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-40">
+    <header className="border-b border-zinc-800 bg-zinc-900/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/90 sticky top-0 z-40">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         {/* Brand */}
         <Link href="/" aria-label="Boost Suite" className="flex items-center gap-3 shrink-0">
@@ -67,7 +61,7 @@ export default function Header() {
             alt="Boost Suite ロゴ"
             width={240}
             height={48}
-            className="w-[210px] md:w-[240px] h-auto"
+            className="w-[220px] md:w-[240px] h-auto"
             priority
           />
         </Link>
@@ -79,7 +73,7 @@ export default function Header() {
           <NavLink href="/column">コラム</NavLink>
           <Link
             href="/tool?from=header"
-            className="px-3 py-1.5 rounded-md bg-zinc-900 text-white hover:opacity-90"
+            className="px-3 py-1.5 rounded-md bg-white text-zinc-900 hover:bg-zinc-100 font-medium"
           >
             今すぐ試す
           </Link>
@@ -92,7 +86,7 @@ export default function Header() {
           aria-expanded={open}
           aria-controls={drawerId}
           onClick={() => setOpen((v) => !v)}
-          className="md:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-zinc-100 transition"
+          className="md:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-zinc-800 text-zinc-300"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" className="fill-current">
             {open ? (
@@ -107,17 +101,17 @@ export default function Header() {
       {/* Mobile drawer */}
       <div
         id={drawerId}
-        className={`md:hidden border-t bg-white transition-[max-height] duration-300 overflow-hidden ${
+        className={`md:hidden bg-zinc-900 border-t border-zinc-800 transition-[max-height] duration-300 overflow-hidden ${
           open ? "max-h-64" : "max-h-0"
         }`}
       >
-        <nav className="px-4 py-3 flex flex-col gap-2 text-sm" role="dialog" aria-modal="true">
+        <nav className="px-4 py-3 flex flex-col gap-3 text-sm" role="dialog" aria-modal="true">
           <NavLink href="/tool">ツール</NavLink>
           <NavLink href="/pricing">価格</NavLink>
           <NavLink href="/column">コラム</NavLink>
           <Link
             href="/tool?from=header"
-            className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md bg-zinc-900 text-white hover:opacity-90"
+            className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md bg-white text-zinc-900 font-medium hover:bg-zinc-100"
           >
             今すぐ試す
           </Link>
