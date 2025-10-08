@@ -1,4 +1,3 @@
-// app/components/header.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,27 +7,26 @@ import { useState, useEffect } from "react";
 export default function Header() {
   const [open, setOpen] = useState(false);
 
-  // メニュー開閉時にスクロール固定
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-black/85 backdrop-blur supports-[backdrop-filter]:bg-black/65">
+    <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-black text-white backdrop-blur supports-[backdrop-filter]:bg-black/80">
       <div className="mx-auto max-w-6xl px-4 py-2 md:py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-  <Image
-    src="/logo.png"
-    alt="Boost Suite"
-    width={180}           // SSR時もクライアント後も同じ寸法で固定
-    height={36}
-    priority
-    sizes="(max-width: 767px) 170px, 200px"
-    className="block w-[170px] md:w-[200px] h-auto"  // 高さは自動、幅だけ管理
-  />
-  <span className="sr-only">Boost Suite</span>
-</Link>
+          <Image
+            src="/logo.png"
+            alt="Boost Suite"
+            width={180}
+            height={36}
+            priority
+            sizes="(max-width: 767px) 150px, 180px"
+            className="block w-[150px] md:w-[180px] h-auto select-none"
+          />
+          <span className="sr-only">Boost Suite</span>
+        </Link>
 
         {/* desktop nav */}
         <nav className="hidden md:flex gap-7 text-sm text-zinc-300">
@@ -58,16 +56,16 @@ export default function Header() {
 
       {/* mobile drawer */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-0 h-full w-72 bg-zinc-900 border-l border-zinc-800 p-4">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-[100] bg-black text-white">
+          <div className="flex flex-col h-full">
+            {/* Header row for drawer */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <Image
                 src="/logo.png"
                 alt="Boost Suite"
-                width={200}
-                height={40}
-                className="h-[26px] w-auto shrink-0"
+                width={160}
+                height={32}
+                className="w-[150px] h-auto"
                 priority
               />
               <button
@@ -80,14 +78,16 @@ export default function Header() {
                 </svg>
               </button>
             </div>
-            <nav className="flex flex-col gap-2">
-              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/tool" onClick={() => setOpen(false)}>ツール</Link>
-              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/pricing" onClick={() => setOpen(false)}>価格</Link>
-              <Link className="px-3 py-2 rounded-md hover:bg-zinc-800 text-zinc-200" href="/column" onClick={() => setOpen(false)}>コラム</Link>
+
+            {/* menu body */}
+            <nav className="flex flex-col gap-4 px-6 py-8 text-lg font-medium">
+              <Link href="/tool" onClick={() => setOpen(false)} className="hover:text-zinc-400">ツール</Link>
+              <Link href="/pricing" onClick={() => setOpen(false)} className="hover:text-zinc-400">価格</Link>
+              <Link href="/column" onClick={() => setOpen(false)} className="hover:text-zinc-400">コラム</Link>
               <a
                 href="/tool?from=header"
-                className="mt-2 px-3 py-2 rounded-md bg-white text-black font-medium text-center"
                 onClick={() => setOpen(false)}
+                className="mt-6 inline-block bg-white text-black px-6 py-3 rounded-lg text-center text-base font-semibold hover:opacity-90 transition"
               >
                 今すぐ試す
               </a>
