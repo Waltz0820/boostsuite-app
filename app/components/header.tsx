@@ -11,18 +11,19 @@ export default function Header() {
     <header className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-black/60 bg-black/80 border-b border-white/10">
       {/* 高さ：mobile 56px / md 60px / lg 68px */}
       <div className="mx-auto max-w-6xl px-4 py-2 md:py-2.5 lg:py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          {/* ロゴ：モバイルでも存在感を出す（h-7 → md:h-8 → lg:h-9） */}
-          <Image
-            src="/logo.png"
-            alt="Boost Suite"
-            width={220}
-            height={44}
-            className="h-7 md:h-8 lg:h-9 w-auto"
-            priority
-          />
-          <span className="sr-only">Boost Suite</span>
-        </Link>
+       <Link href="/" className="flex items-center gap-3">
+  {/* ロゴ枠：ここで見た目サイズをガッと決める */}
+  <div className="relative h-8 w-[190px] md:h-9 md:w-[230px] lg:h-10 lg:w-[260px]">
+    <Image
+      src="/logo.png"
+      alt="Boost Suite"
+      fill
+      className="object-contain"  // 余白があってもロゴ自体が枠いっぱいにフィット
+      priority
+    />
+  </div>
+  <span className="sr-only">Boost Suite</span>
+</Link>
 
         {/* PCナビ */}
         <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-200">
