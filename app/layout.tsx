@@ -1,7 +1,7 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import Header from "@/components/header";
+import Header from "./components/header";
 
 export const metadata: Metadata = {
   title: "Boost Suite｜売れない言葉を、もう一度意味から組み直す",
