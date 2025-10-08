@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     alt="Boost Suite ロゴ"
     width={180}      // ← 幅で制御（前より少し大きめ）
     height={40}      // ← アスペクト比維持のための参考値
-    className="w-[180px] h-auto"  // ← 高さ固定を外して自然比率表示
+    className="w-[200px] h-auto"  // ← 高さ固定を外して自然比率表示
     priority
   />
 </Link>
