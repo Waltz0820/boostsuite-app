@@ -9,7 +9,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-800 bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/70">
-      <div className="mx-auto max-w-6xl px-4 py-1.5 md:py-2.5 flex items-center justify-between">
+      <div className="mx-auto max-w-6xl px-4 py-2 md:py-3 flex items-center justify-between">
         {/* ロゴ */}
         <Link href="/" className="flex items-center gap-3">
          <Image
@@ -17,7 +17,7 @@ export default function Header() {
   alt="Boost Suite ロゴ"
   width={400}
   height={80}
-  className="h-10 md:h-11 w-auto"
+  className="h-12 md:h-14 w-auto"
   priority
 />
           <span className="sr-only">Boost Suite</span>
