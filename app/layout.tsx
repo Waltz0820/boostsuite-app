@@ -28,16 +28,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b">
           <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
             <Link href="/" aria-label="Boost Suite" className="flex items-center gap-3">
-              {/* /public/logo.png を配置（推奨 160×32px） */}
-              <Image
-                src="/logo.png"
-                alt="Boost Suite ロゴ"
-                width={160}
-                height={32}
-                className="h-8 w-auto"
-                priority
-              />
-            </Link>
+  <Image
+    src="/logo.png"
+    alt="Boost Suite ロゴ"
+    width={180}      // ← 幅で制御（前より少し大きめ）
+    height={40}      // ← アスペクト比維持のための参考値
+    className="w-[180px] h-auto"  // ← 高さ固定を外して自然比率表示
+    priority
+  />
+</Link>
+
 
             <nav className="flex gap-6 text-sm">
               <Link href="/tool" className="hover:opacity-70">ツール</Link>
