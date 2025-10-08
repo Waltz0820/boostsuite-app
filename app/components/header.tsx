@@ -24,8 +24,8 @@ export default function Header() {
     width={180}           // SSR時もクライアント後も同じ寸法で固定
     height={36}
     priority
-    sizes="(max-width: 767px) 150px, 180px"
-    className="block w-[150px] md:w-[180px] h-auto"  // 高さは自動、幅だけ管理
+    sizes="(max-width: 767px) 170px, 200px"
+    className="block w-[170px] md:w-[200px] h-auto"  // 高さは自動、幅だけ管理
   />
   <span className="sr-only">Boost Suite</span>
 </Link>
