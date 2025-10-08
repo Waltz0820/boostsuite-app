@@ -54,47 +54,50 @@ export default function Header() {
         </button>
       </div>
 
-      {/* mobile drawer */}
-      {open && (
-        <div className="fixed inset-0 z-[100] bg-black text-white">
-          <div className="flex flex-col h-full">
-            {/* Header row for drawer */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-              <Image
-                src="/logo.png"
-                alt="Boost Suite"
-                width={160}
-                height={32}
-                className="w-[150px] h-auto"
-                priority
-              />
-              <button
-                onClick={() => setOpen(false)}
-                className="p-2 rounded-md text-zinc-300 hover:text-white"
-                aria-label="Close menu"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
+     {/* mobile drawer (solid, no transparency) */}
+{open && (
+  <div className="fixed inset-0 z-[100] bg-black">
+    {/* iOS安全域分の余白 */}
+    <div className="pt-[env(safe-area-inset-top)] h-full flex flex-col text-white">
+      {/* drawer header row */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+        <Image
+          src="/logo.png"
+          alt="Boost Suite"
+          width={170}
+          height={34}
+          className="w-[160px] h-auto"
+          priority
+        />
+        <button
+          onClick={() => setOpen(false)}
+          className="p-2 rounded-md text-zinc-300 hover:text-white"
+          aria-label="Close menu"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
 
-            {/* menu body */}
-            <nav className="flex flex-col gap-4 px-6 py-8 text-lg font-medium">
-              <Link href="/tool" onClick={() => setOpen(false)} className="hover:text-zinc-400">ツール</Link>
-              <Link href="/pricing" onClick={() => setOpen(false)} className="hover:text-zinc-400">価格</Link>
-              <Link href="/column" onClick={() => setOpen(false)} className="hover:text-zinc-400">コラム</Link>
-              <a
-                href="/tool?from=header"
-                onClick={() => setOpen(false)}
-                className="mt-6 inline-block bg-white text-black px-6 py-3 rounded-lg text-center text-base font-semibold hover:opacity-90 transition"
-              >
-                今すぐ試す
-              </a>
-            </nav>
-          </div>
-        </div>
-      )}
+      {/* drawer body (scrollable) */}
+      <nav className="flex-1 overflow-y-auto px-6 py-8 text-lg font-medium">
+        <Link href="/tool" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">ツール</Link>
+        <Link href="/pricing" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">価格</Link>
+        <Link href="/column" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">コラム</Link>
+
+        <a
+          href="/tool?from=header"
+          onClick={() => setOpen(false)}
+          className="mt-6 inline-block w-full text-center bg-white text-black px-6 py-3 rounded-lg text-base font-semibold hover:opacity-90 transition"
+        >
+          今すぐ試す
+        </a>
+      </nav>
+    </div>
+  </div>
+)}
     </header>
   );
 }
