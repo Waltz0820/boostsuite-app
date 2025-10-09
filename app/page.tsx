@@ -1,6 +1,5 @@
-// app/page.tsx
 import Link from "next/link";
-import Image from "next/image";
+import HeroVideo from "./components/hero-video";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -20,80 +19,71 @@ export const metadata = {
 export default function Page() {
   return (
     <>
- {/* Hero（動画背景） */}
-<section
-  className="
-    relative overflow-hidden
-    min-h-[72vh] min-h-[72svh]   /* アドレスバー対策 */
-    pt-16 md:pt-24 pb-16
-    text-white
-  "
->
-  {/* 背景レイヤー */}
-  <div className="absolute inset-0 -z-10">
-    <video
-      src="/hero-bg.mp4"
-      poster="/hero-bg.png"
-      autoPlay
-      muted
-      loop
-      playsInline
-      className="
-        absolute inset-0 w-full h-full
-        object-cover
-        object-[50%_35%]              /* ← ここを修正 */
-        scale-[1.08]
-        opacity-60 md:opacity-55
-        blur-[1px]
-        transition-transform duration-[15000ms] ease-linear
-      "
-      onLoadedMetadata={(e) => {
-        const video = e.currentTarget as HTMLVideoElement; // ← 型を明示
-        video.playbackRate = 0.6;                          // 再生速度をゆっくり
-      }}
-    />
-
-    {/* ループのつなぎ目を目立たなくする薄いグラデ */}
-    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
-
-    {/* さらに全体を少しだけ落ち着かせる（薄めに） */}
-    <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/45 pointer-events-none" />
-  </div>
-
-  {/* 見出し */}
-  <div className="mx-auto max-w-4xl px-4 text-center">
-    <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
-      良い商品が、<span className="underline decoration-4">売れない</span>理由
-      <br />
-      <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
-    </h1>
-
-    <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
-      Boost Suite は
-      <span className="font-semibold text-white">
-        {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
-      </span>
-      を自動化した「商品説明の整流AI」です。
-    </p>
-
-    <p className="mt-4 text-base md:text-lg text-zinc-300">
-      硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
-    </p>
-
-    <div className="mt-8 flex flex-col items-center gap-3">
-      <a
-        href="/tool"
-        className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-base md:text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
+      {/* Hero（動画背景） */}
+      <section
+        className="
+          relative overflow-hidden
+          min-h-[72vh] min-h-[72svh]
+          pt-16 md:pt-24 pb-16
+          text-white
+        "
       >
-        30秒で無料トライアル（30クレジット）
-      </a>
-      <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
-      <div className="mt-1 text-xs text-zinc-400">
-        既存ツール¥5,000台/月 → Boost ¥490/月〜
-      </div>
-    </div>
-  </div>
-</section>
+        {/* 背景レイヤー */}
+        <div className="absolute inset-0 -z-10">
+          <HeroVideo
+            src="/hero-bg.mp4"
+            poster="/hero-bg.png"
+            playbackRate={0.6}
+            className="
+              absolute inset-0 w-full h-full
+              object-cover
+              object-[50%_35%]
+              scale-[1.08]
+              opacity-60 md:opacity-55
+              blur-[1px]
+              transition-transform duration-[15000ms] ease-linear
+            "
+          />
+          {/* ループ境目ぼかし */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
+          {/* 全体トーン補正 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/45 pointer-events-none" />
+        </div>
+
+        {/* 見出し */}
+        <div className="mx-auto max-w-4xl px-4 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
+            良い商品が、<span className="underline decoration-4">売れない</span>理由
+            <br />
+            <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
+          </h1>
+
+          <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
+            Boost Suite は
+            <span className="font-semibold text-white">
+              {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
+            </span>
+            を自動化した「商品説明の整流AI」です。
+          </p>
+
+          <p className="mt-4 text-base md:text-lg text-zinc-300">
+            硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
+          </p>
+
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <a
+              href="/tool"
+              className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-base md:text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
+            >
+              30秒で無料トライアル（30クレジット）
+            </a>
+            <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
+            <div className="mt-1 text-xs text-zinc-400">
+              既存ツール¥5,000台/月 → Boost ¥490/月〜
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Before/After */}
       <section className="py-20 bg-zinc-50">
@@ -134,7 +124,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Why Boost（設計思想） */}
+      {/* Why Boost */}
       <section className="py-20 bg-zinc-900 text-white">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-12">
@@ -160,7 +150,6 @@ export default function Page() {
             />
           </div>
 
-          {/* 復活させた2カード（ぼかし表現版） */}
           <div className="mt-12 grid md:grid-cols-2 gap-8">
             <DiffCard
               title="導入ハードルを、限りなくゼロに"
@@ -294,17 +283,7 @@ export default function Page() {
 
 /* ---------- Components ---------- */
 
-function BABox({
-  label,
-  before,
-  after,
-  tag,
-}: {
-  label: string;
-  before: string;
-  after: string;
-  tag: string;
-}) {
+function BABox({ label, before, after, tag }: { label: string; before: string; after: string; tag: string }) {
   return (
     <div className="bg-white rounded-2xl p-6 border-2 border-zinc-100 hover:border-green-500 transition">
       <div className="text-xs text-zinc-500 mb-2">{label}</div>
@@ -354,17 +333,7 @@ function DiffCard({ title, items, highlight }: { title: string; items: string[];
   );
 }
 
-function StepCard({
-  step,
-  title,
-  description,
-  detail,
-}: {
-  step: string;
-  title: string;
-  description: string;
-  detail: string;
-}) {
+function StepCard({ step, title, description, detail }: { step: string; title: string; description: string; detail: string }) {
   return (
     <div className="bg-white border-2 border-zinc-100 rounded-2xl p-8 hover:border-zinc-900 transition-all">
       <div className="flex items-center gap-3 mb-4">
