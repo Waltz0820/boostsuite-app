@@ -1,7 +1,7 @@
 // app/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 
-// ---------- メタデータ ----------
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
   description:
@@ -17,32 +17,32 @@ export const metadata = {
   },
 };
 
-// ---------- ページ本体 ----------
 export default function Page() {
   return (
     <>
       {/* Hero */}
       <section className="relative overflow-hidden text-white">
-        {/* 背景画像 */}
-        <div className="absolute inset-0 -z-10">
-          <img
+        {/* 背景画像（/public/hero-bg.png） */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image
             src="/hero-bg.png"
             alt=""
-            aria-hidden="true"
-            className="w-full h-full object-cover opacity-25 scale-105 blur-[1px]"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover opacity-30 scale-105"
           />
+          {/* トーン調整のグラデーション */}
           <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/90 via-zinc-900/85 to-zinc-900/95" />
         </div>
 
         {/* コンテンツ */}
-        <div className="mx-auto max-w-6xl px-4 pt-20 pb-24">
+        <div className="relative z-20 mx-auto max-w-6xl px-4 pt-20 pb-24">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">
               良い商品が、<span className="underline decoration-4">売れない</span>理由
               <br />
-              <span className="text-zinc-300">
-                説明文の1行が、すべてを変える。
-              </span>
+              <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
             </h1>
 
             <p className="mt-8 text-xl md:text-2xl text-zinc-200 leading-relaxed">
@@ -65,12 +65,8 @@ export default function Page() {
               >
                 30秒で無料トライアル（30クレジット）
               </Link>
-              <p className="text-xs text-zinc-300">
-                登録不要／コピペ → ワンタップで整文
-              </p>
-              <div className="mt-1 text-xs text-zinc-400">
-                既存ツール¥5,000台/月 → Boost ¥490/月〜
-              </div>
+              <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
+              <div className="mt-1 text-xs text-zinc-400">既存ツール¥5,000台/月 → Boost ¥490/月〜</div>
             </div>
           </div>
         </div>
@@ -115,16 +111,12 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Why Boost */}
+      {/* Why Boost（設計思想） */}
       <section className="py-20 bg-zinc-900 text-white">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">
-              なぜ、Boost Suiteで売れる？
-            </h2>
-            <p className="text-zinc-400">
-              他のAI文章生成とは、設計思想が違います。
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">なぜ、Boost Suiteで売れる？</h2>
+            <p className="text-zinc-400">他のAI文章生成とは、設計思想が違います。</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -144,6 +136,28 @@ export default function Page() {
               body="FAQ/レビュー返信/クレーム火消しまで自動生成。LTVを底上げ。"
             />
           </div>
+
+          {/* 復活させた2カード（ぼかし表現版） */}
+          <div className="mt-12 grid md:grid-cols-2 gap-8">
+            <DiffCard
+              title="導入ハードルを、限りなくゼロに"
+              items={[
+                "既存ツールの約1/5〜1/10の価格帯",
+                "登録不要・即日利用OK",
+                "誰でも30秒で“売れる日本語”を生成",
+              ]}
+              highlight="ツール導入で迷わず、成果に集中できる設計。"
+            />
+            <DiffCard
+              title="脳死運用OKの自動適応"
+              items={[
+                "ジャンル自動判定（美容/家電/ファッション…）",
+                "モード自動選定（セーフ/攻め、痛点/変化/感性）",
+                "レビュー要約→不安の先回り提案",
+              ]}
+              highlight="貼る→押す→使う、だけ。"
+            />
+          </div>
         </div>
       </section>
 
@@ -151,9 +165,7 @@ export default function Page() {
       <section className="bg-zinc-50 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              使い方は、貼って押すだけ。
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">使い方は、貼って押すだけ。</h2>
             <p className="text-zinc-600">30秒で「売れる文章」が完成</p>
           </div>
 
@@ -182,9 +194,7 @@ export default function Page() {
             <div className="inline-block bg-white rounded-2xl p-8 shadow-sm border">
               <div className="text-sm text-zinc-500 mb-2">平均作業時間</div>
               <div className="text-5xl font-bold text-zinc-900">30秒</div>
-              <div className="text-sm text-zinc-600 mt-2">
-                手動リライト2時間 → 30秒に短縮
-              </div>
+              <div className="text-sm text-zinc-600 mt-2">手動リライト2時間 → 30秒に短縮</div>
             </div>
 
             <div className="mt-10">
@@ -202,23 +212,12 @@ export default function Page() {
       {/* Golden Rules */}
       <section className="py-20 bg-zinc-900 text-white">
         <div className="mx-auto max-w-4xl px-4">
-          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
-            Boostの黄金律
-          </h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Boostの黄金律</h2>
           <div className="space-y-6">
             <RuleItem rule="事実8割、余韻2割" detail="具体的に、でも想像の余地は残す。" />
-            <RuleItem
-              rule="効能ではなく、安心を語る"
-              detail="“改善”より“自分を丁寧に扱う時間”。"
-            />
-            <RuleItem
-              rule="買わない理由を先回りして潰す"
-              detail="レビューから不安を抽出→構成に反映。"
-            />
-            <RuleItem
-              rule="構文修正ではなく、意味の再設計"
-              detail="文法ではなく、市場文脈を変換する。"
-            />
+            <RuleItem rule="効能ではなく、安心を語る" detail="“改善”より“自分を丁寧に扱う時間”。" />
+            <RuleItem rule="買わない理由を先回りして潰す" detail="レビューから不安を抽出→構成に反映。" />
+            <RuleItem rule="構文修正ではなく、意味の再設計" detail="文法ではなく、市場文脈を変換する。" />
           </div>
         </div>
       </section>
@@ -234,8 +233,7 @@ export default function Page() {
           <div className="max-w-2xl mx-auto space-y-6 mb-12">
             <p className="text-xl text-zinc-700">商品は良い。価格も適正。写真も十分。</p>
             <p className="text-xl text-zinc-700">
-              でも説明文が<span className="font-bold text-zinc-900">硬い／不自然／AI臭い</span>だけで、
-              お客は離れます。
+              でも説明文が<span className="font-bold text-zinc-900">硬い／不自然／AI臭い</span>だけで、お客は離れます。
             </p>
             <p className="text-lg text-zinc-600 mt-6">1行の違和感が、購入ボタンを遠ざける。</p>
           </div>
@@ -253,12 +251,7 @@ export default function Page() {
 
             <div className="flex flex-wrap justify-center gap-6">
               <PriceTag plan="Starter" price="¥490" detail="100クレジット（¥4.9/Cr）" />
-              <PriceTag
-                plan="Standard"
-                price="¥1,480"
-                detail="300クレジット（¥4.9/Cr）"
-                popular
-              />
+              <PriceTag plan="Standard" price="¥1,480" detail="300クレジット（¥4.9/Cr）" popular />
               <PriceTag plan="Pro" price="¥2,980" detail="800クレジット（¥3.7/Cr）" />
               <PriceTag plan="Enterprise" price="応相談" detail="無制限（¥3.0〜/Cr）" />
             </div>
@@ -276,7 +269,8 @@ export default function Page() {
   );
 }
 
-// ---------- Components ----------
+/* ---------- Components ---------- */
+
 function BABox({
   label,
   before,
@@ -318,6 +312,25 @@ function ValueCard({ icon, title, body }: { icon: string; title: string; body: s
   );
 }
 
+function DiffCard({ title, items, highlight }: { title: string; items: string[]; highlight: string }) {
+  return (
+    <div className="bg-zinc-800/60 border border-zinc-700 rounded-2xl p-6">
+      <h3 className="font-bold mb-4">{title}</h3>
+      <ul className="space-y-2 mb-4">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-zinc-300 flex items-start gap-2">
+            <span className="text-green-400 mt-0.5">✓</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="pt-4 border-t border-zinc-700">
+        <p className="text-xs text-zinc-400">{highlight}</p>
+      </div>
+    </div>
+  );
+}
+
 function StepCard({
   step,
   title,
@@ -346,7 +359,7 @@ function StepCard({
 function RuleItem({ rule, detail }: { rule: string; detail: string }) {
   return (
     <div className="flex gap-4 items-start">
-      <div className="w-2 h-2 rounded-full bg-white mt-2 flex-shrink-0"></div>
+      <div className="w-2 h-2 rounded-full bg-white mt-2 flex-shrink-0" />
       <div>
         <div className="font-semibold mb-1">{rule}</div>
         <div className="text-sm text-zinc-400">{detail}</div>
@@ -367,21 +380,13 @@ function PriceTag({
   popular?: boolean;
 }) {
   const base = "px-6 py-4 rounded-xl border-2 transition text-left min-w-[180px]";
-  const style = popular
-    ? "border-zinc-900 bg-zinc-900 text-white"
-    : "border-zinc-200 bg-white";
+  const style = popular ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white";
   return (
     <div className={`${base} ${style}`}>
       <div className="text-xs mb-1 opacity-70">{plan}</div>
       <div className="text-xl font-bold">{price}</div>
-      <div className={popular ? "text-xs text-zinc-200" : "text-xs text-zinc-500"}>
-        {detail}
-      </div>
-      {popular && (
-        <div className="mt-2 inline-block text-[10px] bg-white/10 px-2 py-1 rounded">
-          一番人気
-        </div>
-      )}
+      <div className={popular ? "text-xs text-zinc-200" : "text-xs text-zinc-500"}>{detail}</div>
+      {popular && <div className="mt-2 inline-block text-[10px] bg-white/10 px-2 py-1 rounded">一番人気</div>}
     </div>
   );
 }
