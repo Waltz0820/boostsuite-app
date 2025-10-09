@@ -21,29 +21,46 @@ export default function Page() {
   return (
     <>
      {/* Hero（動画背景） */}
-<section className="relative overflow-hidden text-white h-[90vh] md:h-[80vh]">
-  {/* 背景動画 */}
-  <video
-    autoPlay
-    loop
-    muted
-    playsInline
-    className="absolute inset-0 w-full h-full object-cover object-center opacity-55" // ← opacityを40→55に
-  >
-    <source src="/hero-bg.mp4" type="video/mp4" />
-  </video>
+<section
+  className="
+    relative overflow-hidden
+    min-h-[72vh] min-h-[72svh]      /* ← svh でアドレスバー対策 */
+    pt-16 md:pt-24 pb-16
+    text-white
+  "
+>
+  {/* ② 背景レイヤー */}
+  <div className="absolute inset-0 -z-10">
+    <video
+      src="/hero-bg.mp4"
+      poster="/hero-bg.png"
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="
+        absolute inset-0 w-full h-full
+        object-cover
+        [object-position:50%_35%]    /* ← 上を少し切り上げて“帯”を消す */
+        scale-[1.08]                  /* ← 横長素材を縦方向に余裕持たせる */
+        opacity-60 md:opacity-55      /* ← ほんの少しだけ薄く */
+        blur-[1px]                    /* ← うっすら被写界深度で文字を立てる */
+      "
+    />
+    {/* ③ オーバーレイ：濃さを少しだけ下げる */}
+    <div className="
+      absolute inset-0
+      bg-gradient-to-b
+      from-black/45 via-black/25 to-black/45
+    " />
+  </div>
 
-  {/* グラデーション（少し薄め） */}
-  <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/70 via-zinc-900/60 to-zinc-900/80" /> 
-  {/* ← 透過率を下げて動画を少し見せる */}
-
-  <div className="relative z-10 mx-auto max-w-4xl px-4 pt-16 pb-20 text-center">
-    <h1 className="text-4xl md:text-5xl font-bold leading-snug tracking-tight">
+  {/* ④ 見出し：行間を詰めて高さを抑える */}
+  <div className="mx-auto max-w-4xl px-4 text-center">
+    <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
       良い商品が、<span className="underline decoration-4">売れない</span>理由
       <br />
-      <span className="text-zinc-300 text-3xl md:text-4xl">
-        説明文の1行が、すべてを変える。
-      </span>
+      <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
     </h1>
 
     <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
