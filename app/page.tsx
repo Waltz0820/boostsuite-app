@@ -76,7 +76,7 @@ export default function Page() {
               href="/tool"
               className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-base md:text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
             >
-              30秒で無料トライアル（30クレジット）
+              30秒で“売れる”文章に（無料で試す）
             </a>
             <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
             <div className="mt-1 text-xs text-zinc-400">

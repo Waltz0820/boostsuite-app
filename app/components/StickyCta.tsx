@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 export default function StickyCta() {
   const [visible, setVisible] = useState(true);
 
-  // スクロール方向で少しだけ出し入れ（上方向スクロールで出す）
   useEffect(() => {
     let lastY = window.scrollY;
     const onScroll = () => {
@@ -27,23 +26,19 @@ export default function StickyCta() {
       aria-hidden={!visible}
     >
       <div className="mx-auto max-w-6xl px-4 pb-5">
-        <div className="backdrop-blur-md bg-zinc-900/70 border border-white/10 rounded-2xl shadow-lg">
-          <div className="p-3 flex items-center gap-3">
-            <span className="text-xs text-zinc-300">30秒で“欲しい”に。</span>
-            <div className="ml-auto">
-              <Link
-                href="/tool"
-                className="inline-flex items-center rounded-xl bg-white text-zinc-900 text-sm font-semibold px-4 py-2 shadow"
-                aria-label="30秒で無料トライアル（30クレジット）"
-              >
-                無料トライアル（30Cr）
-              </Link>
-            </div>
-          </div>
+        <div className="backdrop-blur-md bg-zinc-900/70 border border-white/10 rounded-2xl shadow-lg flex items-center justify-between px-5 py-3">
+          <span className="text-xs text-zinc-300 whitespace-nowrap">
+            30秒で<span className="font-semibold text-white">“売れる文章に”</span>
+          </span>
+          <Link
+            href="/tool"
+            className="ml-3 inline-flex items-center rounded-xl bg-white text-zinc-900 text-sm font-semibold px-4 py-2 shadow active:scale-[0.97] transition-transform"
+            aria-label="無料で試す"
+          >
+            無料で試す
+          </Link>
         </div>
       </div>
-      {/* 安全にタップできる余白 */}
-      <div className="h-2 bg-gradient-to-t from-black/40 to-transparent"></div>
     </div>
   );
 }
