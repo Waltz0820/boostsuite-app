@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Header from "./components/header";
-import Footer from "./components/footer"; // ← フッターを追加
+import Footer from "./components/footer";
+import StickyCta from "./components/StickyCta"; // ← モバイル固定CTAを追加
 
 export const metadata: Metadata = {
   title: "Boost Suite｜売れない言葉を、もう一度意味から組み直す",
@@ -33,6 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* 共通フッター */}
         <Footer />
+
+        {/* モバイル固定CTA */}
+        <StickyCta />
       </body>
     </html>
   );
