@@ -1,20 +1,47 @@
-type QA = { q: string; a: string };
+// app/components/faq.tsx
+export default function FAQ() {
+  const faqs = [
+    ["無料でも制限なく使えますか？", "初回30クレジットまで完全無料。登録不要・即利用OKです。"],
+    ["クレジットって何ですか？", "各生成で消費される単位です（例：Keyword=1 / Writing=2 / Image=3）。繰越OK。"],
+    ["多言語の原文にも対応？", "英・中・韓などを自動検知し、自然な日本語に整流します。"],
+    ["解約はいつでも？", "はい。1クリックでいつでも停止可能。違約金は一切ありません。"],
+    ["商用利用できますか？", "作成テキストは商用利用OKです（法令・規約内でのご利用をお願いします）。"],
+    ["セーフ/攻めの基準は？", "薬機・景表配慮の置換ルールを適用した安全版／訴求を強めた攻め版を同時出力します。"],
+  ];
 
-export default function FAQ({ items }: { items: QA[] }) {
   return (
-    <section className="mx-auto max-w-4xl px-4 py-12">
-      <h3 className="text-xl md:text-2xl font-bold text-center mb-6">よくある質問</h3>
-      <ul className="space-y-4">
-        {items.map((it, i) => (
-          <li
-            key={i}
-            className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm md:p-6"
+    <section className="py-12 md:py-16 bg-white">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-6">よくある質問</h2>
+
+        {/* PC: 2カラム / SP: 1カラム */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          {faqs.map(([q, a], i) => (
+            <details
+              key={i}
+              className="group rounded-xl border border-zinc-200 bg-white"
+            >
+              <summary className="cursor-pointer select-none list-none px-4 py-3 md:px-5 md:py-4 font-medium text-zinc-900 flex items-center justify-between">
+                <span className="pr-4">{q}</span>
+                <span className="ml-auto text-zinc-400 transition-transform group-open:rotate-45">＋</span>
+              </summary>
+              <div className="px-4 pb-3 md:px-5 md:pb-4 text-sm text-zinc-600 leading-relaxed border-t border-zinc-100">
+                {a}
+              </div>
+            </details>
+          ))}
+        </div>
+
+        {/* 追加入り口（高さ出しすぎないよう小さめ） */}
+        <div className="text-center mt-6">
+          <a
+            href="/docs#faq"
+            className="text-xs md:text-sm text-zinc-500 hover:text-zinc-700 underline underline-offset-4"
           >
-            <p className="font-semibold">{it.q}</p>
-            <p className="mt-2 text-sm text-zinc-600 leading-relaxed">{it.a}</p>
-          </li>
-        ))}
-      </ul>
+            さらに詳しいFAQを見る
+          </a>
+        </div>
+      </div>
     </section>
   );
 }
