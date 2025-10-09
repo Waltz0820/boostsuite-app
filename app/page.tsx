@@ -278,40 +278,7 @@ export default function Page() {
           </div>
         </div>
       </section>
-     <section className="py-16 bg-zinc-900 text-white">
-  <div className="mx-auto max-w-5xl px-4">
-    <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 text-white">
-      よくある質問
-    </h2>
-
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-      {faqs.map(([q, a], i) => (
-        <details
-          key={i}
-          className="group rounded-xl border border-zinc-700 bg-zinc-800/60"
-        >
-          <summary className="cursor-pointer select-none list-none px-4 py-3 md:px-5 md:py-4 font-medium text-zinc-100 flex items-center justify-between">
-            <span className="pr-4">{q}</span>
-            <span className="ml-auto text-zinc-400 transition-transform group-open:rotate-45">＋</span>
-          </summary>
-          <div className="px-4 pb-3 md:px-5 md:pb-4 text-sm text-zinc-300 leading-relaxed border-t border-zinc-700/50">
-            {a}
-          </div>
-        </details>
-      ))}
-    </div>
-
-    <div className="text-center mt-6">
-      <a
-        href="/docs#faq"
-        className="text-xs md:text-sm text-zinc-400 hover:text-white underline underline-offset-4"
-      >
-        さらに詳しいFAQを見る
-      </a>
-    </div>
-  </div>
-</section>
-
+     <FAQ />
     </>
   );
 }
