@@ -127,15 +127,16 @@ export default function Page() {
             />
           </div>
 
-          <DiffCard
-  title="導入ハードルを、限りなくゼロに。"
-  items={[
-    "既存ツールの約1/5〜1/10の価格帯",
-    "登録不要・即日利用OK",
-    "誰でも30秒で“売れる日本語”を生成",
-  ]}
-  highlight="ツール導入で迷わず、成果に集中できる設計。"
-/>
+          <div className="mt-12 grid md:grid-cols-2 gap-8">
+            <DiffCard
+              title="導入ハードルを、限りなくゼロに。"
+              items={[
+                "既存ツールの約1/5〜1/10の価格帯",
+                "登録不要・即日利用OK",
+                "誰でも30秒で“売れる日本語”を生成",
+              ]}
+              highlight="ツール導入で迷わず、成果に集中できる設計。"
+            />
             <DiffCard
               title="脳死運用OKの自動適応"
               items={[
