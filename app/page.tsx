@@ -32,21 +32,27 @@ export default function Page() {
   {/* ② 背景レイヤー */}
   <div className="absolute inset-0 -z-10">
     <video
-      src="/hero-bg.mp4"
-      poster="/hero-bg.png"
-      autoPlay
-      muted
-      loop
-      playsInline
-      className="
-        absolute inset-0 w-full h-full
-        object-cover
-        [object-position:50%_35%]    /* ← 上を少し切り上げて“帯”を消す */
-        scale-[1.08]                  /* ← 横長素材を縦方向に余裕持たせる */
-        opacity-60 md:opacity-55      /* ← ほんの少しだけ薄く */
-        blur-[1px]                    /* ← うっすら被写界深度で文字を立てる */
-      "
-    />
+  src="/hero-bg.mp4"
+  poster="/hero-bg.png"
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="
+    absolute inset-0 w-full h-full
+    object-cover
+    [object-position:50%_35%]
+    scale-[1.08]
+    opacity-60 md:opacity-55
+    blur-[1px]
+    transition-transform duration-[15000ms] ease-linear
+  "
+  onLoadedMetadata={(e) => {
+    const video = e.currentTarget
+    video.playbackRate = 0.6 // ← 再生速度0.6倍
+  }}
+/>
+<div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 z-10 pointer-events-none" />
     {/* ③ オーバーレイ：濃さを少しだけ下げる */}
     <div className="
       absolute inset-0
