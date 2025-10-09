@@ -1,18 +1,28 @@
 // app/page.tsx
 import Link from "next/link";
+import UiMock from "./components/ui-mock";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
   description:
     "良い商品が売れないのは“説明文の1行”のせいかも。Boost Suiteは、プロのセールス構成 × 売れ筋データ × SEO最適化を自動化した「商品説明の整流AI」です。",
+  metadataBase: new URL("https://boostsuite-app.vercel.app"),
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Boost Suite｜売れる日本語を自動生成",
     description:
-      "直訳や硬い文章を、購入意欲を高める自然な表現へ。リスク回避も自動対応。月¥490から。",
+      "直訳や硬い文章を、購入意欲を高める自然な表現へ。リスク配慮も自動対応。月¥490から。",
     url: "https://boostsuite-app.vercel.app/",
     siteName: "Boost Suite",
     locale: "ja_JP",
     type: "website",
+    images: ["/og.jpg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Boost Suite｜売れる日本語を自動生成",
+    description: "30秒で“欲しい”に届く日本語へ。月¥490〜。",
+    images: ["/og.jpg"],
   },
 };
 
@@ -20,15 +30,15 @@ export default function Page() {
   return (
     <>
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 bg-gradient-to-b from-zinc-900 to-zinc-800 text-white">
+      <section className="mx-auto max-w-6xl px-4 pt-20 pb-16 bg-gradient-to-b from-zinc-900 to-zinc-800 text-white">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">
-            良い商品が、<span className="underline decoration-4">売れない</span>理由
+            良い商品が、<span className="underline decoration-4 underline-offset-4">売れない</span>理由
             <br />
-            <span className="text-zinc-400">説明文の1行が、すべてを変える。</span>
+            <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
           </h1>
 
-          <p className="mt-8 text-xl md:text-2xl text-zinc-300 leading-relaxed">
+          <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
             Boost Suite は
             <span className="font-semibold text-white">
               {" "}
@@ -37,28 +47,24 @@ export default function Page() {
             を自動化した「商品説明の整流AI」です。
           </p>
 
-          <p className="mt-6 text-lg text-zinc-300">
-            硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
-          </p>
-
-          <div className="mt-10 flex flex-col items-center gap-3">
+          <div className="mt-8 flex flex-col items-center gap-3">
             <Link
               href="/tool"
-              className="px-10 py-5 rounded-xl bg-white text-zinc-900 text-lg md:text-xl font-semibold hover:bg-zinc-100 transition-all shadow-lg"
+              aria-label="Boost Suiteを無料で試す（30クレジット）"
+              className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
             >
               30秒で無料トライアル（30クレジット）
             </Link>
-            <p className="text-xs text-zinc-400">
-              登録不要／コピペ → ワンタップで整文
-            </p>
-            <div className="mt-2 text-xs text-zinc-400">
-              競合$39/月（¥5,850） vs Boost ¥490/月〜
-            </div>
+            <p className="text-xs text-zinc-400">登録不要／コピペ → ワンタップで整文</p>
+            <p className="text-xs text-zinc-400">既存ツールの価格帯より圧倒的に手頃。入口で迷わせず、運用で回収。</p>
           </div>
         </div>
+
+        {/* ダミーUIビジュアル（モック） */}
+        <UiMock />
       </section>
 
-      {/* Before/After */}
+      {/* Before / After */}
       <section className="py-20 bg-zinc-50">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
@@ -70,19 +76,19 @@ export default function Page() {
               label="モバイルバッテリー"
               before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
               after="充電切れの心配、ありません。外でも旅先でも、この1台で自由に動ける。"
-              tag="CVR +30%（想定）"
+              tag="ベネフィット訴求へ翻訳"
             />
             <BABox
               label="美顔器"
               before="RF機能で肌の弾力を改善… 臨床的に検証…"
               after="鏡を見るのが、少し楽しみになる。自宅で心地よく続けられるケアに。"
-              tag="薬機表現を安全置換"
+              tag="薬機・景表配慮の表現へ"
             />
             <BABox
               label="ヴィンテージデニム"
               before="復古ブルー…高腰設計…垂れ感…百搭…"
               after="今日はこれさえあれば。ラフな日も、背筋を伸ばしたい日も。"
-              tag="自然な日本語設計"
+              tag="自然な日本語へ最適化"
             />
           </div>
 
@@ -101,41 +107,37 @@ export default function Page() {
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">
-              なぜ、Boost Suiteで売れる？
-            </h2>
-            <p className="text-zinc-600">
-              他のAI文章生成とは、設計思想が違います。
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">なぜ、Boost Suiteで売れる？</h2>
+            <p className="text-zinc-600">“生成”ではなく“整流”。設計思想が違います。</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <ValueCard
               icon="🎯"
               title="スペック→安心に翻訳"
-              body="“22000mAh”より“充電切れの心配なし”。数字の羅列を、買う理由に転換。"
+              body="“22000mAh”より“充電切れの心配なし”。数字の羅列を買う理由へ転換。"
             />
             <ValueCard
               icon="🛡️"
               title="法令リスクを回避"
-              body="薬機/景表の危険表現を自動検知＆安全置換。ECアカウントを守る。"
+              body="薬機・景表の危険表現を自動検知＆安全置換。アカウントを守る。"
             />
             <ValueCard
               icon="⚡"
               title="アフターも整流"
-              body="FAQ/レビュー返信/クレーム火消しまで自動生成。LTVを底上げ。"
+              body="FAQ/レビュー返信/クレーム火消しまで自動生成。解約率を下げLTVを底上げ。"
             />
           </div>
 
           <div className="mt-12 grid md:grid-cols-2 gap-8">
             <DiffCard
-              title="導入ハードルを、限りなくゼロに。"
+              title="“価格の障壁”を外す"
               items={[
-                "既存ツールの約1/5〜1/10の価格帯",
-                "登録不要・即日利用OK",
-                "誰でも30秒で“売れる日本語”を生成",
+                "はじめやすい低価格の定額",
+                "使った分だけ明快なクレジット制",
+                "導入の迷いを最小化",
               ]}
-              highlight="ツール導入で迷わず、成果に集中できる設計。"
+              highlight="入口で迷わせず、LTVで回収。"
             />
             <DiffCard
               title="脳死運用OKの自動適応"
@@ -154,9 +156,7 @@ export default function Page() {
       <section className="bg-zinc-50 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              使い方は、貼って押すだけ。
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">使い方は、貼って押すだけ。</h2>
             <p className="text-zinc-600">30秒で「売れる文章」が完成</p>
           </div>
 
@@ -164,20 +164,20 @@ export default function Page() {
             <StepCard
               step="1"
               title="原文を貼る"
-              description="商品説明・中国語/韓国語の原文・レビューURLなど"
-              detail="Amazon/Rakuten/越境ECのテキストもOK"
+              description="商品説明やレビューをコピペ。中国語/韓国語の原文もOK。"
+              detail="Amazon・楽天・越境ECのテキストにも対応"
             />
             <StepCard
               step="2"
               title="Boostを押す"
-              description="自動判定→構成リビルド→2パターン出力"
+              description="自動判定→意味の再設計→2パターン出力。"
               detail="セーフティ版／オフェンシブ版を同時生成"
             />
             <StepCard
               step="3"
               title="コピーして使う"
-              description="モジュール単位でコピー、PDF/CSV出力も可"
-              detail="有料なら履歴保存・再編集OK"
+              description="モジュール単位でコピー。PDF/CSV出力も可能。"
+              detail="有料プランなら履歴保存・再編集OK"
             />
           </div>
 
@@ -185,9 +185,7 @@ export default function Page() {
             <div className="inline-block bg-white rounded-2xl p-8 shadow-sm border">
               <div className="text-sm text-zinc-500 mb-2">平均作業時間</div>
               <div className="text-5xl font-bold text-zinc-900">30秒</div>
-              <div className="text-sm text-zinc-600 mt-2">
-                手動リライト2時間 → 30秒に短縮
-              </div>
+              <div className="text-sm text-zinc-600 mt-2">手動リライト2時間 → 30秒に短縮</div>
             </div>
 
             <div className="mt-10">
@@ -206,27 +204,25 @@ export default function Page() {
       <section className="py-20">
         <div className="mx-auto max-w-4xl px-4">
           <div className="bg-zinc-900 text-white rounded-3xl p-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
-              Boostの黄金律
-            </h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Boostの黄金律</h2>
 
             <div className="space-y-6">
               <RuleItem rule="事実8割、余韻2割" detail="具体的に、でも想像の余地は残す。" />
-              <RuleItem rule="効能ではなく、安心を語る" detail="“改善”より“自分を丁寧に扱う時間”。" />
-              <RuleItem rule="買わない理由を先回りして潰す" detail="レビューから不安を抽出→構成に反映。" />
-              <RuleItem rule="構文修正ではなく、意味の再設計" detail="文法ではなく、市場文脈を変換する。" />
+              <RuleItem rule="効能ではなく、安心を語る" detail="“改善”より“自分を丁寧に扱う時間”を示す。" />
+              <RuleItem rule="買わない理由を先回りして埋める" detail="レビューから不安を抽出→構成に反映。" />
+              <RuleItem rule="構文修正ではなく、意味の再設計" detail="文法ではなく市場文脈を変換する。" />
             </div>
 
             <div className="mt-10 pt-10 border-t border-zinc-700 text-center">
               <p className="text-zinc-400 text-sm leading-relaxed">
-                これらの原則をAI構文に実装。誰でも“売れる日本語”で出力できます。
+                これらの原則をAIに実装。誰でも“売れる日本語”で出力できます。
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Final CTA + Pricing */}
+      {/* Final CTA + Pricing (credits) */}
       <section className="py-24 bg-gradient-to-b from-white to-zinc-50">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
@@ -237,8 +233,7 @@ export default function Page() {
           <div className="max-w-2xl mx-auto space-y-6 mb-12">
             <p className="text-xl text-zinc-700">商品は良い。価格も適正。写真も十分。</p>
             <p className="text-xl text-zinc-700">
-              でも説明文が<span className="font-bold text-zinc-900">硬い／不自然／AI臭い</span>だけで、
-              お客は離れます。
+              でも説明文が<span className="font-bold text-zinc-900">硬い／不自然／AI臭い</span>だけで、お客は離れます。
             </p>
             <p className="text-lg text-zinc-600 mt-6">1行の違和感が、購入ボタンを遠ざける。</p>
           </div>
@@ -250,7 +245,7 @@ export default function Page() {
             30秒で、売れる言葉に変える
           </Link>
 
-          {/* Pricing */}
+          {/* Pricing pills */}
           <div className="mt-16 pt-16 border-t">
             <p className="text-sm text-zinc-500 mb-6">料金プラン</p>
 
@@ -273,10 +268,6 @@ export default function Page() {
               <p>📌 Starterなら約100生成、Proなら400〜800生成相当。</p>
               <p>💳 追加チャージ：100クレジット＝¥490（ロールオーバーOK）</p>
               <p>🎁 無料トライアル：初回30クレジット（15〜30生成分）</p>
-              <p className="mt-4">
-                競合ツール（$39/月 ≈ ¥5,850）の
-                <span className="font-medium">1/4〜1/12</span>の価格。
-              </p>
             </div>
           </div>
         </div>
@@ -285,7 +276,7 @@ export default function Page() {
   );
 }
 
-/* ---------- Components ---------- */
+/* ---------- Components (ページ内簡易) ---------- */
 
 function BABox({
   label,
@@ -321,29 +312,21 @@ function BABox({
 function ValueCard({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
     <div className="bg-white border-2 border-zinc-100 rounded-2xl p-8 hover:border-zinc-900 transition-all hover:shadow-lg">
-      <div className="text-4xl mb-4">{icon}</div>
+      <div className="text-4xl mb-4" aria-hidden>{icon}</div>
       <h3 className="font-bold text-lg">{title}</h3>
       <p className="mt-2 text-sm text-zinc-600 leading-relaxed">{body}</p>
     </div>
   );
 }
 
-function DiffCard({
-  title,
-  items,
-  highlight,
-}: {
-  title: string;
-  items: string[];
-  highlight: string;
-}) {
+function DiffCard({ title, items, highlight }: { title: string; items: string[]; highlight: string }) {
   return (
     <div className="bg-white border rounded-2xl p-6">
       <h3 className="font-bold mb-4">{title}</h3>
       <ul className="space-y-2 mb-4">
         {items.map((item, i) => (
           <li key={i} className="text-sm text-zinc-600 flex items-start gap-2">
-            <span className="text-green-600 mt-0.5">✓</span>
+            <span className="text-green-600 mt-0.5" aria-hidden>✓</span>
             <span>{item}</span>
           </li>
         ))}
@@ -383,7 +366,7 @@ function StepCard({
 function RuleItem({ rule, detail }: { rule: string; detail: string }) {
   return (
     <div className="flex gap-4 items-start">
-      <div className="w-2 h-2 rounded-full bg-white mt-2 flex-shrink-0"></div>
+      <div className="w-2 h-2 rounded-full bg-white mt-2 flex-shrink-0" />
       <div>
         <div className="font-semibold mb-1">{rule}</div>
         <div className="text-sm text-zinc-400">{detail}</div>
@@ -403,19 +386,13 @@ function PriceTag({
   detail: string;
   popular?: boolean;
 }) {
-  const base =
-    "px-6 py-4 rounded-xl border-2 transition text-left min-w-[180px]";
-  const style = popular
-    ? "border-zinc-900 bg-zinc-900 text-white"
-    : "border-zinc-200 bg-white";
-
+  const base = "px-6 py-4 rounded-xl border-2 transition text-left min-w-[180px]";
+  const style = popular ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white";
   return (
     <div className={`${base} ${style}`}>
       <div className="text-xs mb-1 opacity-70">{plan}</div>
       <div className="text-xl font-bold">{price}</div>
-      <div className={popular ? "text-xs text-zinc-200" : "text-xs text-zinc-500"}>
-        {detail}
-      </div>
+      <div className={popular ? "text-xs text-zinc-200" : "text-xs text-zinc-500"}>{detail}</div>
       {popular && (
         <div className="mt-2 inline-block text-[10px] bg-white/10 px-2 py-1 rounded">
           一番人気
