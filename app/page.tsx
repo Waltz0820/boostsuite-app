@@ -20,48 +20,47 @@ export const metadata = {
 export default function Page() {
   return (
     <>
-     {/* Hero（動画背景） */}
+ {/* Hero（動画背景） */}
 <section
   className="
     relative overflow-hidden
-    min-h-[72vh] min-h-[72svh]      /* ← svh でアドレスバー対策 */
+    min-h-[72vh] min-h-[72svh]   /* アドレスバー対策 */
     pt-16 md:pt-24 pb-16
     text-white
   "
 >
-  {/* ② 背景レイヤー */}
+  {/* 背景レイヤー */}
   <div className="absolute inset-0 -z-10">
     <video
-  src="/hero-bg.mp4"
-  poster="/hero-bg.png"
-  autoPlay
-  muted
-  loop
-  playsInline
-  className="
-    absolute inset-0 w-full h-full
-    object-cover
-    [object-position:50%_35%]
-    scale-[1.08]
-    opacity-60 md:opacity-55
-    blur-[1px]
-    transition-transform duration-[15000ms] ease-linear
-  "
-  onLoadedMetadata={(e) => {
-    const video = e.currentTarget
-    video.playbackRate = 0.6 // ← 再生速度0.6倍
-  }}
-/>
-<div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 z-10 pointer-events-none" />
-    {/* ③ オーバーレイ：濃さを少しだけ下げる */}
-    <div className="
-      absolute inset-0
-      bg-gradient-to-b
-      from-black/45 via-black/25 to-black/45
-    " />
+      src="/hero-bg.mp4"
+      poster="/hero-bg.png"
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="
+        absolute inset-0 w-full h-full
+        object-cover
+        object-[50%_35%]              /* ← ここを修正 */
+        scale-[1.08]
+        opacity-60 md:opacity-55
+        blur-[1px]
+        transition-transform duration-[15000ms] ease-linear
+      "
+      onLoadedMetadata={(e) => {
+        const video = e.currentTarget as HTMLVideoElement; // ← 型を明示
+        video.playbackRate = 0.6;                          // 再生速度をゆっくり
+      }}
+    />
+
+    {/* ループのつなぎ目を目立たなくする薄いグラデ */}
+    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
+
+    {/* さらに全体を少しだけ落ち着かせる（薄めに） */}
+    <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/45 pointer-events-none" />
   </div>
 
-  {/* ④ 見出し：行間を詰めて高さを抑える */}
+  {/* 見出し */}
   <div className="mx-auto max-w-4xl px-4 text-center">
     <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
       良い商品が、<span className="underline decoration-4">売れない</span>理由
