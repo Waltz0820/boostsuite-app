@@ -20,57 +20,58 @@ export const metadata = {
 export default function Page() {
   return (
     <>
-      {/* Hero */}
-      <section className="relative overflow-hidden text-white">
-        {/* 背景画像（/public/hero-bg.png） */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <Image
-            src="/hero-bg.png"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover opacity-30 scale-105"
-          />
-          {/* トーン調整のグラデーション */}
-          <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/90 via-zinc-900/85 to-zinc-900/95" />
+     {/* Hero（動画背景） */}
+<section className="relative overflow-hidden text-white">
+  {/* 背景動画 */}
+  <video
+    autoPlay
+    loop
+    muted
+    playsInline
+    className="absolute inset-0 w-full h-full object-cover opacity-40"
+  >
+    <source src="/hero-bg.mp4" type="video/mp4" />
+  </video>
+
+  {/* グラデーションオーバーレイ */}
+  <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/80 via-zinc-900/80 to-zinc-900/95" />
+
+  {/* コンテンツ */}
+  <div className="relative z-10 mx-auto max-w-6xl px-4 pt-20 pb-24">
+    <div className="text-center max-w-4xl mx-auto">
+      <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">
+        良い商品が、<span className="underline decoration-4">売れない</span>理由
+        <br />
+        <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
+      </h1>
+
+      <p className="mt-8 text-xl md:text-2xl text-zinc-200 leading-relaxed">
+        Boost Suite は
+        <span className="font-semibold text-white">
+          {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
+        </span>
+        を自動化した「商品説明の整流AI」です。
+      </p>
+
+      <p className="mt-6 text-lg text-zinc-300">
+        硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
+      </p>
+
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <a
+          href="/tool"
+          className="px-10 py-5 rounded-xl bg-white text-zinc-900 text-lg md:text-xl font-semibold hover:bg-zinc-100 transition-all shadow-lg"
+        >
+          30秒で無料トライアル（30クレジット）
+        </a>
+        <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
+        <div className="mt-1 text-xs text-zinc-400">
+          既存ツール¥5,000台/月 → Boost ¥490/月〜
         </div>
-
-        {/* コンテンツ */}
-        <div className="relative z-20 mx-auto max-w-6xl px-4 pt-20 pb-24">
-          <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">
-              良い商品が、<span className="underline decoration-4">売れない</span>理由
-              <br />
-              <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
-            </h1>
-
-            <p className="mt-8 text-xl md:text-2xl text-zinc-200 leading-relaxed">
-              Boost Suite は
-              <span className="font-semibold text-white">
-                {" "}
-                プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
-              </span>
-              を自動化した「商品説明の整流AI」です。
-            </p>
-
-            <p className="mt-6 text-lg text-zinc-300">
-              硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
-            </p>
-
-            <div className="mt-10 flex flex-col items-center gap-3">
-              <Link
-                href="/tool"
-                className="px-10 py-5 rounded-xl bg-white text-zinc-900 text-lg md:text-xl font-semibold hover:bg-zinc-100 transition-all shadow-lg"
-              >
-                30秒で無料トライアル（30クレジット）
-              </Link>
-              <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
-              <div className="mt-1 text-xs text-zinc-400">既存ツール¥5,000台/月 → Boost ¥490/月〜</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Before/After */}
       <section className="py-20 bg-zinc-50">
