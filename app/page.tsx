@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HeroVideo from "./components/hero-video";
+import FAQ from "./components/FAQ";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -63,11 +64,11 @@ export default function Page() {
             <span className="font-semibold text-white">
               {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
             </span>
-            を自動化した「商品説明の整流AI」です。
+            を自動化する「商品説明の整流AI」
           </p>
 
           <p className="mt-4 text-base md:text-lg text-zinc-300">
-            硬い・不自然・AI臭い文章を、30秒で「欲しい」に変える。
+            硬い・不自然・AI特有の文章を、30秒で「欲しい」に。
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3">
@@ -256,6 +257,15 @@ export default function Page() {
           >
             30秒で、売れる言葉に変える
           </Link>
+
+<FAQ
+  items={[
+    { q: "途中解約はいつでも？", a: "いつでも解約OK。以降の請求は発生しません。" },
+    { q: "クレカ必須？", a: "無料トライアルは不要。契約時のみ入力いただきます。" },
+    { q: "クレジットの有効期限は？", a: "ロールオーバーOK。翌月以降も繰り越して使えます。" },
+    { q: "CSV一括は何件まで？", a: "Proは1回あたり1,000件を目安。順次拡張予定です。" },
+  ]}
+/>
 
           {/* Pricing */}
           <div className="mt-16 pt-16 border-t">
