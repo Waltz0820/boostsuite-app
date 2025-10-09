@@ -46,10 +46,10 @@ export default function Page() {
           <div className="mt-12 flex flex-col items-center gap-4">
             <Link
               href="/tool"
-              aria-label="Boost Suiteを無料で試す（10回）"
+              aria-label="Boost Suiteを無料で試す（30クレジット）"
               className="px-10 py-5 rounded-xl bg-white text-zinc-900 text-xl font-semibold hover:bg-zinc-100 transition-all shadow-lg"
             >
-              30秒で無料試す（10回）
+              30秒で無料試す（30クレジット）
             </Link>
             <p className="text-sm text-zinc-400">登録不要・コピペ即出力</p>
             <div className="mt-4 text-xs text-zinc-400">
@@ -102,7 +102,7 @@ export default function Page() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
             なぜ、Boost Suiteで売れる？
           </h2>
-        <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8">
             <ValueCard
               icon="🎯"
               title="安心を売る"
@@ -198,7 +198,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 最終CTA ＋ 価格 */}
+      {/* 最終CTA ＋ 価格（クレジット表記に統一） */}
       <section className="py-24 bg-gradient-to-b from-white to-zinc-50">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
@@ -220,7 +220,7 @@ export default function Page() {
               30秒で、売れる言葉に変える
             </Link>
             <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-zinc-500">無料で10回まで。登録不要。今すぐ試せます。</p>
+              <p className="text-sm text-zinc-500">無料で30クレジット。登録不要。</p>
               <div className="flex gap-4 text-xs text-zinc-400">
                 <span>✓ クレカ不要</span>
                 <span>✓ メール不要</span>
@@ -229,13 +229,13 @@ export default function Page() {
             </div>
           </div>
 
-          {/* 価格 */}
+          {/* 価格（クレジットに修正） */}
           <div className="mt-16 pt-16 border-t">
             <p className="text-sm text-zinc-500 mb-6">料金プラン</p>
             <div className="flex flex-wrap justify-center gap-6">
-              <PriceTag plan="Starter" price="¥490" detail="月100生成" />
-              <PriceTag plan="Standard" price="¥1,480" detail="月300生成" popular />
-              <PriceTag plan="Pro" price="¥2,980" detail="月1000生成" />
+              <PriceTag plan="Starter" price="¥490" detail="100クレジット（¥4.9/Cr）" />
+              <PriceTag plan="Standard" price="¥1,480" detail="300クレジット（¥4.9/Cr）" popular />
+              <PriceTag plan="Pro" price="¥2,980" detail="800クレジット（¥3.7/Cr）" />
             </div>
             <p className="text-xs text-zinc-400 mt-6">
               競合ツール（$39/月 = ¥5,850）の1/4〜1/12の価格
@@ -243,42 +243,6 @@ export default function Page() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t bg-zinc-50">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            <FooterCol
-              title="Boost Suite"
-              desc="売れない言葉を、もう一度意味から組み直す。"
-            />
-            <FooterLinks
-              title="プロダクト"
-              items={[
-                ["/tool", "ツールを試す"],
-                ["/pricing", "料金プラン"],
-                ["/column", "活用事例"],
-              ]}
-            />
-            <FooterLinks
-              title="リソース"
-              items={[
-                ["/docs", "ドキュメント"],
-                ["/api", "API"],
-                ["/blog", "ブログ"],
-              ]}
-            />
-            <FooterLinks
-              title="会社情報"
-              items={[
-                ["/about", "運営会社"],
-                ["/terms", "利用規約"],
-                ["/privacy", "プライバシー"],
-              ]}
-            />
-          </div>
-        </div>
-      </footer>
     </>
   );
 }
@@ -377,38 +341,11 @@ function PriceTag({
       <div className="text-xs mb-1 opacity-70">{plan}</div>
       <div className="text-xl font-bold">{price}</div>
       <div className={`text-xs ${popular ? "text-zinc-200" : "text-zinc-500"}`}>{detail}</div>
-    </div>
-  );
-}
-
-function FooterCol({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div>
-      <div className="font-bold text-lg mb-4">{title}</div>
-      <p className="text-sm text-zinc-600 leading-relaxed">{desc}</p>
-    </div>
-  );
-}
-
-function FooterLinks({
-  title,
-  items,
-}: {
-  title: string;
-  items: [href: string, label: string][];
-}) {
-  return (
-    <div>
-      <div className="text-sm font-semibold mb-4">{title}</div>
-      <ul className="space-y-2 text-sm text-zinc-600">
-        {items.map(([href, label]) => (
-          <li key={href}>
-            <Link href={href} className="hover:text-zinc-900">
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {popular && (
+        <div className="mt-2 inline-block text-[10px] bg-white/10 px-2 py-1 rounded">
+          一番人気
+        </div>
+      )}
     </div>
   );
 }
