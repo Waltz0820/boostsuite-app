@@ -59,7 +59,7 @@ export default function Page() {
           {/* ループ境目ぼかし */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
           {/* 全体トーン補正 */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/45 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/35 pointer-events-none" />
         </div>
 
         {/* 見出し */}
