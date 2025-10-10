@@ -4,15 +4,15 @@ type Props = {
   before: string;
   after: string;
   tag?: string;
-  ribbon?: string;            // 右上リボンに表示したい短いテキスト（例: "Before/After"）
+  ribbon?: string; // 右上リボンに表示したい短いテキスト（例: "Before/After"）
 };
 
 export default function BABoxMono({ label, before, after, tag, ribbon }: Props) {
   return (
     <div className="relative rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all will-change-transform hover:-translate-y-0.5 hover:shadow-md">
-      {/* Ribbon（任意） */}
+      {/* Ribbon（任意・フラット配置） */}
       {ribbon && (
-        <span className="pointer-events-none absolute -right-10 -top-3 rotate-12 rounded bg-zinc-900 px-3 py-1 text-[10px] font-semibold tracking-wide text-white opacity-90">
+        <span className="absolute top-3 right-3 bg-zinc-800 text-white text-[10px] font-semibold tracking-wide px-2 py-1 rounded-md">
           {ribbon}
         </span>
       )}
