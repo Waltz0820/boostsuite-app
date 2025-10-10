@@ -36,7 +36,7 @@ export default function Page() {
         <div className="absolute inset-0 -z-10">
          <HeroVideo
   src="/suite.mp4"
-  poster="/hero-bg.png"
+  poster="/suite.png"
   playbackRate={1}
   loop={false}
   className="
