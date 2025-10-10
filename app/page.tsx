@@ -7,6 +7,7 @@ import CtaBar from "./components/cta-bar";
 import RulesDark from "./components/rules-dark";
 import FinalCtaDark from "./components/FinalCtaDark";
 import PricingDark from "./components/PricingDark";
+import FAQDark from "./components/FAQDark";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -212,9 +213,9 @@ export default function Page() {
      <RulesDark />
 
       {/* Final CTA + Pricing */}
-          <FinalCtaDark />
           <PricingDark />
-     <FAQ />
+          <FAQDark />
+     <FinalCtaDark />
      <CtaBar />
     </>
   );
