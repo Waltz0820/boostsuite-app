@@ -1,32 +1,39 @@
-'use client';
-
-import { useEffect, useRef } from 'react';
+"use client";
+import { useEffect, useRef } from "react";
 
 type Props = {
   src: string;
   poster?: string;
   className?: string;
-  playbackRate?: number; // デフォ 0.6
+  playbackRate?: number;
+  loop?: boolean;
 };
 
 export default function HeroVideo({
   src,
   poster,
   className,
-  playbackRate = 0.6,
+  playbackRate = 1,
+  loop = false, // デフォルトでループさせない
 }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
-    // iOS 対策：一度 play() を試みてから再度 rate を適用
-    const apply = () => {
-      try { v.playbackRate = playbackRate; } catch {}
+
+    // 再生速度を設定
+    v.playbackRate = playbackRate;
+
+    // 再生終了時に少し暗くフェード（自然停止用）
+    const handleEnd = () => {
+      v.classList.add("opacity-60", "transition-opacity", "duration-1000");
     };
-    apply();
-    const id = setTimeout(apply, 100); // メタデータ後の再適用
-    return () => clearTimeout(id);
+
+    v.addEventListener("ended", handleEnd);
+    return () => {
+      v.removeEventListener("ended", handleEnd);
+    };
   }, [playbackRate]);
 
   return (
@@ -36,21 +43,10 @@ export default function HeroVideo({
       poster={poster}
       autoPlay
       muted
-      loop
       playsInline
+      preload="metadata"
+      loop={loop}
       className={className}
     />
   );
 }
-useEffect(() => {
-  const v = ref.current;
-  if (!v) return;
-
-  v.playbackRate = playbackRate;
-
-  const handleEnd = () => {
-    v.classList.add("opacity-60"); // ← 再生終了時に少し暗くする
-  };
-  v.addEventListener("ended", handleEnd);
-  return () => v.removeEventListener("ended", handleEnd);
-}, [playbackRate]);
