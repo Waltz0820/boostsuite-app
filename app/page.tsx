@@ -287,27 +287,6 @@ export default function Page() {
 
 /* ---------- Components ---------- */
 
-function BABox({ label, before, after, tag }: { label: string; before: string; after: string; tag: string }) {
-  return (
-    <div className="bg-white rounded-2xl p-6 border-2 border-zinc-100 hover:border-green-500 transition">
-      <div className="text-xs text-zinc-500 mb-2">{label}</div>
-      <div className="bg-red-50 p-4 rounded-lg mb-4">
-        <p className="text-sm text-zinc-700">
-          <span className="font-semibold text-red-600 mr-2">❌ Before</span>
-          {before}
-        </p>
-      </div>
-      <div className="bg-green-50 p-4 rounded-lg">
-        <p className="text-sm text-zinc-900 font-medium">
-          <span className="font-semibold text-green-600 mr-2">✅ After</span>
-          {after}
-        </p>
-      </div>
-      <div className="mt-4 text-xs text-green-600">{tag}</div>
-    </div>
-  );
-}
-
 function ValueCard({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
     <div className="bg-zinc-800 rounded-2xl p-8 hover:bg-zinc-700 transition-all">
