@@ -149,54 +149,58 @@ export default function Page() {
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
 </section>
       {/* Why Boost */}
-      <section className="py-20 bg-zinc-900 text-white">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">なぜ、Boost Suiteで売れる？</h2>
-            <p className="text-zinc-400">他のAI文章生成とは、設計思想が違います。</p>
-          </div>
+      <section className="py-24 bg-zinc-950 text-white relative overflow-hidden">
+  <div className="mx-auto max-w-6xl px-4">
+    <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+      <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+        なぜ、Boost Suiteで“売れる”のか？
+      </span>
+    </h2>
+    <p className="text-zinc-400 text-center mb-16">
+      他のAIツールにはない「言葉の設計思想」。
+    </p>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <ValueCard
-              icon="🎯"
-              title="スペック→安心に翻訳"
-              body="“22000mAh”より“充電切れの心配なし”。数字の羅列を、買う理由に転換。"
-            />
-            <ValueCard
-              icon="🛡️"
-              title="法令リスクを回避"
-              body="薬機/景表の危険表現を自動検知＆安全置換。ECアカウントを守る。"
-            />
-            <ValueCard
-              icon="⚡"
-              title="アフターも整流"
-              body="FAQ/レビュー返信/クレーム火消しまで自動生成。LTVを底上げ。"
-            />
-          </div>
+    <div className="grid md:grid-cols-3 gap-8">
+      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
+        <div className="text-4xl mb-4">🎯</div>
+        <h3 className="font-bold mb-2 text-lg">スペック → 安心に翻訳</h3>
+        <p className="text-sm text-zinc-300 leading-relaxed">
+          “22000mAh”より“充電切れの心配なし”。  
+          数字を“買う理由”に変換する設計。
+        </p>
+      </div>
 
-          <div className="mt-12 grid md:grid-cols-2 gap-8">
-            <DiffCard
-              title="導入ハードルを、限りなくゼロに"
-              items={[
-                "既存ツールの約1/5〜1/10の価格帯",
-                "登録不要・即日利用OK",
-                "誰でも30秒で“売れる日本語”を生成",
-              ]}
-              highlight="ツール導入で迷わず、成果に集中できる設計。"
-            />
-            <DiffCard
-              title="脳死運用OKの自動適応"
-              items={[
-                "ジャンル自動判定（美容/家電/ファッション…）",
-                "モード自動選定（セーフ/攻め、痛点/変化/感性）",
-                "レビュー要約→不安の先回り提案",
-              ]}
-              highlight="貼る→押す→使う、だけ。"
-            />
-          </div>
-        </div>
-      </section>
+      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
+        <div className="text-4xl mb-4">🛡️</div>
+        <h3 className="font-bold mb-2 text-lg">法令リスクを回避</h3>
+        <p className="text-sm text-zinc-300 leading-relaxed">
+          薬機・景表の危険表現を自動検知＆安全置換。  
+          ECアカウントを守る、見えない盾。
+        </p>
+      </div>
 
+      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
+        <div className="text-4xl mb-4">⚡</div>
+        <h3 className="font-bold mb-2 text-lg">アフターも整流</h3>
+        <p className="text-sm text-zinc-300 leading-relaxed">
+          FAQ・レビュー返信・クレーム対応も整流。  
+          売って終わりではなく、繋がりを設計。
+        </p>
+      </div>
+    </div>
+
+    <div className="mt-16 text-center">
+      <a
+        href="/tool"
+        className="inline-block px-10 py-4 rounded-xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white text-lg font-semibold shadow-[0_0_20px_rgba(0,150,255,0.25)] hover:shadow-[0_0_25px_rgba(0,180,255,0.35)] transition-all"
+      >
+        「売れる言葉」を体験する
+      </a>
+    </div>
+  </div>
+
+  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_70%)] pointer-events-none" />
+</section>
       {/* How it works */}
       <section className="bg-zinc-50 py-20">
         <div className="mx-auto max-w-6xl px-4">
