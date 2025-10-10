@@ -90,7 +90,6 @@ export default function Page() {
       </section>
 
       {/* Before/After */}
-      // ...
 <section className="py-20 bg-zinc-50">
   <div className="mx-auto max-w-6xl px-4">
     <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
