@@ -92,9 +92,10 @@ export default function Page() {
       {/* Before/After */}
 <section className="py-20 bg-zinc-50">
   <div className="mx-auto max-w-6xl px-4">
-    <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-      1行変えるだけで、<span className="text-zinc-600">売上が変わる</span>
-    </h2>
+    <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 leading-snug">
+  <span className="block text-zinc-700 mb-1 tracking-wide">1行変えるだけで、</span>
+  <span className="block text-zinc-900">売上が変わる</span>
+</h2>
 
     <div className="grid md:grid-cols-3 gap-8">
       <BABoxMono
@@ -184,7 +185,7 @@ export default function Page() {
       <section className="bg-zinc-50 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">使い方は、貼って押すだけ。</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4"><span className="block text-zinc-700 mb-1 tracking-wide">使い方は、貼って押すだけ。</span></h2>
             <p className="text-zinc-600">30秒で「売れる文章」が完成</p>
           </div>
 
@@ -245,8 +246,8 @@ export default function Page() {
       <section className="py-24 bg-gradient-to-b from-white to-zinc-50">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
-            「売れない言葉」のまま、<br />
-            <span className="text-zinc-500">放置していませんか？</span>
+            <span className="text-zinc-500">「売れない言葉」のまま、</span><br />
+            <span className="text-zinc-600">放置していませんか？</span>
           </h2>
 
           <div className="max-w-2xl mx-auto space-y-6 mb-12">
