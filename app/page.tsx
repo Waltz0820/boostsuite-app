@@ -3,6 +3,7 @@ import HeroVideo from "./components/hero-video";
 import FAQ from "./components/FAQ";
 import BABoxMonoDark from "./components/BABoxMonoDark";
 import StepsDark from "./components/StepsDark";
+import CtaBar from "./components/cta-bar";
 
 
 export const metadata = {
@@ -93,7 +94,7 @@ export default function Page() {
           </div>
         </div>
       </section>
-
+<div id="hero-end" className="h-px w-full" />
       {/* Before/After */}
 <section className="py-24 bg-black text-white relative overflow-hidden">
   <div className="mx-auto max-w-6xl px-4 text-center">
@@ -262,6 +263,7 @@ export default function Page() {
         </div>
       </section>
      <FAQ />
+     <CtaBar />
     </>
   );
 }
