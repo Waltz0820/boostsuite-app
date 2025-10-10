@@ -28,7 +28,7 @@ export default function StickyCta() {
       <div className="mx-auto max-w-6xl px-4 pb-5">
         <div className="backdrop-blur-md bg-zinc-900/70 border border-white/10 rounded-2xl shadow-lg flex items-center justify-between px-5 py-3">
           <span className="text-xs text-zinc-300 whitespace-nowrap">
-            30秒で<span className="font-semibold text-white">“売れる文章に”</span>
+            30秒で<span className="font-semibold text-white">「売れる言葉」に</span>
           </span>
           <Link
             href="/tool"

@@ -53,10 +53,10 @@ export default function Page() {
 
         {/* 見出し */}
         <div className="mx-auto max-w-4xl px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
-            良い商品が、<span className="underline decoration-4">売れない</span>理由
+          <h1 className="text-4xl 「」:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
+            良い商品が<span className="underline decoration-4">売れない</span>理由
             <br />
-            <span className="text-zinc-300">説明文の1行が、すべてを変える。</span>
+            <span className="text-zinc-300">説明文の1行がすべてを変える。</span>
           </h1>
 
           <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
@@ -68,7 +68,7 @@ export default function Page() {
           </p>
 
           <p className="mt-4 text-base md:text-lg text-zinc-300">
-            硬い・不自然・AI特有の文章を、30秒で「欲しい」に。
+            硬い・不自然・AI特有の文章を、コピペで売れる構造へ。
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3">
@@ -76,7 +76,7 @@ export default function Page() {
               href="/tool"
               className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-base md:text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
             >
-              30秒で“売れる”文章に（無料で試す）
+              30秒で「売れる言葉」に（無料で試す）
             </a>
             <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
             <div className="mt-1 text-xs text-zinc-400">
@@ -255,7 +255,7 @@ export default function Page() {
             href="/tool"
             className="inline-block px-12 py-6 rounded-xl bg-zinc-900 text-white text-xl font-bold hover:bg-zinc-800 shadow-xl hover:shadow-2xl"
           >
-            30秒で、売れる言葉に変える
+            30秒で「売れる言葉」に変える
           </Link>
 
           {/* Pricing */}
