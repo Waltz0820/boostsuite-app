@@ -57,21 +57,18 @@ export default function Page() {
         {/* 見出し */}
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h1 className="text-4xl 「」:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
-            良い商品が<span className="underline decoration-4">売れない</span>理由
-            <br />
-            <span className="text-zinc-300">説明文の1行がすべてを変える。</span>
-          </h1>
+            整えるだけで、<span className="underline decoration-4">圧倒的訴求力</span></h1>
 
           <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
             Boost Suite は
             <span className="font-semibold text-white">
               {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
             </span>
-            を自動化する「商品説明の整流AI」
+            を組み合わせた「商品説明の整流AI」
           </p>
 
           <p className="mt-4 text-base md:text-lg text-zinc-300">
-            硬い・不自然・AI特有の文章を、コピペで売れる構造へ。
+            不自然な翻訳文を“買いたくなる日本語”に変える。
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3">
