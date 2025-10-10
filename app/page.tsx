@@ -94,15 +94,22 @@ export default function Page() {
       </section>
 
       {/* Before/After */}
-<section className="py-24 bg-black text-white">
-  <div className="mx-auto max-w-6xl px-4">
-    <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+import BABoxMonoDark from "./components/BABoxMonoDark";
+
+<section className="py-24 bg-black text-white relative overflow-hidden">
+  <div className="mx-auto max-w-6xl px-4 text-center">
+    {/* 見出し */}
+    <h2 className="text-3xl md:text-4xl font-bold mb-4">
       <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
         整流の先にある、“伝わる”世界へ。
       </span>
     </h2>
+    <p className="text-zinc-400 mb-12 text-base md:text-lg">
+      言葉を変えるだけで、売上も、印象も、未来も変わる。
+    </p>
 
-    <div className="grid md:grid-cols-3 gap-8">
+    {/* Before/After grid */}
+    <div className="grid md:grid-cols-3 gap-8 mb-16">
       <BABoxMonoDark
         label="モバイルバッテリー"
         before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
@@ -125,7 +132,23 @@ export default function Page() {
         ribbon="Tone Rewrite"
       />
     </div>
+
+    {/* CTAボタン */}
+    <div className="flex flex-col items-center gap-3">
+      <a
+        href="/tool"
+        className="inline-block px-10 py-4 rounded-xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white text-lg font-semibold shadow-[0_0_20px_rgba(0,150,255,0.25)] hover:shadow-[0_0_25px_rgba(0,180,255,0.35)] transition-all"
+      >
+        30秒で「売れる言葉」に
+      </a>
+      <p className="text-xs text-zinc-500 mt-1">
+        登録不要／コピペ → ワンタップで整文
+      </p>
+    </div>
   </div>
+
+  {/* 背景ノイズ（軽い装飾） */}
+  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
 </section>
       {/* Why Boost */}
       <section className="py-20 bg-zinc-900 text-white">
