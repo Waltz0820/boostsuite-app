@@ -2,6 +2,7 @@ import Link from "next/link";
 import HeroVideo from "./components/hero-video";
 import FAQ from "./components/FAQ";
 import BABoxMonoDark from "./components/BABoxMonoDark";
+import StepsDark from "./components/StepsDark";
 
 
 export const metadata = {
@@ -202,52 +203,7 @@ export default function Page() {
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_70%)] pointer-events-none" />
 </section>
       {/* How it works */}
-      <section className="bg-zinc-50 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4"><span className="block text-zinc-500 mb-1 tracking-wide">使い方は、貼って押すだけ。</span></h2>
-            <p className="text-zinc-600">30秒で「売れる文章」が完成</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <StepCard
-              step="1"
-              title="原文を貼る"
-              description="商品説明・中国語/韓国語の原文・レビューURLなど"
-              detail="Amazon/Rakuten/越境ECのテキストもOK"
-            />
-            <StepCard
-              step="2"
-              title="Boostを押す"
-              description="自動判定→構成リビルド→2パターン出力"
-              detail="セーフティ版／オフェンシブ版を同時生成"
-            />
-            <StepCard
-              step="3"
-              title="コピーして使う"
-              description="モジュール単位でコピー、PDF/CSV出力も可"
-              detail="有料なら履歴保存・再編集OK"
-            />
-          </div>
-
-          <div className="mt-16 text-center">
-            <div className="inline-block bg-white rounded-2xl p-8 shadow-sm border">
-              <div className="text-sm text-zinc-500 mb-2">平均作業時間</div>
-              <div className="text-5xl font-bold text-zinc-900">30秒</div>
-              <div className="text-sm text-zinc-600 mt-2">手動リライト2時間 → 30秒に短縮</div>
-            </div>
-
-            <div className="mt-10">
-              <Link
-                href="/tool"
-                className="inline-block px-10 py-4 rounded-xl bg-zinc-900 text-white text-lg font-semibold hover:bg-zinc-800"
-              >
-                今すぐ無料で試す
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+     <StepsDark />
 
       {/* Golden Rules */}
       <section className="py-20 bg-zinc-900 text-white">
