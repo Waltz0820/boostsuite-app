@@ -35,19 +35,17 @@ export default function Page() {
         {/* 背景レイヤー */}
         <div className="absolute inset-0 -z-10">
           <HeroVideo
-            src="/hero-bg.mp4"
-            poster="/hero-bg.png"
-            playbackRate={0.6}
-            className="
-              absolute inset-0 w-full h-full
-              object-cover
-              object-[50%_35%]
-              scale-[1.08]
-              opacity-60 md:opacity-55
-              blur-[1px]
-              transition-transform duration-[15000ms] ease-linear
-            "
-          />
+  src="/suite.mp4"
+  poster="/suite.png"  // サムネ静止画を入れておくと初回ロード時も自然
+  playbackRate={1}     // 手の動きがあるなら1〜1.2倍くらいが自然
+  className="
+    absolute inset-0 w-full h-full
+    object-cover
+    object-center
+    opacity-70 md:opacity-65
+    transition-transform duration-[10000ms] ease-linear
+  "
+/>
           {/* ループ境目ぼかし */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
           {/* 全体トーン補正 */}
