@@ -4,6 +4,8 @@ import FAQ from "./components/FAQ";
 import BABoxMonoDark from "./components/BABoxMonoDark";
 import StepsDark from "./components/StepsDark";
 import CtaBar from "./components/cta-bar";
+import RulesDark from "./components/rules-dark";
+
 
 
 export const metadata = {
@@ -207,17 +209,7 @@ export default function Page() {
      <StepsDark />
 
       {/* Golden Rules */}
-      <section className="py-20 bg-zinc-900 text-white">
-        <div className="mx-auto max-w-4xl px-4">
-          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Boostの黄金律</h2>
-          <div className="space-y-6">
-            <RuleItem rule="事実8割、余韻2割" detail="具体的に、でも想像の余地は残す。" />
-            <RuleItem rule="効能ではなく、安心を語る" detail="“改善”より“自分を丁寧に扱う時間”。" />
-            <RuleItem rule="買わない理由を先回りして潰す" detail="レビューから不安を抽出→構成に反映。" />
-            <RuleItem rule="構文修正ではなく、意味の再設計" detail="文法ではなく、市場文脈を変換する。" />
-          </div>
-        </div>
-      </section>
+     <RulesDark />
 
       {/* Final CTA + Pricing */}
       <section className="py-24 bg-gradient-to-b from-white to-zinc-50">
