@@ -94,8 +94,6 @@ export default function Page() {
       </section>
 
       {/* Before/After */}
-import BABoxMonoDark from "./components/BABoxMonoDark";
-
 <section className="py-24 bg-black text-white relative overflow-hidden">
   <div className="mx-auto max-w-6xl px-4 text-center">
     {/* 見出し */}
