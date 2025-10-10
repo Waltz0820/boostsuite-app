@@ -1,96 +1,95 @@
-// app/components/footer.tsx
+// /app/components/footer.tsx
 import Link from "next/link";
 
 export default function Footer() {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="border-t bg-zinc-50">
-      <div className="mx-auto max-w-6xl px-4 py-16">
-        {/* 4カラム */}
-        <div className="grid md:grid-cols-4 gap-8 mb-12">
-          {/* Column 1 */}
+    <footer className="bg-zinc-950 text-zinc-300 border-t border-white/10">
+      {/* 上段 */}
+      <div className="mx-auto max-w-6xl px-6 py-14">
+        <div className="grid gap-10 md:grid-cols-4">
+          {/* Brand */}
           <div>
-            <div className="font-bold text-lg mb-4">Boost Suite</div>
-            <p className="text-sm text-zinc-600 leading-relaxed">
-              売れない言葉を、<br />
-              もう一度意味から組み直す。
+            <div className="text-lg font-semibold text-white">Boost Suite</div>
+            <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
+              売れない言葉を、もう一度意味から組み直す。
+              <br />
+              プロのセールス構成 × 売れ筋データ × SEOを“自動で”整流。
             </p>
           </div>
 
-          {/* Column 2 */}
-          <div>
-            <div className="text-sm font-semibold mb-4">プロダクト</div>
-            <ul className="space-y-2 text-sm text-zinc-600">
-              <li>
-                <Link href="/tool" className="hover:text-zinc-900">
-                  ツールを試す
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="hover:text-zinc-900">
-                  料金プラン
-                </Link>
-              </li>
-              <li>
-                <Link href="/column" className="hover:text-zinc-900">
-                  活用事例
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Product */}
+          <FooterCol
+            title="プロダクト"
+            items={[
+              { href: "/tool", label: "ツールを試す" },
+              { href: "/pricing", label: "料金プラン" },
+              { href: "/column", label: "活用事例" },
+            ]}
+          />
 
-          {/* Column 3 */}
-          <div>
-            <div className="text-sm font-semibold mb-4">リソース</div>
-            <ul className="space-y-2 text-sm text-zinc-600">
-              <li>
-                <Link href="/docs" className="hover:text-zinc-900">
-                  ドキュメント
-                </Link>
-              </li>
-              <li>
-                <Link href="/api" className="hover:text-zinc-900">
-                  API
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="hover:text-zinc-900">
-                  ブログ
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Resources */}
+          <FooterCol
+            title="リソース"
+            items={[
+              { href: "/docs", label: "ドキュメント" },
+              { href: "/api", label: "API" },
+              { href: "/blog", label: "ブログ" },
+            ]}
+          />
 
-          {/* Column 4 */}
-          <div>
-            <div className="text-sm font-semibold mb-4">会社情報</div>
-            <ul className="space-y-2 text-sm text-zinc-600">
-              <li>
-                <Link href="/about" className="hover:text-zinc-900">
-                  運営会社
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-zinc-900">
-                  利用規約
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-zinc-900">
-                  プライバシー
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Company */}
+          <FooterCol
+            title="会社情報"
+            items={[
+              { href: "/about", label: "運営会社" },
+              { href: "/terms", label: "利用規約" },
+              { href: "/privacy", label: "プライバシー" },
+            ]}
+          />
         </div>
+      </div>
 
-        {/* 下部コピーライト */}
-        <div className="pt-8 border-t text-center text-sm text-zinc-500">
-          <p>© {new Date().getFullYear()} Boost Suite</p>
-          <p className="mt-2 text-xs text-zinc-400">
-            登録不要で始められる日本語整流ツール。競合の10分の1価格でECを加速。
-          </p>
+      {/* 下段（コピーライト + ちいさなリンク） */}
+      <div className="border-t border-white/10">
+        <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-xs text-zinc-400">© {year} Boost Suite</p>
+          <nav className="flex flex-wrap gap-4 text-xs text-zinc-400">
+            <Link href="/security" className="hover:text-white/90">セキュリティ</Link>
+            <Link href="/compliance" className="hover:text-white/90">コンプライアンス</Link>
+            <Link href="/contact" className="hover:text-white/90">お問い合わせ</Link>
+            <Link href="/status" className="hover:text-white/90">ステータス</Link>
+          </nav>
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ---- sub component ---- */
+function FooterCol({
+  title,
+  items,
+}: {
+  title: string;
+  items: { href: string; label: string }[];
+}) {
+  return (
+    <div>
+      <div className="text-sm font-semibold text-white mb-4">{title}</div>
+      <ul className="space-y-2">
+        {items.map((it) => (
+          <li key={it.href}>
+            <Link
+              href={it.href}
+              className="text-sm text-zinc-400 hover:text-white/90"
+            >
+              {it.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
