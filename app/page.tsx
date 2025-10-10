@@ -1,6 +1,8 @@
 import Link from "next/link";
 import HeroVideo from "./components/hero-video";
 import FAQ from "./components/FAQ";
+import BABox from "@/components/BABox";
+
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -255,7 +257,7 @@ export default function Page() {
             href="/tool"
             className="inline-block px-12 py-6 rounded-xl bg-zinc-900 text-white text-xl font-bold hover:bg-zinc-800 shadow-xl hover:shadow-2xl"
           >
-            30秒で「売れる言葉」に変える
+            30秒で「売れる言葉」に
           </Link>
 
           {/* Pricing */}
