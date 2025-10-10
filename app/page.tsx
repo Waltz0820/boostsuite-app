@@ -2,6 +2,7 @@ import Link from "next/link";
 import HeroVideo from "./components/hero-video";
 import FAQ from "./components/FAQ";
 import BABox from "./components/BABox";
+import BABoxMono from "./components/BABoxMono";
 
 
 export const metadata = {
@@ -89,43 +90,47 @@ export default function Page() {
       </section>
 
       {/* Before/After */}
-      <section className="py-20 bg-zinc-50">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            1行変えるだけで、<span className="text-zinc-600">売上が変わる</span>
-          </h2>
+      // ...
+<section className="py-20 bg-zinc-50">
+  <div className="mx-auto max-w-6xl px-4">
+    <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+      1行変えるだけで、<span className="text-zinc-600">売上が変わる</span>
+    </h2>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <BABox
-              label="モバイルバッテリー"
-              before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
-              after="充電切れの心配、ありません。外でも旅先でも、この1台で自由に動ける。"
-              tag="CVR +30%（想定）"
-            />
-            <BABox
-              label="美顔器"
-              before="RF機能で肌の弾力を改善… 臨床的に検証…"
-              after="鏡を見るのが、少し楽しみになる。自宅で心地よく続けられるケアに。"
-              tag="薬機表現を安全置換"
-            />
-            <BABox
-              label="ヴィンテージデニム"
-              before="復古ブルー…高腰設計…垂れ感…百搭…"
-              after="今日はこれさえあれば。ラフな日も、背筋を伸ばしたい日も。"
-              tag="自然な日本語設計"
-            />
-          </div>
+    <div className="grid md:grid-cols-3 gap-8">
+      <BABoxMono
+        label="モバイルバッテリー"
+        before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
+        after="充電切れの心配、ありません。外でも旅先でも、この1台で自由に動ける。"
+        tag="CVR +30%（想定）"
+        ribbon="Before/After"
+      />
+      <BABoxMono
+        label="美顔器"
+        before="RF機能で肌の弾力を改善… 臨床的に検証…"
+        after="鏡を見るのが、少し楽しみになる。自宅で心地よく続けられるケアに。"
+        tag="薬機表現を安全置換"
+        ribbon="Safe Copy"
+      />
+      <BABoxMono
+        label="ヴィンテージデニム"
+        before="復古ブルー…高腰設計…垂れ感…百搭…"
+        after="今日はこれさえあれば。ラフな日も、背筋を伸ばしたい日も。"
+        tag="自然な日本語設計"
+        ribbon="Tone Rewrite"
+      />
+    </div>
 
-          <div className="mt-12 text-center">
-            <Link
-              href="/tool"
-              className="px-10 py-4 rounded-xl bg-zinc-900 text-white text-lg hover:bg-zinc-800"
-            >
-              自分の商品で試す
-            </Link>
-          </div>
-        </div>
-      </section>
+    <div className="mt-12 text-center">
+      <Link
+        href="/tool"
+        className="px-10 py-4 rounded-xl bg-zinc-900 text-white text-lg hover:bg-zinc-800"
+      >
+        自分の商品で試す
+      </Link>
+    </div>
+  </div>
+</section>
 
       {/* Why Boost */}
       <section className="py-20 bg-zinc-900 text-white">
