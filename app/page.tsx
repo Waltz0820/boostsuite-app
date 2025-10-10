@@ -5,8 +5,8 @@ import BABoxMonoDark from "./components/BABoxMonoDark";
 import StepsDark from "./components/StepsDark";
 import CtaBar from "./components/cta-bar";
 import RulesDark from "./components/rules-dark";
-
-
+import FinalCtaDark from "./components/FinalCtaDark";
+import PricingDark from "./components/PricingDark";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -212,48 +212,8 @@ export default function Page() {
      <RulesDark />
 
       {/* Final CTA + Pricing */}
-      <section className="py-24 bg-gradient-to-b from-white to-zinc-50">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold leading-tight mb-8">
-            <span className="text-zinc-500">「売れない言葉」のまま、</span><br />
-            <span className="text-zinc-600">放置していませんか？</span>
-          </h2>
-
-          <div className="max-w-2xl mx-auto space-y-6 mb-12">
-            <p className="text-xl text-zinc-700">商品は良い。価格も適正。写真も十分。</p>
-            <p className="text-xl text-zinc-700">
-              でも説明文が<span className="font-bold text-zinc-900">硬い／不自然／AI臭い</span>だけで、お客は離れます。
-            </p>
-            <p className="text-lg text-zinc-600 mt-6">1行の違和感が、購入ボタンを遠ざける。</p>
-          </div>
-
-          <Link
-            href="/tool"
-            className="inline-block px-12 py-6 rounded-xl bg-zinc-900 text-white text-xl font-bold hover:bg-zinc-800 shadow-xl hover:shadow-2xl"
-          >
-            30秒で「売れる言葉」に
-          </Link>
-
-          {/* Pricing */}
-          <div className="mt-16 pt-16 border-t">
-            <p className="text-sm text-zinc-500 mb-6">料金プラン</p>
-
-            <div className="flex flex-wrap justify-center gap-6">
-              <PriceTag plan="Starter" price="¥490" detail="100クレジット（¥4.9/Cr）" />
-              <PriceTag plan="Standard" price="¥1,480" detail="300クレジット（¥4.9/Cr）" popular />
-              <PriceTag plan="Pro" price="¥2,980" detail="800クレジット（¥3.7/Cr）" />
-              <PriceTag plan="Enterprise" price="応相談" detail="無制限（¥3.0〜/Cr）" />
-            </div>
-
-            <div className="mt-10 text-xs text-zinc-400 text-center space-y-2">
-              <p>🧮 クレジット消費例：Keyword=1 / Writing=2 / Image=3</p>
-              <p>📌 Starterなら約100生成、Proなら400〜800生成相当。</p>
-              <p>💳 追加チャージ：100クレジット＝¥490（ロールオーバーOK）</p>
-              <p>🎁 無料トライアル：初回30クレジット（15〜30生成分）</p>
-            </div>
-          </div>
-        </div>
-      </section>
+          <FinalCtaDark />
+          <PricingDark />
      <FAQ />
      <CtaBar />
     </>
