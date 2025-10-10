@@ -1,12 +1,13 @@
 // /app/components/StepsDark.tsx
 import Link from "next/link";
+import { ReactNode } from "react";
 
 type Step = {
   k: string;
   title: string;
   description: string;
   detail: string;
-  icon: JSX.Element;
+  icon: ReactNode;
 };
 
 const steps: Step[] = [
@@ -64,13 +65,8 @@ export default function StepsDark() {
           {steps.map((s) => (
             <div
               key={s.k}
-              className="
-                group relative rounded-2xl border border-white/10 bg-white/[0.02]
-                p-6 backdrop-blur-sm transition
-                hover:border-white/20 hover:bg-white/[0.04]
-              "
+              className="group relative rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.04]"
             >
-              {/* subtle glow edge */}
               <div className="pointer-events-none absolute inset-0 rounded-2xl ring-0 ring-white/0 group-hover:ring-1 group-hover:ring-white/10 transition" />
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5">
@@ -83,7 +79,6 @@ export default function StepsDark() {
               <p className="mt-2 text-sm text-zinc-300">{s.description}</p>
               <p className="mt-1 text-xs text-zinc-400">{s.detail}</p>
 
-              {/* underline accent */}
               <div className="mt-6 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             </div>
           ))}
@@ -92,11 +87,7 @@ export default function StepsDark() {
         <div className="mt-12 text-center">
           <Link
             href="/tool"
-            className="
-              inline-flex items-center justify-center rounded-xl
-              bg-white text-zinc-900 px-8 py-4 text-base md:text-lg font-semibold
-              hover:bg-zinc-100 transition shadow-lg
-            "
+            className="inline-flex items-center justify-center rounded-xl bg-white text-zinc-900 px-8 py-4 text-base md:text-lg font-semibold hover:bg-zinc-100 transition shadow-lg"
           >
             今すぐ無料で試す
           </Link>
