@@ -93,8 +93,7 @@ export default function Page() {
 <section className="py-20 bg-zinc-50">
   <div className="mx-auto max-w-6xl px-4">
     <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 leading-snug">
-  <span className="block text-zinc-700 mb-1 tracking-wide">1行変えるだけで、</span>
-  <span className="block text-zinc-900">売上が変わる</span>
+  <span className="block text-zinc-700 mb-1 tracking-wide">1行変えるだけで、売上が変わる</span>
 </h2>
 
     <div className="grid md:grid-cols-3 gap-8">
