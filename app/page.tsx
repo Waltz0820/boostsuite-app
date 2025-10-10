@@ -1,7 +1,7 @@
 import Link from "next/link";
 import HeroVideo from "./components/hero-video";
 import FAQ from "./components/FAQ";
-import BABox from "@/components/BABox";
+import BABox from "./components/BABox";
 
 
 export const metadata = {
