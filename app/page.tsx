@@ -34,16 +34,26 @@ export default function Page() {
       >
         {/* 背景レイヤー */}
         <div className="absolute inset-0 -z-10">
-          <HeroVideo
+         <HeroVideo
   src="/suite.mp4"
-  poster="/suite.png"  // サムネ静止画を入れておくと初回ロード時も自然
-  playbackRate={1}     // 手の動きがあるなら1〜1.2倍くらいが自然
+  poster="/hero-bg.png"
+  playbackRate={1}
+  loop={false}
   className="
-    absolute inset-0 w-full h-full
-    object-cover
-    object-center
+    absolute inset-0 w-full h-full object-cover
+    /* 引き：モバイルはやや顔寄り、PCは下(手元)を多めに */
+    object-[50%_36%]      /* base: 顔が中心より少し上 */
+    sm:object-[50%_42%]   /* タブレット付近でちょい下げる */
+    md:object-[50%_58%]   /* ノートPCで手元が入るよう下げる */
+    lg:object-[50%_62%]   /* デスクトップはさらに下へ */
+
+    /* ズーム：過剰な拡大をやめて“引き”へ */
+    scale-[1.01] md:scale-[1.00]
+
+    /* トーンはそのまま */
     opacity-70 md:opacity-65
-    transition-transform duration-[10000ms] ease-linear
+    blur-[1px]
+    transition-transform duration-[15000ms] ease-linear
   "
 />
           {/* ループ境目ぼかし */}

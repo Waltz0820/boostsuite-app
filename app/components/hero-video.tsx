@@ -42,3 +42,15 @@ export default function HeroVideo({
     />
   );
 }
+useEffect(() => {
+  const v = ref.current;
+  if (!v) return;
+
+  v.playbackRate = playbackRate;
+
+  const handleEnd = () => {
+    v.classList.add("opacity-60"); // ← 再生終了時に少し暗くする
+  };
+  v.addEventListener("ended", handleEnd);
+  return () => v.removeEventListener("ended", handleEnd);
+}, [playbackRate]);
