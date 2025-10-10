@@ -35,10 +35,10 @@ export default function Page() {
         {/* 背景レイヤー */}
         <div className="absolute inset-0 -z-10">
          <HeroVideo
-  src="/suite.mp4"
+  src="/agentsuite.mp4"
   poster="/suite.png"
   playbackRate={1}
-  loop={false}
+  loop={true}
   className="
     absolute inset-0 w-full h-full object-cover
     /* 引き：モバイルはやや顔寄り、PCは下(手元)を多めに */

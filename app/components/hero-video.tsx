@@ -14,7 +14,7 @@ export default function HeroVideo({
   poster,
   className,
   playbackRate = 1,
-  loop = false, // デフォルトでループさせない
+  loop = true, // デフォルトでループ
 }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
 
