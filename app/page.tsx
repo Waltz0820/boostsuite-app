@@ -184,7 +184,7 @@ export default function Page() {
       <section className="bg-zinc-50 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4"><span className="block text-zinc-700 mb-1 tracking-wide">使い方は、貼って押すだけ。</span></h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4"><span className="block text-zinc-500 mb-1 tracking-wide">使い方は、貼って押すだけ。</span></h2>
             <p className="text-zinc-600">30秒で「売れる文章」が完成</p>
           </div>
 
