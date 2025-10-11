@@ -1,4 +1,4 @@
-
+// /app/components/TechBehindSectio.tsx
 export function TechBehindSection() {
   return (
     <section className="py-20 bg-zinc-50">
