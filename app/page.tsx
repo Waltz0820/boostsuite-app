@@ -1,6 +1,5 @@
 import Link from "next/link";
 import HeroVideo from "./components/hero-video";
-import FAQ from "./components/FAQ";
 import BABoxMonoDark from "./components/BABoxMonoDark";
 import StepsDark from "./components/StepsDark";
 import CtaBar from "./components/cta-bar";
@@ -8,6 +7,8 @@ import RulesDark from "./components/rules-dark";
 import FinalCtaDark from "./components/FinalCtaDark";
 import PricingDark from "./components/PricingDark";
 import FAQDark from "./components/FAQDark";
+import SocialProofDark from "./components/SocialProofDark";
+import CompareTableDark from "./components/CompareTableDark";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -153,6 +154,9 @@ export default function Page() {
   {/* 背景ノイズ（軽い装飾） */}
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
 </section>
+
+<SocialProofDark />
+
       {/* Why Boost */}
       <section className="py-24 bg-zinc-950 text-white relative overflow-hidden">
   <div className="mx-auto max-w-6xl px-4">
@@ -206,6 +210,9 @@ export default function Page() {
 
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_70%)] pointer-events-none" />
 </section>
+
+<CompareTableDark />
+
       {/* How it works */}
      <StepsDark />
 
