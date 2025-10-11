@@ -167,34 +167,32 @@ export default function Page() {
       </span>
     </h2>
     <p className="text-zinc-400 text-center mb-16">
-      他のAIツールにはない「言葉の設計思想」。
+      Boost Suiteが他のAIと違うのは、“言葉の整え方”にあります。
+私たちは「伝える」よりも「伝わる」を設計しています。
     </p>
 
     <div className="grid md:grid-cols-3 gap-8">
       <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
         <div className="text-4xl mb-4">🎯</div>
-        <h3 className="font-bold mb-2 text-lg">スペック → 安心に翻訳</h3>
+        <h3 className="font-bold mb-2 text-lg">構成が売れる順番</h3>
         <p className="text-sm text-zinc-300 leading-relaxed">
-          “22000mAh”より“充電切れの心配なし”。  
-          数字を“買う理由”に変換する設計。
+          商品理解 → 共感 → 期待 → 安心 の流れを自動生成。
         </p>
       </div>
 
       <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
-        <div className="text-4xl mb-4">🛡️</div>
-        <h3 className="font-bold mb-2 text-lg">法令リスクを回避</h3>
+        <div className="text-4xl mb-4">💬</div>
+        <h3 className="font-bold mb-2 text-lg">自然な日本語のリズム</h3>
         <p className="text-sm text-zinc-300 leading-relaxed">
-          薬機・景表の危険表現を自動検知＆安全置換。  
-          ECアカウントを守る、見えない盾。
+          日本人にとって“買いたくなる言葉”をAIが再構築。
         </p>
       </div>
 
       <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
-        <div className="text-4xl mb-4">⚡</div>
-        <h3 className="font-bold mb-2 text-lg">アフターも整流</h3>
+        <div className="text-4xl mb-4">⚙️</div>
+        <h3 className="font-bold mb-2 text-lg">カテゴリー別最適化</h3>
         <p className="text-sm text-zinc-300 leading-relaxed">
-          FAQ・レビュー返信・クレーム対応も整流。  
-          売って終わりではなく、繋がりを設計。
+          家電・美容・ファッションなど、業種ごとの傾向を自動学習。
         </p>
       </div>
     </div>
