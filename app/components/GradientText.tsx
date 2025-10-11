@@ -1,9 +1,10 @@
 // app/components/GradientText.tsx
+import React from "react";
 import { ComponentPropsWithoutRef } from "react";
 import clsx from "clsx";
 
 type Props = {
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;  // ← ここも React.JSX に変更してもOK
   children: React.ReactNode;
   className?: string;
   from?: string;
@@ -25,7 +26,7 @@ export default function GradientText({
         "font-bold bg-gradient-to-r bg-clip-text text-transparent",
         from,
         to,
-        // ✅ フォールバック（暗背景で透明抜けを防ぐ）
+        // ✅ 暗背景用フォールバック
         "text-white [text-shadow:0_0_1px_rgba(255,255,255,0.05)]",
         className
       )}
