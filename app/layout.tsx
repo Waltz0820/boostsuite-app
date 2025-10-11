@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className="min-h-screen flex flex-col antialiased text-zinc-900 bg-white">
+      <body className="min-h-screen flex flex-col antialiased bg-[#0b0b0f] text-zinc-100 selection:bg-blue-500/30">
         {/* 固定ヘッダー */}
         <Header />
 
