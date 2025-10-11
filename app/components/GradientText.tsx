@@ -3,12 +3,13 @@ import { ComponentPropsWithoutRef } from "react";
 import clsx from "clsx";
 
 type Props = {
-  as?: keyof JSX.IntrinsicElements;   // h1/h2/h3 など
+  as?: keyof React.JSX.IntrinsicElements; // ← JSX → React.JSX に変更
   children: React.ReactNode;
   className?: string;
-  from?: string; // Tailwind色 or 任意クラス
+  from?: string;
   to?: string;
 };
+
 
 export default function GradientText({
   as = "h2",
