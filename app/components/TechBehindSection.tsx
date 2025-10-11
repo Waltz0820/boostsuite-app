@@ -1,72 +1,83 @@
-// /app/components/TechBehindSectio.tsx
-export function TechBehindSection() {
+// TechBehindSection.tsx
+import Link from "next/link";
+
+type CardProps = {
+  icon: string;
+  title: string;
+  description: string;
+};
+
+function TechCard({ icon, title, description }: CardProps) {
   return (
-    <section className="py-20 bg-zinc-50">
+    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6 hover:bg-zinc-900/60 transition-colors">
+      <div className="text-2xl mb-3">{icon}</div>
+      <h3 className="font-semibold text-white">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-zinc-300">{description}</p>
+    </div>
+  );
+}
+
+export default function TechBehindSection() {
+  return (
+    <section className="py-20 bg-zinc-950 text-white">
       <div className="mx-auto max-w-6xl px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold">Boost Suite の裏側</h2>
-          <p className="mt-3 text-zinc-600 max-w-2xl mx-auto">
-            15年のSEO・EC運用の知見をパッケージ化し、商品説明を市場に「刺さる」言葉に再設計します。具体的なロジックは非公開ですが、体験すれば精度の違いが分かります。
+        <div className="text-center max-w-2xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Boost Suite の裏側
+          </h2>
+          <p className="mt-4 text-zinc-400">
+            15年のSEO・ECの実戦知見を、独自ロジックとして実装。<br className="hidden md:inline" />
+            具体アルゴリズムは非公開ですが、無料トライアルで精度をご体験ください。
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
           <TechCard
             icon="🧠"
             title="感情比率の自動設計"
-            desc="スペック・信頼・感情のバランスをカテゴリごとに最適化。『欲しくなる理由』を言語化します。"
+            description="スペック・信頼・感情のバランスをカテゴリ別に最適化。『欲しくなる理由』に変換します。"
           />
           <TechCard
             icon="🎯"
             title="訴求軸の自動選定"
-            desc="痛点・変化・安心・感性──商品×顧客に最も刺さる訴求を自動で選びます。"
+            description="痛点・変化・安心・感性。商品とターゲットから最も刺さる訴求軸を判定します。"
           />
           <TechCard
             icon="🛡️"
             title="法令リスクの自動回避"
-            desc="薬機法・景表法などのリスク表現を検知し、安全な表現へ自動変換。運用リスクを低減します。"
+            description="薬機・景表に抵触しうる表現を検知し、安全な言い回しへ自動置換。アカウントを守ります。"
           />
           <TechCard
             icon="⚡"
-            title="実務知見のパッケージ化"
-            desc="SEO 15年・EC運用・マーケ経験を実践的ルールに落とし込み、だれでも使える精度に。"
+            title="運用をスケール"
+            description="レビュー要約→不安の先回り、FAQ/返信テンプレ生成など運用面まで最適化。"
           />
         </div>
 
-        <div className="mt-10 max-w-3xl mx-auto">
-          <div className="bg-white rounded-2xl p-6 border-2 border-zinc-100">
-            <h3 className="font-bold text-lg mb-3">設計思想 — 「言葉の構造」を直す</h3>
-            <p className="text-sm text-zinc-700 leading-relaxed">
-              Boost Suiteは単なる文体変換ではありません。市場文脈に合わせて「意味の組み替え」を行い、
-              同じ商品でもターゲットごとに最適な伝え方を自動で出力します。コアアルゴリズムの詳細は非公開ですが、
-              実際に試していただければ、その差は明確です。
+        <div className="mt-12 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-8">
+          <h3 className="font-semibold">設計思想</h3>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-zinc-300">
+            <p>
+              Boost Suiteは翻訳ではなく、<span className="font-medium text-white">言葉の構造を市場文脈に合わせて再設計</span>します。
             </p>
-            <p className="text-xs text-zinc-500 mt-4">
-              ※ 具体的な内部パラメータやプロンプト設計は競合優位性保持のため非公開としています。
+            <p>
+              同じ商品でもターゲット・カテゴリ・季節で最適解は変化。私たちはその変化に合わせて出力を調整します。
+            </p>
+            <p className="text-zinc-500 text-xs">
+              ※ 具体的なアルゴリズムは、競合優位性のため非公開です。
             </p>
           </div>
-        </div>
 
-        <div className="mt-8 text-center">
-          <a
-            href="/tool"
-            className="inline-block px-8 py-3 rounded-xl bg-zinc-900 text-white font-semibold hover:bg-zinc-800 transition"
-            aria-label="Boost Suiteを無料で体験する"
-          >
-            無料で精度を体験する
-          </a>
+          <div className="mt-6 text-center">
+            <Link
+              href="/tool"
+              className="inline-block rounded-xl bg-white text-zinc-900 px-6 py-3 font-semibold hover:bg-zinc-100"
+            >
+              実際の精度を試す（無料）
+            </Link>
+          </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function TechCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div className="bg-white rounded-2xl p-6 border border-zinc-100 shadow-sm hover:shadow-lg transition">
-      <div className="text-3xl mb-4">{icon}</div>
-      <h4 className="font-semibold mb-2">{title}</h4>
-      <p className="text-sm text-zinc-600 leading-relaxed">{desc}</p>
-    </div>
   );
 }
