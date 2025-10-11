@@ -1,34 +1,32 @@
-// /app/components/GradientText.tsx
+// app/components/GradientText.tsx
 import { ComponentPropsWithoutRef } from "react";
 import clsx from "clsx";
 
 type Props = {
-  as?: keyof React.JSX.IntrinsicElements; // ← JSX → React.JSX に変更
+  as?: keyof JSX.IntrinsicElements;
   children: React.ReactNode;
   className?: string;
   from?: string;
   to?: string;
-};
-
+} & ComponentPropsWithoutRef<"span">;
 
 export default function GradientText({
-  as = "h2",
+  as: Tag = "span",
   children,
   className,
-  from = "from-brand-400",
-  to = "to-brand-600",
-  ...rest
-}: Props & ComponentPropsWithoutRef<"h2">) {
-  const Tag: any = as;
+  from = "from-sky-400",
+  to = "to-blue-500",
+  ...props
+}: Props) {
   return (
     <Tag
-      {...rest}
+      {...props}
       className={clsx(
-        "font-bold tracking-tight",
-        "bg-clip-text text-transparent",
-        "bg-gradient-to-r",
+        "font-bold bg-gradient-to-r bg-clip-text text-transparent",
         from,
         to,
+        // ✅ フォールバック（暗背景で透明抜けを防ぐ）
+        "text-white [text-shadow:0_0_1px_rgba(255,255,255,0.05)]",
         className
       )}
     >
