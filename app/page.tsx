@@ -9,7 +9,7 @@ import PricingDark from "./components/PricingDark";
 import FAQDark from "./components/FAQDark";
 import SocialProofDark from "./components/SocialProofDark";
 import CompareTableDark from "./components/CompareTableDark";
-import TechBehindSection from "./path/TechBehindSection";
+import TechBehindSection from "./components/TechBehindSection";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
