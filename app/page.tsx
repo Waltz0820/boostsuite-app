@@ -9,6 +9,7 @@ import PricingDark from "./components/PricingDark";
 import FAQDark from "./components/FAQDark";
 import SocialProofDark from "./components/SocialProofDark";
 import CompareTableDark from "./components/CompareTableDark";
+import TechBehindSection from "./path/TechBehindSection";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -210,7 +211,7 @@ export default function Page() {
 
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_70%)] pointer-events-none" />
 </section>
-
+<TechBehindSection />
 <CompareTableDark />
 
       {/* How it works */}
