@@ -9,7 +9,8 @@ import PricingDark from "./components/PricingDark";
 import FAQDark from "./components/FAQDark";
 import SocialProofDark from "./components/SocialProofDark";
 import CompareTableDark from "./components/CompareTableDark";
-import TechBehindSection from "./components/TechBehindSection";
+import GradientText from "./components/GradientText";
+import WhyAndBehind from "./components/WhyAndBehind";
 
 export const metadata = {
   title: "Boost Suite｜売れない言葉を、売れる言葉に変える",
@@ -157,59 +158,7 @@ export default function Page() {
 </section>
 
 <SocialProofDark />
-
-      {/* Why Boost */}
-      <section className="py-24 bg-zinc-950 text-white relative overflow-hidden">
-  <div className="mx-auto max-w-6xl px-4">
-    <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-      <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
-        なぜ、Boost Suiteで“売れる”のか？
-      </span>
-    </h2>
-    <p className="text-zinc-400 text-center mb-16">
-      Boost Suiteが他のAIと違うのは、“言葉の整え方”にあります。
-私たちは「伝える」よりも「伝わる」を設計しています。
-    </p>
-
-    <div className="grid md:grid-cols-3 gap-8">
-      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
-        <div className="text-4xl mb-4">🎯</div>
-        <h3 className="font-bold mb-2 text-lg">構成が売れる順番</h3>
-        <p className="text-sm text-zinc-300 leading-relaxed">
-          商品理解 → 共感 → 期待 → 安心 の流れを自動生成。
-        </p>
-      </div>
-
-      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
-        <div className="text-4xl mb-4">💬</div>
-        <h3 className="font-bold mb-2 text-lg">自然な日本語のリズム</h3>
-        <p className="text-sm text-zinc-300 leading-relaxed">
-          日本人にとって“買いたくなる言葉”をAIが再構築。
-        </p>
-      </div>
-
-      <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur p-8 hover:bg-white/10 transition">
-        <div className="text-4xl mb-4">⚙️</div>
-        <h3 className="font-bold mb-2 text-lg">カテゴリー別最適化</h3>
-        <p className="text-sm text-zinc-300 leading-relaxed">
-          家電・美容・ファッションなど、業種ごとの傾向を自動学習。
-        </p>
-      </div>
-    </div>
-
-    <div className="mt-16 text-center">
-      <a
-        href="/tool"
-        className="inline-block px-10 py-4 rounded-xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white text-lg font-semibold shadow-[0_0_20px_rgba(0,150,255,0.25)] hover:shadow-[0_0_25px_rgba(0,180,255,0.35)] transition-all"
-      >
-        「売れる言葉」を体験する
-      </a>
-    </div>
-  </div>
-
-  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_70%)] pointer-events-none" />
-</section>
-<TechBehindSection />
+<WhyAndBehind />
 <CompareTableDark />
 
       {/* How it works */}

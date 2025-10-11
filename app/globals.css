@@ -31,14 +31,3 @@ body {
 }
 body { @apply text-zinc-600; }
 /* globals.css */
-.btn {
-  @apply inline-flex items-center justify-center rounded-xl font-semibold transition-all;
-}
-
-.btn-primary {
-  @apply btn text-white px-6 py-3 bg-brand-600 hover:bg-brand-500 shadow-[0_6px_24px_rgba(21,148,255,0.25)];
-}
-
-.btn-ghost {
-  @apply btn px-6 py-3 bg-white text-zinc-900 hover:bg-zinc-100 shadow;
-}
