@@ -89,7 +89,7 @@ export default function WhyAndBehind() {
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <a href="/tool" className="btn-primary">無料で精度を体験する</a>
+          <a href="/tool" className="btn btn-primary">無料で精度を体験する</a>
         </div>
       </div>
     </section>
