@@ -1,75 +1,75 @@
 /* === TOKENS =============================================================== */
 
+@import "tailwindcss";
+
+/* 新構文では必ず theme token を登録 */
+@theme {
+  --spacing-section-sm: 5rem;  /* py-20 相当 */
+  --spacing-section-md: 7rem;  /* py-28 相当 */
+}
+
+/* === BASE =============================================================== */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ダーク前提（既存のダークLPに合わせる） */
-:root {
-  --bg: #000;           /* セクション背景 */
-  --fg: 230 230 233;    /* 基本文字色 (rgb) */
-  --muted: 161 161 170; /* 説明テキスト zinc-400 相当 */
-  --card: 15 15 18;     /* カード面 */
-}
-
-/* === TYPOGRAPHY ========================================================== */
+/* === COMPONENTS ========================================================== */
 
 @layer components {
-  /* セクション共通余白 */
-  .section { @apply py-20 bg-black; }           /* ← md系は @screen で付与 */
-  .container { @apply mx-auto max-w-6xl px-4; }
+  .section {
+    padding-block: var(--spacing-section-sm);
+    background: black;
+  }
 
-  /* 見出し（Before/Afterのh2に寄せる） */
+  @media (min-width: 768px) {
+    .section {
+      padding-block: var(--spacing-section-md);
+    }
+  }
+
+  .container {
+    @apply mx-auto max-w-6xl px-4;
+  }
+
   .h2 {
     @apply text-3xl font-extrabold tracking-tight;
-    /* 青グラデの“シアー”感 */
     @apply bg-gradient-to-r from-sky-400 to-blue-500 text-transparent bg-clip-text;
   }
 
-  /* サブ見出し（裏側のh3など） */
-  .h3 { @apply text-2xl font-bold text-white tracking-tight; }
-
-  /* リード文（薄いグレー、行間広め） */
-  .lead { @apply text-[15px] leading-relaxed text-zinc-400; }
-
-  /* 本文（統一） */
-  .body { @apply text-[15px] leading-relaxed text-zinc-300; }
-
-  /* === CARD =============================================================== */
-  .card {
-    @apply rounded-2xl border border-white/10
-           bg-[rgb(var(--card))]/70 backdrop-blur
-           p-6 transition
-           hover:bg-[rgb(var(--card))]/85;
+  .h3 {
+    @apply text-2xl font-bold text-white tracking-tight;
   }
-  .card-title { @apply font-semibold text-white; }
-  .card-desc  { @apply mt-2 text-sm text-zinc-400 leading-relaxed; }
 
-  /* === BUTTONS (Before/AfterのCTAに合わせる) ============================= */
+  .lead {
+    @apply text-[15px] leading-relaxed text-zinc-400;
+  }
+
+  .body {
+    @apply text-[15px] leading-relaxed text-zinc-300;
+  }
+
+  .card {
+    @apply rounded-2xl border border-white/10 bg-[rgb(15,15,18)]/70 backdrop-blur
+           p-6 transition hover:bg-[rgb(15,15,18)]/85;
+  }
+
+  .card-title { @apply font-semibold text-white; }
+  .card-desc { @apply mt-2 text-sm text-zinc-400 leading-relaxed; }
+
   .btn {
-    @apply inline-flex items-center justify-center
-           rounded-2xl h-12 px-5
-           font-semibold text-[15px]
-           transition-transform duration-200 ease-out
+    @apply inline-flex items-center justify-center rounded-2xl h-12 px-5
+           font-semibold text-[15px] transition-transform duration-200 ease-out
            focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50;
   }
+
   .btn-primary {
     @apply bg-gradient-to-r from-sky-400 to-blue-500 text-white
            shadow-[0_0_30px_rgba(56,189,248,0.25)]
            hover:scale-[1.01] hover:shadow-[0_0_42px_rgba(56,189,248,0.35)];
   }
+
   .btn-outline {
     @apply text-white/90 ring-1 ring-white/20 hover:bg-white/5;
   }
-}
-
-/* === RESPONSIVE OVERRIDES ================================================= */
-
-@screen md {
-  .section { @apply py-28; }
-  .h2 { @apply text-4xl; }
-  .h3 { @apply text-3xl; }
-  .lead { @apply text-base; }
-  .card { @apply p-7; }
-  .btn { @apply h-14 px-6; }
 }
