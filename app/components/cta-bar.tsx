@@ -59,9 +59,9 @@ export default function CtaBar() {
                 transition-all
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70
               "
-              aria-label="売れる言葉に"
+              aria-label="無料トライアル"
             >
-              売れる言葉に
+              無料トライアル
               <span aria-hidden className="ml-1 translate-x-0 transition-transform duration-200 group-hover:translate-x-0.5">
                 →
               </span>
