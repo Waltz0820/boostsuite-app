@@ -101,7 +101,7 @@ export default function Page() {
                  hover:shadow-[0_0_35px_rgba(56,189,248,0.45)]
                  transition-all duration-200"
     >
-      30秒で「売れる言葉」に
+      無料トライアル
     </a>
 
     <p className="text-xs text-zinc-400">登録不要／コピペ → ワンタップで整文</p>
