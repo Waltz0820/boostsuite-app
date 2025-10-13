@@ -33,18 +33,25 @@ const rules: Rule[] = [
 
 export default function RulesDark() {
   return (
-    <section className="bg-zinc-950 text-white py-20">
-      <div className="mx-auto max-w-5xl px-4">
-        <h2 className="text-center text-2xl md:text-3xl font-bold tracking-tight">
-          Boostの黄金律
+    <section className="relative py-24 bg-black text-white overflow-hidden">
+      {/* 背景ノイズ */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
+
+      <div className="relative mx-auto max-w-5xl px-4">
+        {/* 見出し */}
+        <h2 className="text-center text-3xl md:text-4xl font-bold mb-12">
+          <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+            Boostの黄金律
+          </span>
         </h2>
 
-        <div className="mt-10 grid md:grid-cols-2 gap-6">
+        {/* ルールリスト */}
+        <div className="grid md:grid-cols-2 gap-6">
           {rules.map((r, i) => (
             <article
               key={i}
-              className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur
-                         transition-all hover:bg-white/10"
+              className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm
+                         transition hover:border-white/20 hover:bg-white/7"
             >
               <div className="flex items-start gap-4">
                 <div className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center
@@ -52,30 +59,19 @@ export default function RulesDark() {
                   {r.icon}
                 </div>
                 <div>
-                  <h3 className="font-semibold">{r.title}</h3>
+                  <h3 className="font-semibold text-white">{r.title}</h3>
                   <p className="mt-1 text-sm text-zinc-300">{r.detail}</p>
                 </div>
               </div>
             </article>
           ))}
         </div>
-
-        {/* サブCTA（暗面に白ボタンでコントラスト） */}
-        <div className="mt-12 text-center">
-          <a
-            href="/tool"
-            className="inline-block rounded-xl bg-white px-8 py-4 text-zinc-900 font-semibold
-                       hover:bg-zinc-100 transition"
-          >
-            30秒で「売れる言葉」に
-          </a>
-        </div>
       </div>
     </section>
   );
 }
 
-/* ---- icons (線画・モノトーン) ---- */
+/* ---- icons (線画・モノトーン統一) ---- */
 function DotIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24">
@@ -86,22 +82,36 @@ function DotIcon() {
 function ShieldIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="fill-none">
-      <path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3z" stroke="currentColor" strokeWidth="2"/>
+      <path
+        d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
     </svg>
   );
 }
 function CheckIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="fill-none">
-      <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M20 6L9 17l-5-5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function SparkIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="fill-none">
-      <path d="M12 2v6M12 16v6M4 12h6M14 12h6M6 6l4 4M14 14l4 4M6 18l4-4M14 10l4-4"
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path
+        d="M12 2v6M12 16v6M4 12h6M14 12h6M6 6l4 4M14 14l4 4M6 18l4-4M14 10l4-4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
