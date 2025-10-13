@@ -138,19 +138,6 @@ export default function Page() {
         ribbon="Tone Rewrite"
       />
     </div>
-
-    {/* CTAボタン */}
-    <div className="flex flex-col items-center gap-3">
-      <a
-        href="/tool"
-        className="inline-block px-10 py-4 rounded-xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white text-lg font-semibold shadow-[0_0_20px_rgba(0,150,255,0.25)] hover:shadow-[0_0_25px_rgba(0,180,255,0.35)] transition-all"
-      >
-        30秒で「売れる言葉」に
-      </a>
-      <p className="text-xs text-zinc-500 mt-1">
-        登録不要／コピペ → ワンタップで整文
-      </p>
-    </div>
   </div>
 
   {/* 背景ノイズ（軽い装飾） */}

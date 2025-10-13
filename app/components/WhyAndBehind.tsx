@@ -62,16 +62,6 @@ export default function WhyAndBehind() {
             <Card key={i.title} {...i} />
           ))}
         </div>
-
-        {/* CTA（BAと同じボタン設計） */}
-        <div className="mt-12 flex flex-col items-center gap-3">
-          <a
-            href="/tool"
-            className="inline-block rounded-xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 px-10 py-4 text-lg font-semibold text-white shadow-[0_0_20px_rgba(0,150,255,0.25)] transition-all hover:shadow-[0_0_25px_rgba(0,180,255,0.35)]"
-          >
-            無料で精度を体験する
-          </a>
-        </div>
       </div>
 
       {/* 背景ノイズ（BAと同トーン） */}

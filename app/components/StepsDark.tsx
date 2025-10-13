@@ -90,19 +90,6 @@ export default function StepsDark() {
             </div>
           ))}
         </div>
-
-        {/* CTA（密度調整：1個に統一・グラデボタン） */}
-        <div className="mt-12 text-center">
-          <Link
-            href="/tool"
-            className="inline-block rounded-xl px-8 py-4 text-base md:text-lg font-semibold
-                       bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white
-                       shadow-[0_0_20px_rgba(0,150,255,0.25)]
-                       hover:shadow-[0_0_28px_rgba(0,180,255,0.35)] transition"
-          >
-            30秒で「売れる言葉」に
-          </Link>
-        </div>
       </div>
     </section>
   );
