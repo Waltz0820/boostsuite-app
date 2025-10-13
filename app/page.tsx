@@ -71,34 +71,44 @@ export default function Page() {
 
         {/* 見出し */}
         <div className="mx-auto max-w-4xl px-4 text-center">
-          <h1 className="text-4xl 「」:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
-            整えるだけで、<span className="underline decoration-4">圧倒的訴求力</span></h1>
+  {/* 見出し */}
+  <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-snug md:leading-tight">
+    整えるだけで、<span className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">圧倒的訴求力。</span>
+  </h1>
 
-          <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
-            Boost Suite は
-            <span className="font-semibold text-white">
-              {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
-            </span>
-            を組み合わせた「商品説明の整流AI」
-          </p>
+  {/* サブコピー */}
+  <p className="mt-6 text-lg md:text-xl text-zinc-200 leading-relaxed">
+    Boost Suite は
+    <span className="font-semibold text-white">
+      {" "}プロのセールス構成 × 売れ筋データ × SEO最適化{" "}
+    </span>
+    を組み合わせた「商品説明の整流AI」。
+  </p>
 
-          <p className="mt-4 text-base md:text-lg text-zinc-300">
-            不自然な翻訳文を“買いたくなる日本語”に変える。
-          </p>
+  {/* 補足 */}
+  <p className="mt-4 text-base md:text-lg text-zinc-400">
+    不自然な翻訳文を、“買いたくなる日本語”へ。
+  </p>
 
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <a
-              href="/tool"
-              className="px-8 py-4 rounded-xl bg-white text-zinc-900 text-base md:text-lg font-semibold hover:bg-zinc-100 transition-all shadow-lg"
-            >
-              30秒で「売れる言葉」に（無料で試す）
-            </a>
-            <p className="text-xs text-zinc-300">登録不要／コピペ → ワンタップで整文</p>
-            <div className="mt-1 text-xs text-zinc-400">
-              既存ツール¥5,000台/月 → Boost ¥490/月〜
-            </div>
-          </div>
-        </div>
+  {/* CTAブロック */}
+  <div className="mt-10 flex flex-col items-center gap-3">
+    <a
+      href="/tool"
+      className="inline-flex items-center justify-center rounded-xl
+                 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500
+                 px-10 py-4 text-base md:text-lg font-semibold text-white
+                 shadow-[0_0_25px_rgba(56,189,248,0.35)]
+                 hover:shadow-[0_0_35px_rgba(56,189,248,0.45)]
+                 transition-all duration-200"
+    >
+      30秒で「売れる言葉」に
+    </a>
+
+    <p className="text-xs text-zinc-400">登録不要／コピペ → ワンタップで整文</p>
+    <div className="text-xs text-zinc-500">既存ツール ¥5,000台/月 → Boost ¥490/月〜</div>
+  </div>
+</div>
+
       </section>
 <div id="hero-end" className="h-px w-full" />
       {/* Before/After */}
