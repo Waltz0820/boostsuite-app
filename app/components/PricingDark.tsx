@@ -49,36 +49,33 @@ const plans: Plan[] = [
 
 export default function PricingDark() {
   return (
-    <section className="relative bg-zinc-950 py-24 text-white">
+    <section className="py-24 bg-black text-white relative overflow-hidden">
       {/* 背景の軽いグロー */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-radial from-cyan-500/10 via-transparent to-transparent"
-        style={{
-          maskImage:
-            "radial-gradient(60% 60% at 50% 50%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,1) 100%)",
-        }}
-      />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.08),transparent_60%)] pointer-events-none" />
 
-      <div className="relative mx-auto max-w-6xl px-6 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-          利用プラン
+      <div className="relative mx-auto max-w-6xl px-4 text-center">
+        {/* Heading */}
+        <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+            利用プラン
+          </span>
         </h2>
-        <p className="mt-3 text-zinc-400">
+        <p className="text-zinc-400 mb-12 text-[15px] md:text-base">
           プランはいつでも変更・解約可能。全プラン無料で始められます。
         </p>
 
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
+        {/* プランカード */}
+        <div className="grid md:grid-cols-3 gap-8">
           {plans.map((plan, i) => (
             <div
               key={i}
               className={`rounded-2xl border ${
                 plan.highlight
-                  ? "border-cyan-400 bg-white text-zinc-950 shadow-[0_0_40px_rgba(0,255,255,0.2)]"
-                  : "border-white/10 bg-white/5 text-white"
-              } p-8 flex flex-col items-center justify-between transition-all hover:scale-[1.02] duration-200`}
+                  ? "border-sky-400 bg-white text-zinc-950 shadow-[0_0_40px_rgba(56,189,248,0.25)]"
+                  : "border-white/10 bg-[#0f0f12]/70 backdrop-blur text-white"
+              } p-8 flex flex-col items-center justify-between transition-transform duration-300 hover:scale-[1.02]`}
             >
-              <div>
+              <div className="w-full">
                 <h3
                   className={`text-lg font-semibold ${
                     plan.highlight ? "text-zinc-950" : "text-white"
@@ -121,7 +118,7 @@ export default function PricingDark() {
                     >
                       <svg
                         className={`h-4 w-4 ${
-                          plan.highlight ? "text-cyan-600" : "text-cyan-400"
+                          plan.highlight ? "text-sky-600" : "text-sky-400"
                         }`}
                         fill="none"
                         stroke="currentColor"
@@ -140,13 +137,15 @@ export default function PricingDark() {
                 </ul>
               </div>
 
+              {/* CTAボタン（プラン内のみ） */}
               <Link
                 href="/tool"
-                className={`mt-10 inline-block w-full rounded-xl px-6 py-3 font-semibold transition ${
-                  plan.highlight
-                    ? "bg-zinc-950 text-white hover:bg-zinc-900"
-                    : "bg-white text-zinc-950 hover:bg-zinc-200"
-                }`}
+                className={`mt-10 inline-block w-full rounded-xl px-6 py-3 font-semibold transition
+                  ${
+                    plan.highlight
+                      ? "bg-zinc-950 text-white hover:bg-zinc-900"
+                      : "bg-white text-zinc-950 hover:bg-zinc-200"
+                  }`}
               >
                 {plan.highlight ? "無料で試す" : "選択"}
               </Link>
@@ -154,6 +153,7 @@ export default function PricingDark() {
           ))}
         </div>
 
+        {/* 備考 */}
         <p className="mt-8 text-xs text-zinc-500">
           ※ 価格はすべて税込み。各プランの上限を超える利用は自動で次プランに切替。
         </p>
