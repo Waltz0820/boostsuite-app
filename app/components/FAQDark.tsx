@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useRef, useState, useEffect} from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 type QA = {
   q: string;
@@ -36,35 +36,35 @@ const qas: QA[] = [
 
 export default function FAQDark() {
   return (
-    <section className="relative bg-zinc-950 py-24 text-white">
-      {/* subtle glow */}
+    <section className="relative bg-black py-24 text-white overflow-hidden">
+      {/* 背景ノイズ＋グラデ */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-radial from-cyan-500/10 via-transparent to-transparent"
-        style={{
-          maskImage:
-            "radial-gradient(60% 60% at 50% 50%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,1) 100%)",
-        }}
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]"
       />
 
       <div className="relative mx-auto max-w-4xl px-6">
-        <h2 className="text-center text-3xl md:text-4xl font-bold tracking-tight">
-          よくある質問
+        <h2 className="text-center text-3xl md:text-4xl font-bold mb-3">
+          <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+            よくある質問
+          </span>
         </h2>
-        <p className="mt-3 text-center text-zinc-400">
+        <p className="text-center text-zinc-400 text-[15px] mb-10">
           使う前の疑問を、短く、要点だけ。
         </p>
 
-        <div className="mt-10 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
+        {/* Accordion */}
+        <div className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
           {qas.map((item, i) => (
-            <AccordionItem key={i} index={i} q={item.q} a={item.a} />
+            <AccordionItem key={i} index={i} q={item.q} a={item.a} defaultOpen={i === 0} />
           ))}
         </div>
 
+        {/* 詳細リンク */}
         <div className="mt-8 text-center">
           <a
             href="/faq"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 hover:bg-white/10 transition"
           >
             さらに詳しいFAQを見る
             <svg width="16" height="16" viewBox="0 0 24 24" className="text-zinc-300">
@@ -84,31 +84,32 @@ export default function FAQDark() {
   );
 }
 
-/* ---------- Sub components ---------- */
+/* ---------- AccordionItem ---------- */
 
 function AccordionItem({
   index,
   q,
   a,
+  defaultOpen = false,
 }: {
   index: number;
   q: string;
   a: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number | "auto">(0);
+  const [height, setHeight] = useState<number | "auto">(defaultOpen ? "auto" : 0);
 
   useEffect(() => {
     if (!bodyRef.current) return;
     if (open) {
       const h = bodyRef.current.scrollHeight;
       setHeight(h);
-      const id = setTimeout(() => setHeight("auto"), 200); // after transition
+      const id = setTimeout(() => setHeight("auto"), 200);
       return () => clearTimeout(id);
     } else {
       const h = bodyRef.current.scrollHeight;
-      // set current height first then to 0 to animate close
       setHeight(h);
       const id = requestAnimationFrame(() => setHeight(0));
       return () => cancelAnimationFrame(id);
@@ -122,11 +123,9 @@ function AccordionItem({
         aria-expanded={open}
         aria-controls={`faq-panel-${index}`}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-6 px-6 py-5 text-left hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+        className="flex w-full items-center justify-between gap-6 px-6 py-5 text-left hover:bg-white/5 transition-colors focus:outline-none"
       >
-        <span className="text-[15px] md:text-base font-medium text-white">
-          {q}
-        </span>
+        <span className="text-[15px] md:text-base font-medium text-white">{q}</span>
         <span
           className={`grid h-8 w-8 place-items-center rounded-lg border ${
             open ? "border-cyan-400 bg-cyan-400/10" : "border-white/10 bg-white/5"
@@ -155,7 +154,7 @@ function AccordionItem({
         role="region"
         aria-hidden={!open}
         className="overflow-hidden transition-[height] duration-200 ease-in-out"
-        style={{ height: height === "auto" ? "auto" as const : `${height}px` }}
+        style={{ height: height === "auto" ? "auto" : `${height}px` }}
       >
         <div ref={bodyRef} className="px-6 pb-6 text-sm text-zinc-300">
           {a}
