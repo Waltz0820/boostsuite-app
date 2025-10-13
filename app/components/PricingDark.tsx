@@ -49,7 +49,7 @@ const plans: Plan[] = [
 
 export default function PricingDark() {
   return (
-    <section className="py-24 bg-black text-white relative overflow-hidden">
+    <section className="py-20 bg-black text-white relative overflow-hidden">
       {/* 背景の軽いグロー */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.08),transparent_60%)] pointer-events-none" />
 
@@ -60,7 +60,7 @@ export default function PricingDark() {
             利用プラン
           </span>
         </h2>
-        <p className="text-zinc-400 mb-12 text-[15px] md:text-base">
+        <p className="text-zinc-400 mb-8 text-[15px] md:text-base">
           プランはいつでも変更・解約可能。全プラン無料で始められます。
         </p>
 

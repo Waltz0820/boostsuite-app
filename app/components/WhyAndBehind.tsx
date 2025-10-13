@@ -26,7 +26,7 @@ function Card({ title, body }: Item) {
 
 export default function WhyAndBehind() {
   return (
-    <section className="relative overflow-hidden bg-black py-24 text-white">
+    <section className="relative overflow-hidden bg-black py-20 text-white">
       <div className="mx-auto max-w-6xl px-4 text-center">
         {/* 見出し（BAと同じグラデ） */}
         <h2 className="mb-4 text-3xl font-bold md:text-4xl">
@@ -34,7 +34,7 @@ export default function WhyAndBehind() {
             なぜ、Boost Suiteで“売れる”のか？
           </span>
         </h2>
-        <p className="mx-auto mb-12 max-w-3xl text-base text-zinc-400 md:text-lg">
+        <p className="mx-auto mb-8 max-w-3xl text-base text-zinc-400 md:text-lg">
           他のAIと違うのは「言葉の整え方」。私たちは「伝える」よりも「伝わる」を設計します。
         </p>
 
@@ -52,7 +52,7 @@ export default function WhyAndBehind() {
         <h3 className="mb-4 text-2xl font-bold tracking-tight text-white md:text-3xl">
           Boost Suite の裏側
         </h3>
-        <p className="mx-auto mb-12 max-w-3xl text-[15px] leading-relaxed text-zinc-400">
+        <p className="mx-auto mb-8 max-w-3xl text-[15px] leading-relaxed text-zinc-400">
           各ジャンルのプロ（SEO／EC／セールスライティング）が考える“売れる文脈”をロジック化。
           具体的なアルゴリズムは非公開ですが、無料トライアルで精度を体験できます。
         </p>

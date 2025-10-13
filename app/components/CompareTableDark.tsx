@@ -18,10 +18,10 @@ const rows: Row[] = [
 
 export default function CompareTableDark() {
   return (
-    <section className="py-24 bg-black text-white relative overflow-hidden">
+    <section className="py-20 bg-black text-white relative overflow-hidden">
       <div className="mx-auto max-w-6xl px-4">
         {/* 見出し */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-3">
             <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
               比較すれば、導入理由は明確

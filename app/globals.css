@@ -4,7 +4,7 @@
 
 /* 新構文では必ず theme token を登録 */
 @theme {
-  --spacing-section-sm: 5rem;  /* py-20 相当 */
+  --spacing-section-sm: 5rem;  /* py-16 相当 */
   --spacing-section-md: 7rem;  /* py-28 相当 */
 }
 

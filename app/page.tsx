@@ -112,7 +112,7 @@ export default function Page() {
       </section>
 <div id="hero-end" className="h-px w-full" />
       {/* Before/After */}
-<section className="py-24 bg-black text-white relative overflow-hidden">
+<section className="py-20 bg-black text-white relative overflow-hidden">
   <div className="mx-auto max-w-6xl px-4 text-center">
     {/* 見出し */}
     <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -120,7 +120,7 @@ export default function Page() {
         整流の先にある、“伝わる”世界へ。
       </span>
     </h2>
-    <p className="text-zinc-400 mb-12 text-base md:text-lg">
+    <p className="text-zinc-400 mb-8 text-base md:text-lg">
       言葉を変えるだけで、売上も、印象も、未来も変わる。
     </p>
 

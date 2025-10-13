@@ -24,7 +24,7 @@ export default function FinalCtaDark({
   );
 
   return (
-    <section className="relative overflow-hidden bg-zinc-950 py-24 text-white">
+    <section className="relative overflow-hidden bg-zinc-950 py-20 text-white">
       {/* 背景：薄い放射グラデ＋ノイズ */}
       <div
         aria-hidden

@@ -50,14 +50,14 @@ const steps: Step[] = [
 
 export default function StepsDark() {
   return (
-    <section className="relative overflow-hidden bg-black py-24 text-white">
+    <section className="relative overflow-hidden bg-black py-20 text-white">
       {/* 背景ノイズ＋薄いグロー */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-white/[0.04]" />
 
       <div className="relative mx-auto max-w-6xl px-4">
         {/* 見出し（青グラデのシアー） */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-3">
             <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
               使い方は、貼って押すだけ。

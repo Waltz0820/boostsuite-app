@@ -33,13 +33,13 @@ const rules: Rule[] = [
 
 export default function RulesDark() {
   return (
-    <section className="relative py-24 bg-black text-white overflow-hidden">
+    <section className="relative py-20 bg-black text-white overflow-hidden">
       {/* 背景ノイズ */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
 
       <div className="relative mx-auto max-w-5xl px-4">
         {/* 見出し */}
-        <h2 className="text-center text-3xl md:text-4xl font-bold mb-12">
+        <h2 className="text-center text-3xl md:text-4xl font-bold mb-8">
           <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
             Boostの黄金律
           </span>

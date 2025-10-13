@@ -36,7 +36,7 @@ const qas: QA[] = [
 
 export default function FAQDark() {
   return (
-    <section className="relative bg-black py-24 text-white overflow-hidden">
+    <section className="relative bg-black py-20 text-white overflow-hidden">
       {/* 背景ノイズ＋グラデ */}
       <div
         aria-hidden

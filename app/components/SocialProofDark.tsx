@@ -10,7 +10,7 @@ const stats: Stat[] = [
 
 export default function SocialProofDark() {
   return (
-    <section className="py-24 bg-black text-white relative overflow-hidden">
+    <section className="py-20 bg-black text-white relative overflow-hidden">
       <div className="mx-auto max-w-6xl px-4 text-center">
         {/* Heading */}
         <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -18,7 +18,7 @@ export default function SocialProofDark() {
             選ばれる理由は、数字で語れる
           </span>
         </h2>
-        <p className="text-zinc-400 mb-12 text-[15px] md:text-base">
+        <p className="text-zinc-400 mb-8 text-[15px] md:text-base">
           導入後すぐに“結果”へ寄与。ミニマル運用で再現性が高い。
         </p>
 
