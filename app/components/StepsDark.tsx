@@ -50,26 +50,33 @@ const steps: Step[] = [
 
 export default function StepsDark() {
   return (
-    <section className="relative overflow-hidden bg-zinc-950 py-20 text-zinc-100">
-      {/* faint stars / gradient */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08),transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.02] via-transparent to-white/[0.03]" />
+    <section className="relative overflow-hidden bg-black py-24 text-white">
+      {/* 背景ノイズ＋薄いグロー */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-white/[0.04]" />
 
       <div className="relative mx-auto max-w-6xl px-4">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">使い方は、貼って押すだけ。</h2>
-          <p className="mt-3 text-zinc-300">30秒で「売れる文章」が完成</p>
+        {/* 見出し（青グラデのシアー） */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3">
+            <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
+              使い方は、貼って押すだけ。
+            </span>
+          </h2>
+          <p className="text-zinc-400 text-[15px] md:text-base">
+            30秒で「売れる文章」が完成
+          </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        {/* ステップカード（透明カードで統一） */}
+        <div className="grid gap-8 md:grid-cols-3">
           {steps.map((s) => (
             <div
               key={s.k}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.04]"
+              className="group relative rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/7"
             >
-              <div className="pointer-events-none absolute inset-0 rounded-2xl ring-0 ring-white/0 group-hover:ring-1 group-hover:ring-white/10 transition" />
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
                   {s.icon}
                 </div>
                 <div className="text-sm font-semibold text-zinc-300">STEP {s.k}</div>
@@ -84,12 +91,16 @@ export default function StepsDark() {
           ))}
         </div>
 
+        {/* CTA（密度調整：1個に統一・グラデボタン） */}
         <div className="mt-12 text-center">
           <Link
             href="/tool"
-            className="inline-flex items-center justify-center rounded-xl bg-white text-zinc-900 px-8 py-4 text-base md:text-lg font-semibold hover:bg-zinc-100 transition shadow-lg"
+            className="inline-block rounded-xl px-8 py-4 text-base md:text-lg font-semibold
+                       bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-white
+                       shadow-[0_0_20px_rgba(0,150,255,0.25)]
+                       hover:shadow-[0_0_28px_rgba(0,180,255,0.35)] transition"
           >
-            今すぐ無料で試す
+            30秒で「売れる言葉」に
           </Link>
         </div>
       </div>
