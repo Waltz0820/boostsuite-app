@@ -62,9 +62,6 @@ export default function CtaBar() {
               aria-label="無料トライアル"
             >
               無料トライアル
-              <span aria-hidden className="ml-1 translate-x-0 transition-transform duration-200 group-hover:translate-x-0.5">
-                →
-              </span>
             </Link>
           </div>
         </div>
