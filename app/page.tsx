@@ -112,7 +112,7 @@ export default function Page() {
       </section>
 <div id="hero-end" className="h-px w-full" />
       {/* Before/After */}
-<section className="py-20 bg-black text-white relative overflow-hidden">
+<section className="py-16 bg-black text-white relative overflow-hidden">
   <div className="mx-auto max-w-6xl px-4 text-center">
     {/* 見出し */}
     <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -125,7 +125,7 @@ export default function Page() {
     </p>
 
     {/* Before/After grid */}
-    <div className="grid md:grid-cols-3 gap-6 mb-8 md:mb-10">
+    <div className="grid md:grid-cols-3 gap-6 mb-6 md:mb-8">
       <BABoxMonoDark
         label="モバイルバッテリー"
         before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
