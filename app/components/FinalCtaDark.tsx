@@ -1,36 +1,31 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 
 type Props = {
-  kicker?: string;          // 小さめの前置き
-  heading?: string;         // 見出し
-  sub?: string;             // 補足テキスト（任意）
-  ctaText?: string;         // ボタン文言
-  ctaHref?: string;         // 遷移先
+  kicker?: string;
+  heading?: string;
+  sub?: string;
 };
 
 export default function FinalCtaDark({
   kicker = "もう、“売れない言葉”で悩まない。",
   heading = "今すぐ、売れる言葉に整える",
   sub = "登録不要。コピペ → ワンタップで整文。まずは無料で。",
-  ctaText = "売れる言葉に",
-  ctaHref = "/tool",
 }: Props) {
-  // 軽いランダムなグロー（再描画のたびに色温度が少しだけ変わる）
   const glow = useMemo(
-    () => [
-      "from-sky-500/30 via-cyan-400/20 to-blue-500/20",
-      "from-indigo-500/30 via-blue-400/20 to-cyan-500/20",
-      "from-cyan-500/30 via-teal-400/20 to-sky-500/20",
-    ][Math.floor(Math.random() * 3)],
+    () =>
+      [
+        "from-sky-500/30 via-cyan-400/20 to-blue-500/20",
+        "from-indigo-500/30 via-blue-400/20 to-cyan-500/20",
+        "from-cyan-500/30 via-teal-400/20 to-sky-500/20",
+      ][Math.floor(Math.random() * 3)],
     []
   );
 
   return (
-    <section className="relative overflow-hidden bg-zinc-950 py-24">
-      {/* 背景：ごく薄い放射グラデ＋ノイズ */}
+    <section className="relative overflow-hidden bg-zinc-950 py-24 text-white">
+      {/* 背景：薄い放射グラデ＋ノイズ */}
       <div
         aria-hidden
         className={`pointer-events-none absolute inset-0 bg-gradient-radial ${glow}`}
@@ -53,42 +48,18 @@ export default function FinalCtaDark({
           {kicker}
         </p>
 
-        <h2 className="mt-3 text-3xl md:text-5xl font-bold tracking-tight text-white">
+        <h2 className="mt-3 text-3xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-sky-400 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
           {heading}
         </h2>
 
         {sub && (
-          <p className="mx-auto mt-5 max-w-2xl text-zinc-400 md:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-zinc-400 md:text-lg leading-relaxed">
             {sub}
           </p>
         )}
 
-        <div className="mt-10 flex justify-center">
-          <Link
-            href={ctaHref}
-            aria-label={ctaText}
-            className="
-              group inline-flex items-center gap-2
-              rounded-xl px-8 py-4
-              bg-white text-zinc-950 font-semibold
-              shadow-[0_8px_30px_rgba(0,0,0,0.35)]
-              ring-1 ring-white/60 hover:ring-white
-              transition-all duration-200
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400
-            "
-          >
-            {ctaText}
-            <span
-              aria-hidden
-              className="translate-x-0 transition-transform duration-200 group-hover:translate-x-0.5"
-            >
-              →
-            </span>
-          </Link>
-        </div>
-
-        {/* ちいさな安心材料（任意） */}
-        <div className="mt-4 text-xs text-zinc-500">
+        {/* 安心訴求（静かなクロージング） */}
+        <div className="mt-8 text-xs text-zinc-500">
           無料で始められます・いつでも解約可能
         </div>
       </div>
