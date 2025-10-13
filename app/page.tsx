@@ -125,7 +125,7 @@ export default function Page() {
     </p>
 
     {/* Before/After grid */}
-    <div className="grid md:grid-cols-3 gap-8 mb-8 md:mb-10">
+    <div className="grid md:grid-cols-3 gap-6 mb-8 md:mb-10">
       <BABoxMonoDark
         label="モバイルバッテリー"
         before="22000mAh大容量… 充電効率95%… 次世代USB-C…"
