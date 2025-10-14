@@ -149,7 +149,16 @@ export default function Page() {
       />
     </div>
   </div>
-
+{/* Before/After grid の直後に追加 */}
+<p className="mt-6 text-center text-sm text-zinc-500">
+  <a
+    href="/philosophy"
+    aria-label="Boost Suiteの思想を読む"
+    className="underline underline-offset-4 hover:text-white transition"
+  >
+    「整流」という思想について知る
+  </a>
+</p>
   {/* 背景ノイズ（軽い装飾） */}
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
 </section>
