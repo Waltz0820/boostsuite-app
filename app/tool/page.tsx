@@ -48,55 +48,47 @@ export default function ToolPage() {
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
   const handleSend = async () => {
-    if (!canSend) {
-      if (credits <= 0) setShowWall(true);
-      return;
+  if (!canSend) {
+    if (credits <= 0) setShowWall(true);
+    return;
+  }
+
+  const user: Msg = { role: "user", content: input.trim(), ts: Date.now() };
+  setMsgs((m) => [...m, user]);
+  setInput("");
+  setBusy(true);
+  setCredits((c) => Math.max(0, c - 1));
+
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: user.content }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || `HTTP ${res.status}`);
     }
-    const user: Msg = { role: "user", content: input.trim(), ts: Date.now() };
-    setMsgs((m) => [...m, user]);
-    setInput("");
-    setBusy(true);
-    setCredits((c) => Math.max(0, c - 1));
 
-    // まず API に投げる（/api/generate）。失敗したらデモへ。
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: user.content }),
-      });
-
-      if (!res.ok) throw new Error("bad status");
-      const data = (await res.json()) as { text?: string };
-      const text = data?.text?.trim();
-      if (!text) throw new Error("empty");
-
-      await streamAppend(text, (chunk) =>
-        setMsgs((m) => {
-          const last = m[m.length - 1];
-          if (last?.role === "assistant") {
-            const head = m.slice(0, -1);
-            return [...head, { ...last, content: last.content + chunk }];
-          }
-          return [...m, { role: "assistant", content: chunk, ts: Date.now() }];
-        })
-      );
-    } catch {
-      const demo = demoAnswer(user.content);
-      await streamAppend(demo, (chunk) =>
-        setMsgs((m) => {
-          const last = m[m.length - 1];
-          if (last?.role === "assistant") {
-            const head = m.slice(0, -1);
-            return [...head, { ...last, content: last.content + chunk }];
-          }
-          return [...m, { role: "assistant", content: chunk, ts: Date.now() }];
-        })
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
+    const data = await res.json(); // { text: string } を受け取る
+    setMsgs((m) => [
+      ...m,
+      { role: "assistant", content: data.text, ts: Date.now() },
+    ]);
+  } catch (e: any) {
+    setMsgs((m) => [
+      ...m,
+      {
+        role: "assistant",
+        content: `⚠️ エラー: ${e.message ?? e}`,
+        ts: Date.now(),
+      },
+    ]);
+  } finally {
+    setBusy(false);
+  }
+};
 
   const handleClear = () => {
     setMsgs(seedWelcome());
