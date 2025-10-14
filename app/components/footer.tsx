@@ -17,6 +17,7 @@ export default function Footer() {
               <br />
               プロのセールス構成 × 売れ筋データ × SEOを“自動で”整流。
             </p>
+            <p className="mt-6 text-xs text-zinc-500">© {year} Boost Suite</p>
           </div>
 
           {/* Product */}
@@ -29,13 +30,13 @@ export default function Footer() {
             ]}
           />
 
-          {/* Resources */}
+          {/* Guides（元「リソース」を差し替え） */}
           <FooterCol
-            title="リソース"
+            title="ガイド"
             items={[
-              { href: "/docs", label: "ドキュメント" },
-              { href: "/api", label: "API" },
-              { href: "/blog", label: "ブログ" },
+              { href: "/philosophy", label: "思想" },
+              { href: "/features", label: "機能" },
+              { href: "/contact", label: "お問い合わせ" },
             ]}
           />
 
@@ -51,18 +52,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* 下段（コピーライト + ちいさなリンク） */}
-      <div className="border-t border-white/10">
-        <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-zinc-400">© {year} Boost Suite</p>
-          <nav className="flex flex-wrap gap-4 text-xs text-zinc-400">
-            <Link href="/security" className="hover:text-white/90">セキュリティ</Link>
-            <Link href="/compliance" className="hover:text-white/90">コンプライアンス</Link>
-            <Link href="/contact" className="hover:text-white/90">お問い合わせ</Link>
-            <Link href="/status" className="hover:text-white/90">ステータス</Link>
-          </nav>
-        </div>
-      </div>
+      {/* 下段（セキュリティ等）は削除 */}
     </footer>
   );
 }

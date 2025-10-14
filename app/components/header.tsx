@@ -39,6 +39,8 @@ export default function Header() {
           {/* PCナビ */}
           <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-200">
             <Link href="/tool" className="hover:text-white">ツール</Link>
+            <Link href="/features" className="hover:text-white">機能</Link>
+            <Link href="/philosophy" className="hover:text-white">思想</Link>
             <Link href="/pricing" className="hover:text-white">価格</Link>
             <Link href="/column" className="hover:text-white">コラム</Link>
             <a
@@ -70,12 +72,13 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ドロップメニュー（ヘッダーバーの“下から”展開／不透明） */}
+      {/* ドロップメニュー */}
       {open && (
-        <div className="fixed inset-x-0 bottom-0 z-40 bg-black text-white pt-4
-                        top-14 md:top-16 border-t border-zinc-800">
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-black text-white pt-4 top-14 md:top-16 border-t border-zinc-800">
           <nav className="mx-auto max-w-6xl px-6 pb-10 text-lg font-medium space-y-2 overflow-y-auto h-full">
             <Link href="/tool" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">ツール</Link>
+            <Link href="/features" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">機能</Link>
+            <Link href="/philosophy" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">思想</Link>
             <Link href="/pricing" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">価格</Link>
             <Link href="/column" onClick={() => setOpen(false)} className="block py-2 hover:text-zinc-400">コラム</Link>
             <a
