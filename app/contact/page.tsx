@@ -20,7 +20,6 @@ export default function ContactPage() {
       />
 
       <div className="relative mx-auto max-w-3xl px-4">
-        {/* ヘッダ */}
         <header className="mb-10 text-center">
           <p className="text-xs md:text-sm tracking-widest text-zinc-400 uppercase">
             Contact
@@ -35,11 +34,8 @@ export default function ContactPage() {
           </p>
         </header>
 
-        {/* お問い合わせフォーム（デザイン完成形） */}
-        <form
-          className="space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-lg backdrop-blur-sm"
-          onSubmit={(e) => e.preventDefault()}
-        >
+        {/* onSubmit を削除（Server ComponentでOK） */}
+        <form className="space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-lg backdrop-blur-sm">
           <FormField label="お名前" id="name" placeholder="山田 太郎" />
           <FormField
             label="メールアドレス"
@@ -88,10 +84,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="block text-sm font-semibold text-zinc-300 mb-2"
-      >
+      <label htmlFor={id} className="block text-sm font-semibold text-zinc-300 mb-2">
         {label}
       </label>
       {textarea ? (
