@@ -149,16 +149,24 @@ export default function Page() {
       />
     </div>
   </div>
-{/* Before/After grid の直後に追加 */}
-<p className="mt-6 text-center text-sm text-zinc-500">
+<div className="mt-8 text-center">
   <a
     href="/philosophy"
-    aria-label="Boost Suiteの思想を読む"
-    className="underline underline-offset-4 hover:text-white transition"
+    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 hover:bg-white/10 transition"
   >
     「整流」という思想について知る
+    <svg width="16" height="16" viewBox="0 0 24 24" className="text-zinc-300">
+      <path
+        d="M9 18l6-6-6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   </a>
-</p>
+</div>
   {/* 背景ノイズ（軽い装飾） */}
   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)] pointer-events-none" />
 </section>
