@@ -63,7 +63,24 @@ export default function WhyAndBehind() {
           ))}
         </div>
       </div>
-
+<div className="mt-8 text-center">
+  <a
+    href="/features"
+    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 hover:bg-white/10 transition"
+  >
+    機能の詳細を見る
+    <svg width="16" height="16" viewBox="0 0 24 24" className="text-zinc-300">
+      <path
+        d="M9 18l6-6-6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </a>
+</div>
       {/* 背景ノイズ（BAと同トーン） */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05),transparent_60%)]" />
     </section>
