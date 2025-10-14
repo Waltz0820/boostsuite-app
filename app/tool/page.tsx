@@ -1,3 +1,4 @@
+// app/tool/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -57,22 +58,44 @@ export default function ToolPage() {
     setBusy(true);
     setCredits((c) => Math.max(0, c - 1));
 
-    // ダミー応答（ストリーミング風）
-    const demo = demoAnswer(user.content);
-    await streamAppend(demo, (chunk) =>
-      setMsgs((m) => {
-        const last = m[m.length - 1];
-        if (last?.role === "assistant") {
-          // 追記
-          const head = m.slice(0, -1);
-          return [...head, { ...last, content: last.content + chunk }];
-        }
-        // 新規
-        return [...m, { role: "assistant", content: chunk, ts: Date.now() }];
-      })
-    );
+    // まず API に投げる（/api/generate）。失敗したらデモへ。
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: user.content }),
+      });
 
-    setBusy(false);
+      if (!res.ok) throw new Error("bad status");
+      const data = (await res.json()) as { text?: string };
+      const text = data?.text?.trim();
+      if (!text) throw new Error("empty");
+
+      await streamAppend(text, (chunk) =>
+        setMsgs((m) => {
+          const last = m[m.length - 1];
+          if (last?.role === "assistant") {
+            const head = m.slice(0, -1);
+            return [...head, { ...last, content: last.content + chunk }];
+          }
+          return [...m, { role: "assistant", content: chunk, ts: Date.now() }];
+        })
+      );
+    } catch {
+      const demo = demoAnswer(user.content);
+      await streamAppend(demo, (chunk) =>
+        setMsgs((m) => {
+          const last = m[m.length - 1];
+          if (last?.role === "assistant") {
+            const head = m.slice(0, -1);
+            return [...head, { ...last, content: last.content + chunk }];
+          }
+          return [...m, { role: "assistant", content: chunk, ts: Date.now() }];
+        })
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleClear = () => {
@@ -125,9 +148,7 @@ export default function ToolPage() {
         {/* Sidebar（履歴） */}
         <aside className="hidden md:block">
           <div className="rounded-2xl border border-white/10 bg-white/5">
-            <div className="px-4 py-3 border-b border-white/10 text-sm text-zinc-300">
-              履歴
-            </div>
+            <div className="px-4 py-3 border-b border-white/10 text-sm text-zinc-300">履歴</div>
             <div className="max-h-[50vh] overflow-auto p-3 space-y-2">
               {msgs
                 .filter((m) => m.role === "user")
@@ -204,9 +225,7 @@ export default function ToolPage() {
           {showWall && (
             <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm">
               <div className="w-[92%] max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  無料体験の上限に達しました
-                </h3>
+                <h3 className="text-lg font-semibold text-white">無料体験の上限に達しました</h3>
                 <p className="mt-2 text-sm text-zinc-400">
                   続きは無料アカウントで解放できます。登録は30秒。
                 </p>
@@ -274,9 +293,7 @@ function Typing() {
 function Dot({ className = "" }: { className?: string }) {
   return (
     <span
-      className={
-        "inline-block h-2 w-2 rounded-full bg-zinc-300 animate-pulse " + className
-      }
+      className={"inline-block h-2 w-2 rounded-full bg-zinc-300 animate-pulse " + className}
     />
   );
 }
@@ -331,6 +348,7 @@ function tokenize(s: string, size: number) {
   for (let i = 0; i < s.length; i += size) out.push(s.slice(i, i + size));
   return out;
 }
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
