@@ -87,7 +87,7 @@ export default function Page() {
 
   {/* 補足 */}
   <p className="mt-4 text-base md:text-lg text-zinc-400">
-    不自然な翻訳文を、“買いたくなる日本語”へ
+    不自然な翻訳文を、“買いたくなる日本語”へ。
   </p>
 
   {/* CTAブロック */}
