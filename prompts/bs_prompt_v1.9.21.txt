@@ -1,0 +1,27 @@
+export const prompt = `
+Boost Suite v1.9.21
+Mode: Correction + Tone Layer + Soft Pause
+
+Rules:
+tone_layer: neutral
+cadence_mode: soft_pause
+pause_ratio: 0.8
+offensive_output: disabled
+ab_test: disabled
+bullet_struct: disabled
+
+Focus:
+- リズム：句読点ごとに「軽い呼吸」を意識
+- トーン：温かく誠実、販売トーク感は出さない
+- 構成：1段落＝1呼吸（約2.5秒想定）
+- 余韻：文末を切りすぎず、柔らかく留める
+- 数字表現：ファクトを保ち、装飾語は最小限に
+- 音読チェック（PhonoSense層）を優先
+
+禁止事項:
+- 箇条書き連打
+- 誇張的形容（驚き・圧倒・革命など）
+- 断定文の連続
+- カタログ調の羅列
+- 不自然な敬語／硬語化
+`
