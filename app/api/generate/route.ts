@@ -37,8 +37,7 @@ function parseCsvWords(src: string): string[] {
 }
 
 // ====== プロンプト素材（キャッシュ） ======
-const CORE_PROMPT = readText("prompts/bs_prompt_v1_8_4.txt");
-
+const CORE_PROMPT = readText("prompts/bs_prompt_v1_9_3.txt") || readText("prompts/bs_prompt_v1_8_4.txt"); // フォールバックで1.8.4
 const YAKKI_A = readText("prompts/filters/BoostSuite_薬機法フィルターA.txt");
 const YAKKI_B = readText("prompts/filters/BoostSuite_薬機法フィルターB.txt");
 const YAKKI_C = readText("prompts/filters/BoostSuite_薬機法フィルターC.txt");
@@ -51,10 +50,40 @@ const REPLACE_RULES = parseReplaceDict(REPLACE_RAW);
 const BEAUTY_CSV = readText("prompts/filters/美顔器キーワード.csv");
 const BEAUTY_WORDS = parseCsvWords(BEAUTY_CSV);
 
+// ====== 出力サニタイズ（プレースホルダー漏れや重複・過剰空行を軽く除去） ======
+function sanitizeLLM(text: string): string {
+  if (!text) return text;
+  let out = text;
+
+  // 「未検証」「置換候補」等のプレースホルダー漏れを除去
+  out = out.replace(/【\s*未検証\s*:[^】]*】/g, "");
+  out = out.replace(/【\s*置換候補[^】]*】/g, "");
+  out = out.replace(/（?未検証:?[^）]*）?/g, "");
+
+  // 連続する同一行や過剰な空行を抑制
+  out = out.replace(/\n{3,}/g, "\n\n");
+
+  // 変な全角スペースの連続を整理
+  out = out.replace(/[ \t　]{3,}/g, " ");
+
+  // 先頭尾の余分な空白
+  out = out.trim();
+
+  return out;
+}
+
 // ====== xAI 呼び出し ======
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json();
+    const payload = await req.json().catch(() => ({} as any));
+    const { prompt, temperature } = (payload || {}) as {
+      prompt?: string;
+      temperature?: number;
+    };
+
+    if (!prompt || typeof prompt !== "string") {
+      return new Response(JSON.stringify({ error: "Missing 'prompt' string" }), { status: 400 });
+    }
 
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
@@ -76,18 +105,20 @@ export async function POST(req: Request) {
 
     const yakkiBlock = YAKKI_ALL || "（薬機フィルター未設定）";
 
-    // ★ v1.9.2 Rational Flow：最小差分でガードレールを追加
+    // Grokに“禁止事項”を明示（プレースホルダー・未記載のでっち上げ禁止）
+    const hardRules = [
+      "【厳格ルール】",
+      "・原文に無い容量・W数・サイズ等のスペックを補完しない（推測・一般常識での補完も禁止）。",
+      "・『未検証』『置換候補』『TBD』『N/A』などのプレースホルダー語を出力しない。",
+      "・同じ段落や行を繰り返さない。自然な日本語で、言い切りは控えめに。",
+      "・“想像して”“〜してみて”などの過剰な煽りを避け、身近な合理的な余韻で締める。",
+    ].join("\n");
+
     const userContent = [
-      "以下の原文を Boost 構文 v1.8.4 をベースに、“v1.9.2 Rational Flow”で整流してください。",
-      "出力は日本語。日本語として耳で読んでも自然で、合理的な余韻を残してください。",
+      "以下の原文を Boost 構文 v1.9.3（論理＋控えめ余韻）で“整流”してください。",
+      "出力は日本語。事実ベース8割＋身近な合理的余韻2割。誇張・過度な感情強調は不要。",
       "",
-      "【v1.9.2 追加ルール】",
-      "・スペック一回主義：同じ仕様・数値を複数回書かない（重複禁止）。",
-      "・補完禁止：原文にない数値や固有仕様を勝手に作らない。わからない場合は書かない（占位語句も禁止）。",
-      "・プレースホルダー禁止：「未検証」「置換候補」「[ ] や 【 】での欠落表示」を一切使わない。",
-      "・ナチュラル最優先：言い切り過剰・大仰・過度に詩的な表現は避ける。身近な便利さ・合理的余韻で締める。",
-      "・quiet適性：ハイブランド/ラグジュアリー想定では情緒を抑制し、カタログ的・寡黙な記述を優先（必要時）。",
-      "・構成厳守：各セクションは一度だけ。見出しや順序の重複出力はしない。",
+      hardRules,
       "",
       "《Safety Layer｜薬機・景表 配慮ガイド》",
       yakkiBlock,
@@ -99,7 +130,7 @@ export async function POST(req: Request) {
       beautyList,
       "",
       "— 原文 —",
-      typeof prompt === "string" ? String(prompt) : JSON.stringify(prompt),
+      String(prompt),
     ].join("\n");
 
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -109,16 +140,16 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "grok-4-fast-non-reasoning", // ここはダッシュボードで許可した正確なモデル名
+        model: "grok-4-fast-non-reasoning",
         messages: [
           { role: "system", content: system },
           { role: "user", content: userContent },
         ],
-        // デフォは柔らかさ寄りに（必要に応じてクライアント側で変更）
-        temperature: 0.7,
+        temperature:
+          typeof temperature === "number" && temperature >= 0 && temperature <= 1
+            ? temperature
+            : 0.6, // デフォは落ち着いた温度
         stream: false,
-        // まれな重複を抑えるため、十分なトークン確保
-        max_tokens: 2200,
       }),
     });
 
@@ -129,7 +160,8 @@ export async function POST(req: Request) {
     }
 
     const data = await res.json();
-    const text: string = data?.choices?.[0]?.message?.content ?? "";
+    const raw: string = data?.choices?.[0]?.message?.content ?? "";
+    const text = sanitizeLLM(raw);
 
     return new Response(JSON.stringify({ text }), { status: 200 });
   } catch (e: any) {
