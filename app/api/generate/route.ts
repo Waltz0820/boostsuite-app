@@ -96,7 +96,7 @@ function humanScore(text: string) {
 async function callGrok(apiKey: string, content: string, temperature = 0.8) {
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: Bearer ${apiKey} },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`,
     body: JSON.stringify({
       model: "grok-4-fast-non-reasoning",
       messages: [{ role: "system", content: CORE_PROMPT || "You are Boost Suite copy refiner." },
