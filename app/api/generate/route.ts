@@ -49,17 +49,29 @@ const REPLACE_RULES = parseReplaceDict(REPLACE_RAW);
 const BEAUTY_CSV = readText("prompts/filters/美顔器キーワード.csv");
 const BEAUTY_WORDS = parseCsvWords(BEAUTY_CSV);
 
-// ====== xAI 呼び出し ======
+// ====== OpenAI 呼び出し ======
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { prompt, jitter = false, variants = 0 } = body ?? {};
+    const {
+      prompt,
+      jitter = false,
+      variants = 0,
+      model: reqModel,
+      temperature: reqTemp,
+    } = body ?? {};
 
-    const apiKey = process.env.XAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error("XAI_API_KEY is missing on Vercel environment");
-      return new Response(JSON.stringify({ error: "XAI_API_KEY not set" }), { status: 500 });
+      console.error("OPENAI_API_KEY is missing on Vercel environment");
+      return new Response(JSON.stringify({ error: "OPENAI_API_KEY not set" }), { status: 500 });
     }
+
+    // モデル選択（必要に応じて変更可）
+    // 候補: "gpt-5", "gpt-5-mini", "gpt-4o"
+    const model = typeof reqModel === "string" && reqModel.trim()
+      ? reqModel.trim()
+      : "gpt-5-mini";
 
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
 
@@ -96,16 +108,16 @@ export async function POST(req: Request) {
     ].join("\n");
 
     const baseTemp = 0.35;
-    const temp = jitter ? 0.45 : baseTemp; // 余韻だけ軽く揺らす
+    const temp = typeof reqTemp === "number" ? reqTemp : (jitter ? 0.45 : baseTemp);
 
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "grok-4-fast-non-reasoning",
+        model,
         messages: [
           { role: "system", content: system },
           { role: "user", content: userContent },
@@ -118,14 +130,14 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const text = await res.text();
-      console.error("xAI API error:", text);
+      console.error("OpenAI API error:", text);
       return new Response(JSON.stringify({ error: text }), { status: 500 });
     }
 
     const data = await res.json();
     const text: string = data?.choices?.[0]?.message?.content ?? "";
 
-    return new Response(JSON.stringify({ text }), { status: 200 });
+    return new Response(JSON.stringify({ text, modelUsed: model }), { status: 200 });
   } catch (e: any) {
     console.error("API route crashed:", e?.stack || e?.message || e);
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
