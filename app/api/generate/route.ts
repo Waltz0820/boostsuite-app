@@ -35,7 +35,7 @@ function parseCsvWords(src: string): string[] {
 }
 
 // ====== プロンプト素材 ======
-const CORE_PROMPT = readText("prompts/bs_prompt_v1.9.28.txt");
+const CORE_PROMPT = readText("prompts/bs_prompt_v1.9.29.txt");
 
 const YAKKI_A = readText("prompts/filters/BoostSuite_薬機法フィルターA.txt");
 const YAKKI_B = readText("prompts/filters/BoostSuite_薬機法フィルターB.txt");
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     // モデル選択（既定は gpt-5-mini）
     // 例: gpt-5 / gpt-5-mini / gpt-4o / gpt-4o-mini
     const model =
-      typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5";
+      typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5-mini";
 
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
 
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       : `JITTERは無効化（安定出力）。`;
 
     const userContent = [
-      "以下の原文を Boost 構文 v1.9.28 で“段階整流”してください。",
+      "以下の原文を Boost 構文 v1.9.29 で“段階整流”してください。",
       "出力は日本語。FACTSを固定し、最小の余韻＋音の自然さ（PhonoSense）で販売文に整えます。",
       controlLine,
       "",
