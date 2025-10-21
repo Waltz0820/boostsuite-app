@@ -9,7 +9,7 @@ function readText(rel: string): string {
   try {
     const p = path.join(process.cwd(), rel);
     return fs.readFileSync(p, "utf8");
-  } catch (e) {
+  } catch {
     console.warn(`⚠️  Missing file: ${rel}`);
     return "";
   }
@@ -49,6 +49,10 @@ const REPLACE_RULES = parseReplaceDict(REPLACE_RAW);
 const BEAUTY_CSV = readText("prompts/filters/美顔器キーワード.csv");
 const BEAUTY_WORDS = parseCsvWords(BEAUTY_CSV);
 
+// ====== ユーティリティ ======
+const isFiveFamily = (m: string) =>
+  /^gpt-5($|-)/i.test(m); // gpt-5 / gpt-5-mini など
+
 // ====== OpenAI 呼び出し ======
 export async function POST(req: Request) {
   try {
@@ -67,11 +71,10 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY not set" }), { status: 500 });
     }
 
-    // モデル選択（必要に応じて変更可）
-    // 候補: "gpt-5", "gpt-5-mini", "gpt-4o"
-    const model = typeof reqModel === "string" && reqModel.trim()
-      ? reqModel.trim()
-      : "gpt-5-mini";
+    // モデル選択（既定は gpt-5-mini）
+    // 例: gpt-5 / gpt-5-mini / gpt-4o / gpt-4o-mini
+    const model =
+      typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5-mini";
 
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
 
@@ -107,8 +110,25 @@ export async function POST(req: Request) {
       typeof prompt === "string" ? String(prompt) : JSON.stringify(prompt),
     ].join("\n");
 
+    // 温度は 5 系では非対応 → 送らない
     const baseTemp = 0.35;
-    const temp = typeof reqTemp === "number" ? reqTemp : (jitter ? 0.45 : baseTemp);
+    const temp = typeof reqTemp === "number" ? reqTemp : jitter ? 0.45 : baseTemp;
+
+    // リクエストペイロード（モデルにより可変）
+    const payload: Record<string, any> = {
+      model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userContent },
+      ],
+      stream: false,
+    };
+
+    if (!isFiveFamily(model)) {
+      // 4o 系など temperature/top_p をサポートするモデルのみ付与
+      payload.temperature = temp;
+      payload.top_p = 0.9;
+    }
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -116,16 +136,7 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: userContent },
-        ],
-        temperature: temp,
-        top_p: 0.9,
-        stream: false,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
