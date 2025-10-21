@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     // モデル選択（既定は gpt-5-mini）
     // 例: gpt-5 / gpt-5-mini / gpt-4o / gpt-4o-mini
     const model =
-      typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5-mini";
+      typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5";
 
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
 
