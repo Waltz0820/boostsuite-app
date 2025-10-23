@@ -98,7 +98,7 @@ export default function PricingDark({
         {/* Heading */}
         <h2 className="text-3xl md:text-4xl font-bold mb-4">
           <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-cyan-400 bg-clip-text text-transparent">
-            Pricing
+            利用料金
           </span>
         </h2>
         <p className="text-zinc-400 mb-6 text-[15px] md:text-base">
