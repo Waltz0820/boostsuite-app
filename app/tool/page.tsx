@@ -68,30 +68,32 @@ export default function ToolPage() {
     setCredits((c) => Math.max(0, c - 1));
 
     try {
-      // タイムアウト保険（60s）
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 60_000);
+      const timeout = setTimeout(() => controller.abort(), 60000);
 
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",              // ← 重要：Cookie同送で user_id を特定
+        credentials: "include", // ← Cookie同送で user_id を特定
         body: JSON.stringify({ prompt, media }),
         signal: controller.signal,
       });
-      clearTimeout(t);
+      clearTimeout(timeout);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || res.statusText || `HTTP ${res.status}`);
-      }
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || res.statusText);
+      const data = JSON.parse(text);
 
-      setMsgs((m) => [...m, { role: "assistant", content: String(data?.text ?? "(空の応答)"), ts: Date.now() }]);
-    } catch (e: any) {
       setMsgs((m) => [
         ...m,
-        { role: "assistant", content: `⚠️ エラー: ${e?.message || e}`, ts: Date.now() },
+        { role: "assistant", content: String(data?.text ?? "(応答なし)"), ts: Date.now() },
       ]);
+    } catch (e: any) {
+      const msg =
+        e.name === "AbortError"
+          ? "⚠️ タイムアウト：60秒以内に応答がありません。"
+          : `⚠️ エラー: ${e?.message || e}`;
+      setMsgs((m) => [...m, { role: "assistant", content: msg, ts: Date.now() }]);
       console.error("generate failed:", e);
     } finally {
       setBusy(false);
