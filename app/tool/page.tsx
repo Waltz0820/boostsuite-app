@@ -6,10 +6,14 @@ import Link from "next/link";
 
 type Msg = { role: "user" | "assistant"; content: string; ts: number };
 
-const MAX_FREE_CREDITS = 5; // ゲスト上限（あとでENV化可）
+const MAX_FREE_CREDITS = 5;        // ゲスト上限
+const MAX_INPUT_CHARS = 4000;      // 入力上限（巨大ペースト対策）
 
 export default function ToolPage() {
   const [input, setInput] = useState("");
+  const [media, setMedia] = useState<"ad" | "social" | "lp">("ad");
+  const [model, setModel] = useState("Boost Suite v0");
+
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -26,17 +30,17 @@ export default function ToolPage() {
     return raw ? Number(raw) : MAX_FREE_CREDITS;
   });
   const [showWall, setShowWall] = useState(false);
-  const [model, setModel] = useState("Boost Suite v0");
 
   // 保存
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("bs_msgs", JSON.stringify(msgs));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("bs_msgs", JSON.stringify(msgs));
+    }
   }, [msgs]);
-
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("bs_free_credits", String(credits));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("bs_free_credits", String(credits));
+    }
   }, [credits]);
 
   // スクロール末尾
@@ -48,47 +52,51 @@ export default function ToolPage() {
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
   const handleSend = async () => {
-  if (!canSend) {
-    if (credits <= 0) setShowWall(true);
-    return;
-  }
-
-  const user: Msg = { role: "user", content: input.trim(), ts: Date.now() };
-  setMsgs((m) => [...m, user]);
-  setInput("");
-  setBusy(true);
-  setCredits((c) => Math.max(0, c - 1));
-
-  try {
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: user.content }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText || `HTTP ${res.status}`);
+    if (!canSend) {
+      if (credits <= 0) setShowWall(true);
+      return;
     }
 
-    const data = await res.json(); // { text: string } を受け取る
-    setMsgs((m) => [
-      ...m,
-      { role: "assistant", content: data.text, ts: Date.now() },
-    ]);
-  } catch (e: any) {
-    setMsgs((m) => [
-      ...m,
-      {
-        role: "assistant",
-        content: `⚠️ エラー: ${e.message ?? e}`,
-        ts: Date.now(),
-      },
-    ]);
-  } finally {
-    setBusy(false);
-  }
-};
+    // 入力整形＆上限
+    const raw = input.trim();
+    const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
+
+    const user: Msg = { role: "user", content: prompt, ts: Date.now() };
+    setMsgs((m) => [...m, user]);
+    setInput("");
+    setBusy(true);
+    setCredits((c) => Math.max(0, c - 1));
+
+    try {
+      // タイムアウト保険（60s）
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 60_000);
+
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",              // ← 重要：Cookie同送で user_id を特定
+        body: JSON.stringify({ prompt, media }),
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || res.statusText || `HTTP ${res.status}`);
+      }
+
+      setMsgs((m) => [...m, { role: "assistant", content: String(data?.text ?? "(空の応答)"), ts: Date.now() }]);
+    } catch (e: any) {
+      setMsgs((m) => [
+        ...m,
+        { role: "assistant", content: `⚠️ エラー: ${e?.message || e}`, ts: Date.now() },
+      ]);
+      console.error("generate failed:", e);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleClear = () => {
     setMsgs(seedWelcome());
@@ -117,6 +125,18 @@ export default function ToolPage() {
             >
               <option>Boost Suite v0</option>
               <option disabled>Boost Suite v1（準備中）</option>
+            </select>
+
+            <span className="h-4 w-px bg-white/10 ml-3" />
+            <span className="text-sm text-zinc-300">媒体</span>
+            <select
+              value={media}
+              onChange={(e) => setMedia(e.target.value as any)}
+              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+            >
+              <option value="ad">ad（広告）</option>
+              <option value="social">social（SNS）</option>
+              <option value="lp">lp（LP/詳細）</option>
             </select>
           </div>
 
@@ -271,36 +291,21 @@ function Typing() {
         <Dot className="animation-delay-300" />
       </div>
       <style jsx>{`
-        .animation-delay-150 {
-          animation-delay: 0.15s;
-        }
-        .animation-delay-300 {
-          animation-delay: 0.3s;
-        }
+        .animation-delay-150 { animation-delay: 0.15s; }
+        .animation-delay-300 { animation-delay: 0.3s; }
       `}</style>
     </div>
   );
 }
 
 function Dot({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={"inline-block h-2 w-2 rounded-full bg-zinc-300 animate-pulse " + className}
-    />
-  );
+  return <span className={"inline-block h-2 w-2 rounded-full bg-zinc-300 animate-pulse " + className} />;
 }
 
 function ArrowRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-90">
-      <path
-        d="M5 12h14M13 5l7 7-7 7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -315,48 +320,8 @@ function seedWelcome(): Msg[] {
   return [
     {
       role: "assistant",
-      content:
-        "原文を貼って「Boost」を押してください。\n直訳感を抑え、“買いたくなる日本語”へ整流します。",
+      content: "原文を貼って「Boost」を押してください。\n直訳感を抑え、“買いたくなる日本語”へ整流します。",
       ts: Date.now(),
     },
   ];
-}
-
-// 擬似ストリーミング
-async function streamAppend(
-  full: string,
-  onChunk: (chunk: string) => void,
-  speed = 12 // 1チャンクあたりms
-) {
-  const tokens = tokenize(full, 8); // 8文字ずつ
-  for (const t of tokens) {
-    await sleep(speed);
-    onChunk(t);
-  }
-}
-
-function tokenize(s: string, size: number) {
-  const out: string[] = [];
-  for (let i = 0; i < s.length; i += size) out.push(s.slice(i, i + size));
-  return out;
-}
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// デモ応答：最小の“整流サンプル”
-function demoAnswer(src: string) {
-  const base =
-    "整流案A（セーフ）\n" +
-    "・事実で支え、余韻で締める。\n" +
-    "・直訳表現をやわらげ、日本語の購入文脈へ再構成。\n\n" +
-    "整流案B（オフェンシブ）\n" +
-    "・感情の入口を少し広げ、期待と安心を同時に設計。\n";
-  const echo =
-    src.length > 0
-      ? `\n— 原文の要点\n「${truncate(src.replace(/\s+/g, " "), 60)}」\n`
-      : "";
-  const close = "\n必要ならカテゴリ最適化（Beauty/Gadget ほか）も適用します。";
-  return base + echo + close;
 }
