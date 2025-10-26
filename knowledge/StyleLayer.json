@@ -1,0 +1,122 @@
+{
+  "$schema": "https://boostsuite.schemas/style-layer.v1.json",
+  "version": "1.0.0",
+  "defaults": {
+    "voice": "です・ます",
+    "sentence_length": "short",
+    "emoji": false
+  },
+  "styles": [
+    {
+      "id": "キビキビ",
+      "voice": "です・ます",
+      "rhythm": "短文中心。動詞始まりを許容。",
+      "lexicon_plus": [
+        "すぐ",
+        "パッと",
+        "ラクに"
+      ],
+      "lexicon_minus": [
+        "冗長",
+        "抽象的"
+      ],
+      "use_for_modes": [
+        "gadget",
+        "lifestyle",
+        "diy"
+      ]
+    },
+    {
+      "id": "やわらかい",
+      "voice": "です・ます",
+      "rhythm": "中短文。主語明示で丁寧に。",
+      "lexicon_plus": [
+        "そっと",
+        "やさしく",
+        "安心"
+      ],
+      "lexicon_minus": [
+        "強い断定",
+        "専門用語"
+      ],
+      "use_for_modes": [
+        "kids",
+        "beauty",
+        "gift",
+        "lifestyle"
+      ]
+    },
+    {
+      "id": "インスパイア",
+      "voice": "常体ミックス",
+      "rhythm": "比喩を少量。余白を残す。",
+      "lexicon_plus": [
+        "らしさ",
+        "自由",
+        "アップデート"
+      ],
+      "lexicon_minus": [
+        "形式的",
+        "説明的"
+      ],
+      "use_for_modes": [
+        "fashion",
+        "entertainment",
+        "beauty"
+      ]
+    },
+    {
+      "id": "プレミアム",
+      "voice": "です・ます",
+      "rhythm": "やや長文。語尾を柔らかく統一。",
+      "lexicon_plus": [
+        "上質",
+        "優雅",
+        "特別"
+      ],
+      "lexicon_minus": [
+        "カジュアル語"
+      ],
+      "use_for_modes": [
+        "beauty",
+        "gift",
+        "food"
+      ]
+    },
+    {
+      "id": "ナチュラル",
+      "voice": "です・ます",
+      "rhythm": "自然体。主観を控えめに。",
+      "lexicon_plus": [
+        "毎日",
+        "自然",
+        "穏やか"
+      ],
+      "lexicon_minus": [
+        "過度な誇張"
+      ],
+      "use_for_modes": [
+        "lifestyle",
+        "kids",
+        "food"
+      ]
+    }
+  ],
+  "media_overrides": [
+    {
+      "media": "ad",
+      "sentence_length": "very_short",
+      "emoji": false
+    },
+    {
+      "media": "social",
+      "sentence_length": "short",
+      "emoji": true
+    },
+    {
+      "media": "lp",
+      "sentence_length": "long",
+      "emoji": false
+    }
+  ]
+}

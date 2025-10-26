@@ -1,0 +1,173 @@
+{
+  "$schema": "https://boostsuite.schemas/emotion-layer.v1.json",
+  "version": "1.0.0",
+  "default_emotion": "安心",
+  "emotions": [
+    {
+      "id": "効率",
+      "aliases": [
+        "時短",
+        "生産性",
+        "手軽"
+      ],
+      "tones": [
+        "キビキビ"
+      ],
+      "patterns": [
+        "ワンタッチで、迷わない。",
+        "毎日の作業をもっと軽く。"
+      ],
+      "use_for_modes": [
+        "gadget",
+        "lifestyle"
+      ]
+    },
+    {
+      "id": "安心",
+      "aliases": [
+        "安全",
+        "やさしさ",
+        "信頼"
+      ],
+      "tones": [
+        "やわらかい"
+      ],
+      "patterns": [
+        "はじめてでも、むずかしくない。",
+        "ずっと使える安心感を。"
+      ],
+      "use_for_modes": [
+        "kids",
+        "beauty",
+        "gift",
+        "lifestyle"
+      ]
+    },
+    {
+      "id": "自己表現",
+      "aliases": [
+        "らしさ",
+        "変身",
+        "自信"
+      ],
+      "tones": [
+        "インスパイア"
+      ],
+      "patterns": [
+        "“わたしらしさ”がちゃんと残る。",
+        "今日の気分を、装うだけで。"
+      ],
+      "use_for_modes": [
+        "fashion",
+        "beauty",
+        "entertainment"
+      ]
+    },
+    {
+      "id": "絆",
+      "aliases": [
+        "感謝",
+        "贈り物",
+        "共感"
+      ],
+      "tones": [
+        "やわらかい"
+      ],
+      "patterns": [
+        "想いを、ちゃんと届ける。",
+        "“あの人へ”が伝わるかたち。"
+      ],
+      "use_for_modes": [
+        "gift",
+        "kids"
+      ]
+    },
+    {
+      "id": "挑戦",
+      "aliases": [
+        "革新",
+        "冒険",
+        "成長"
+      ],
+      "tones": [
+        "キビキビ",
+        "インスパイア"
+      ],
+      "patterns": [
+        "新しいことを、今すぐ試せる。",
+        "昨日より少し先へ。"
+      ],
+      "use_for_modes": [
+        "gadget",
+        "entertainment",
+        "fashion"
+      ]
+    },
+    {
+      "id": "癒し",
+      "aliases": [
+        "安らぎ",
+        "落ち着き",
+        "リラックス"
+      ],
+      "tones": [
+        "やわらかい"
+      ],
+      "patterns": [
+        "ふっと力を抜けるひとときを。",
+        "やさしさが続く心地よさ。"
+      ],
+      "use_for_modes": [
+        "beauty",
+        "lifestyle",
+        "gift"
+      ]
+    }
+  ],
+  "category_overrides": [
+    {
+      "category": "家電・IoT・デジタル/生活家電",
+      "primary_emotion": "効率",
+      "fallbacks": [
+        "安心"
+      ]
+    },
+    {
+      "category": "家電・IoT・デジタル/美容家電",
+      "primary_emotion": "癒し",
+      "fallbacks": [
+        "安心",
+        "自己表現"
+      ]
+    },
+    {
+      "category": "ファッション/レディースウェア",
+      "primary_emotion": "自己表現",
+      "fallbacks": [
+        "挑戦"
+      ]
+    },
+    {
+      "category": "ギフト/法人・ビジネスギフト",
+      "primary_emotion": "絆",
+      "fallbacks": [
+        "安心",
+        "効率"
+      ]
+    },
+    {
+      "category": "美容・ヘルスケア/スキンケア",
+      "primary_emotion": "癒し",
+      "fallbacks": [
+        "安心"
+      ]
+    },
+    {
+      "category": "ホビー・エンタメ/ゲーム・AR",
+      "primary_emotion": "挑戦",
+      "fallbacks": [
+        "自己表現"
+      ]
+    }
+  ]
+}
