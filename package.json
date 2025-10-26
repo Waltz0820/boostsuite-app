@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/xai": "^2.0.26",
+    "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.76.1",
     "ai": "^5.0.70",
     "clsx": "^2.1.1",
