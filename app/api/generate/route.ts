@@ -68,19 +68,22 @@ const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// 読み取り用（セッション不要な読み取り）
+// 読み取り用（セッション不要）
 function sbRead() {
   return createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
 }
 
-// サーバ用：cookies() 経由でセッションを読む（← これが user_id 付与の肝）
-function sbServer() {
-  const cookieStore = cookies();
+// サーバ用：cookies() 経由でセッションを読む（Next15: cookies は Promise）
+async function sbServer() {
+  const cookieStore = await cookies();
   return createServerClient(SUPABASE_URL, SUPABASE_ANON, {
     cookies: {
-      get: (key) => cookieStore.get(key)?.value,
-      set: (key, value, options) => cookieStore.set(key, value, options),
-      remove: (key, options) => cookieStore.set(key, "", { ...options, maxAge: 0 }),
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      // 今回の API では Cookie の書き換えは不要なので no-op を渡す
+      set() {},
+      remove() {},
     },
   });
 }
@@ -235,11 +238,11 @@ export async function POST(req: Request) {
     }
 
     // 1) サーバ側でログインユーザー取得（cookie セッション）
-    const sb = sbServer();
+    const sb = await sbServer();
     const { data: userRes } = await sb.auth.getUser();
     const userId = userRes?.user?.id ?? null;
 
-    // 2) DBからカテゴリ→感情→文体を推論
+    // 2) DB推論
     const intent = await mapIntentWithDB(String(prompt ?? ""), String(media ?? "ad"));
 
     // 3) プロンプト構築
@@ -330,10 +333,8 @@ export async function POST(req: Request) {
     const data = await res.json();
     const text: string = data?.choices?.[0]?.message?.content ?? "";
 
-    // 5) intent_logs へ保存（← ここが user_id 自動付与の本丸）
-    // RLS: INSERT with check (user_id = auth.uid())
-    // DB側で user_id default auth.uid() を設定済みなら user_id を送らなくてもOK
-    await sb
+    // 5) intent_logs へ保存（DB側 default auth.uid() を利用）
+    await (await sbServer())
       .from("intent_logs")
       .insert({
         media,
@@ -343,7 +344,6 @@ export async function POST(req: Request) {
         mode: intent.category?.mode ?? null,
         emotion_id: intent.emotion?.id ?? null,
         style_id: intent.style?.id ?? null,
-        // user_id は省略（DBの default auth.uid() が入る）
       });
 
     return new Response(
@@ -365,7 +365,7 @@ export async function POST(req: Request) {
               }
             : null,
         },
-        userId, // サーバで取得した現在のユーザー（未ログインなら null）
+        userId,
       }),
       { status: 200 }
     );
