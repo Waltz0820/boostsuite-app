@@ -70,7 +70,7 @@ type StyleJSON = {
   media_overrides?: Array<{ media: string; sentence_length: string; emoji?: boolean }>;
 };
 
-const CORE_PROMPT = readText("prompts/bs_prompt_v1.9.27.txt") || readText("prompts/bs_prompt_v1.9.7.txt");
+const CORE_PROMPT = readText("prompts/bs_prompt_v1.9.7.txt") || readText("prompts/bs_prompt_v1.9.7.txt");
 const YAKKI_ALL_RAW = [
   readText("prompts/filters/BoostSuite_薬機法フィルターA.txt"),
   readText("prompts/filters/BoostSuite_薬機法フィルターB.txt"),
@@ -288,7 +288,7 @@ export async function POST(req: Request) {
     ].join("\n");
 
     const userContent = [
-      "以下の原文を Boost 構文 v1.9.27 で“段階整流”してください。",
+      "以下の原文を Boost 構文 v1.9.7 で“段階整流”してください。",
       "出力は日本語。FACTSを固定し、最小の余韻＋音の自然さ（PhonoSense）で販売文に整えます。",
       controlLine,
       "",
