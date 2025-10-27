@@ -206,34 +206,80 @@ type MediaOverrideRow = { media: string; sentence_length: string; emoji: boolean
 
 async function mapIntentWithDBThenLocal(input: string, media: string) {
   const supabase = sbRead();
+  const text = String(input || "");
 
-  // 1) カテゴリ（DB優先 → ローカル辞書）
-  let cat: CategoryRow | null = null;
+  // 0) ざっくりジャンル検出のキーワード（必要なら増やす）
+  const hintMap: Record<string, string[]> = {
+    "ガジェット": ["モバイルバッテリー","mAh","充電","Type-C","USB","出力","ポート","PSE","LED","LCD","ワット","A","電源","ケーブル"],
+    "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿"],
+    "ギフト": ["ギフト","プレゼント","贈り物","名入れ","ラッピング","のし"],
+  };
 
-  const kw = String(input || "");
-  const dbKeys = [
-    { q: "%ギフト%", f: "l1" },
-    { q: "%入浴剤%", f: "l2" },
-  ];
-  for (const k of dbKeys) {
-    const r: PostgrestSingleResponse<CategoryRow[]> = await supabase
-      .from("categories")
-      .select("l1,l2,mode,pitch_keywords")
-      .ilike(k.f as any, k.q)
-      .limit(1);
-    if (!r.error && r.data?.length) { cat = r.data[0]; break; }
+  function keywordScore(s: string, words: string[]) {
+    let score = 0;
+    for (const w of words) {
+      if (w && s.includes(w)) score += 1;
+    }
+    return score;
   }
+
+  // 1) DBカテゴリを全部読み、スコア付け（件数が多いなら LIMIT してもOK）
+  const dbCats = await supabase
+    .from("categories")
+    .select("l1,l2,mode,pitch_keywords");
+
+  const candidates: Array<CategoryRow> = [];
+
+  if (!dbCats.error && dbCats.data?.length) {
+    for (const c of dbCats.data) {
+      const words = (c.pitch_keywords ?? []).concat([c.l1, c.l2]).filter(Boolean) as string[];
+      const s1 = keywordScore(text, words);
+      const s2 = Object.entries(hintMap)
+        .filter(([k]) => k === c.l1) // l1 が “ガジェット” “ギフト” などに一致したら加点
+        .reduce((acc, [, ws]) => acc + keywordScore(text, ws), 0);
+      const score = s1 + s2;
+      (c as any).__score = score;
+      candidates.push(c as any);
+    }
+  }
+
+  // 2) ローカル辞書のカテゴリも混ぜてスコアリング
+  for (const lc of LOCAL_CATS) {
+    const words = (lc.pitch_keywords ?? []).concat([lc.l1, lc.l2]).filter(Boolean);
+    const s1 = keywordScore(text, words);
+    const s2 = Object.entries(hintMap)
+      .filter(([k]) => k === lc.l1)
+      .reduce((acc, [, ws]) => acc + keywordScore(text, ws), 0);
+    const score = s1 + s2;
+    candidates.push({
+      l1: lc.l1,
+      l2: lc.l2,
+      mode: lc.mode,
+      pitch_keywords: lc.pitch_keywords,
+      __score: score,
+      __local: true,
+    } as any);
+  }
+
+  // 3) スコア最大を採用（ゼロしかない場合は DB/ローカルの先頭）
+  candidates.sort((a: any, b: any) => (b.__score ?? 0) - (a.__score ?? 0));
+  let cat: CategoryRow | null =
+    (candidates[0]?.__score ?? 0) > 0
+      ? { l1: candidates[0].l1, l2: candidates[0].l2, mode: candidates[0].mode, pitch_keywords: candidates[0].pitch_keywords }
+      : null;
+
   if (!cat) {
-    const r = await supabase.from("categories").select("l1,l2,mode,pitch_keywords").limit(1);
-    cat = r.data?.[0] ?? null;
-  }
-  // DBが空ならローカル辞書
-  if (!cat && LOCAL_CATS.length) {
-    const hit = LOCAL_CATS.find(c => kw.includes(c.l1) || kw.includes(c.l2)) ?? LOCAL_CATS[0];
-    cat = { l1: hit.l1, l2: hit.l2, mode: hit.mode, pitch_keywords: hit.pitch_keywords };
+    // DB先頭→なければローカル先頭
+    if (!dbCats.error && dbCats.data?.length) {
+      const c = dbCats.data[0];
+      cat = { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords };
+    } else if (LOCAL_CATS.length) {
+      const lc = LOCAL_CATS[0];
+      cat = { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords };
+    }
   }
 
-  // 2) 感情：category_emotion_overrides → emotions（DB）→ ローカルJSON
+  // 4) 感情（DB overrides → DB emotions → ローカルJSON）
   let emotion: EmotionRow | null = null;
   if (cat) {
     const over = await supabase
@@ -243,18 +289,19 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
       .eq("category_l2", cat.l2)
       .maybeSingle();
 
-    const emoId = over.data?.primary_emotion ?? "安心";
+    const emoId = over.data?.primary_emotion ?? (LOCAL_EMO.default_emotion || "安心");
     const emoRes = await supabase.from("emotions").select("*").eq("id", emoId).maybeSingle();
     emotion = emoRes.data ?? null;
 
     if (!emotion) {
-      const fb = over.data?.fallbacks?.[0] ?? "安心";
+      const fb = over.data?.fallbacks?.[0] ?? (LOCAL_EMO.default_emotion || "安心");
       const fbRes = await supabase.from("emotions").select("*").eq("id", fb).maybeSingle();
       emotion = fbRes.data ?? null;
     }
   }
+
   if (!emotion) {
-    // DBに無い・取れないときはローカルJSON
+    // ローカル fallback
     const defId = LOCAL_EMO.default_emotion || "安心";
     const hit = LOCAL_EMO.emotions?.find(e => e.id === defId) ?? LOCAL_EMO.emotions?.[0];
     if (hit) {
@@ -268,16 +315,14 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 3) 文体：emotion.tones[0] に一致する style（DB）→ ローカルJSON
+  // 5) 文体（DB styles → ローカル styles）
   let style: StyleRow | null = null;
-  const toneId = emotion?.tones?.[0];
-  if (toneId) {
-    const sr = await supabase.from("styles").select("*").eq("id", toneId).maybeSingle();
-    style = sr.data ?? null;
-  }
+  const toneId = emotion?.tones?.[0] || "やわらかい";
+  const sr = await supabase.from("styles").select("*").eq("id", toneId).maybeSingle();
+  style = sr.data ?? null;
+
   if (!style) {
-    // ローカル style.json から既定
-    const def = LOCAL_STYLE.styles?.find(s => s.id === (toneId || "やわらかい")) ?? LOCAL_STYLE.styles?.[0];
+    const def = LOCAL_STYLE.styles?.find(s => s.id === toneId) ?? LOCAL_STYLE.styles?.[0];
     if (def) {
       style = {
         id: def.id,
@@ -290,7 +335,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 4) 媒体オーバーライド（DB → ローカル）
+  // 6) 媒体オーバーライド（DB → ローカル）
   let sentence_length = "short";
   let emoji = false;
   if (media) {
