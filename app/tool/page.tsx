@@ -52,53 +52,47 @@ export default function ToolPage() {
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
   const handleSend = async () => {
-    if (!canSend) {
-      if (credits <= 0) setShowWall(true);
-      return;
-    }
+  if (!canSend) {
+    if (credits <= 0) setShowWall(true);
+    return;
+  }
 
-    // 入力整形＆上限
-    const raw = input.trim();
-    const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
+  const raw = input.trim();
+  const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
 
-    const user: Msg = { role: "user", content: prompt, ts: Date.now() };
-    setMsgs((m) => [...m, user]);
-    setInput("");
-    setBusy(true);
-    setCredits((c) => Math.max(0, c - 1));
+  const user: Msg = { role: "user", content: prompt, ts: Date.now() };
+  setMsgs((m) => [...m, user]);
+  setInput("");
+  setBusy(true);
+  setCredits((c) => Math.max(0, c - 1));
 
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
+  try {
+    // ← タイムアウト関連削除！
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include", // Cookie送信で user_id 判別
+      body: JSON.stringify({ prompt, media }),
+    });
 
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // ← Cookie同送で user_id を特定
-        body: JSON.stringify({ prompt, media }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+    const text = await res.text();
+    if (!res.ok) throw new Error(text || res.statusText);
+    const data = JSON.parse(text);
 
-      const text = await res.text();
-      if (!res.ok) throw new Error(text || res.statusText);
-      const data = JSON.parse(text);
-
-      setMsgs((m) => [
-        ...m,
-        { role: "assistant", content: String(data?.text ?? "(応答なし)"), ts: Date.now() },
-      ]);
-    } catch (e: any) {
-      const msg =
-        e.name === "AbortError"
-          ? "⚠️ タイムアウト：60秒以内に応答がありません。"
-          : `⚠️ エラー: ${e?.message || e}`;
-      setMsgs((m) => [...m, { role: "assistant", content: msg, ts: Date.now() }]);
-      console.error("generate failed:", e);
-    } finally {
-      setBusy(false);
-    }
-  };
+    setMsgs((m) => [
+      ...m,
+      { role: "assistant", content: String(data?.text ?? "(応答なし)"), ts: Date.now() },
+    ]);
+  } catch (e: any) {
+    setMsgs((m) => [
+      ...m,
+      { role: "assistant", content: `⚠️ エラー: ${e?.message || e}`, ts: Date.now() },
+    ]);
+    console.error("generate failed:", e);
+  } finally {
+    setBusy(false);
+  }
+};
 
   const handleClear = () => {
     setMsgs(seedWelcome());
