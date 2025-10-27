@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // ← Vercel関数の最大実行時間を延長
+export const maxDuration = 120; // Vercel 関数の最大実行時間延長
 export const dynamic = "force-dynamic";
 
 /* =========================
@@ -114,7 +114,6 @@ const BEAUTY_WORDS = parseCsvWords(readText("prompts/filters/美顔器キーワ�
 ========================= */
 const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 
-// OpenAI ペイロード型（温度系は任意）
 type ChatPayload = {
   model: string;
   messages: { role: "system" | "user"; content: string }[];
@@ -172,12 +171,9 @@ async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = 110_
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// 読み取り用（セッション不要）
 function sbRead() {
   return createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
 }
-
-// サーバ用：cookies() 経由でセッションを読む（Next15: cookies は Promise）
 async function sbServer() {
   const cookieStore = await cookies();
   return createServerClient(SUPABASE_URL, SUPABASE_ANON, {
@@ -185,9 +181,7 @@ async function sbServer() {
       get(name: string) {
         return cookieStore.get(name)?.value;
       },
-      // このAPIではサーバ側での書き換え不要（no-op）
-      set() {},
-      remove() {},
+      set() {}, remove() {},
     },
   });
 }
@@ -208,78 +202,63 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   const supabase = sbRead();
   const text = String(input || "");
 
-  // 0) ざっくりジャンル検出のキーワード（必要なら増やす）
+  // ざっくりジャンル検出のヒント
   const hintMap: Record<string, string[]> = {
     "ガジェット": ["モバイルバッテリー","mAh","充電","Type-C","USB","出力","ポート","PSE","LED","LCD","ワット","A","電源","ケーブル"],
     "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿"],
     "ギフト": ["ギフト","プレゼント","贈り物","名入れ","ラッピング","のし"],
   };
+  const scoreWords = (s: string, words: string[]) =>
+    words.reduce((acc, w) => acc + (w && s.includes(w) ? 1 : 0), 0);
 
-  function keywordScore(s: string, words: string[]) {
-    let score = 0;
-    for (const w of words) {
-      if (w && s.includes(w)) score += 1;
-    }
-    return score;
-  }
+  // 候補は {row, score} で型安全に持つ
+  const candidates: Array<{ row: CategoryRow; score: number }> = [];
 
-  // 1) DBカテゴリを全部読み、スコア付け（件数が多いなら LIMIT してもOK）
-  const dbCats = await supabase
-    .from("categories")
-    .select("l1,l2,mode,pitch_keywords");
-
-  const candidates: Array<CategoryRow> = [];
-
+  // 1) DB から全部取得してスコア
+  const dbCats = await supabase.from("categories").select("l1,l2,mode,pitch_keywords");
   if (!dbCats.error && dbCats.data?.length) {
     for (const c of dbCats.data) {
       const words = (c.pitch_keywords ?? []).concat([c.l1, c.l2]).filter(Boolean) as string[];
-      const s1 = keywordScore(text, words);
+      const s1 = scoreWords(text, words);
       const s2 = Object.entries(hintMap)
-        .filter(([k]) => k === c.l1) // l1 が “ガジェット” “ギフト” などに一致したら加点
-        .reduce((acc, [, ws]) => acc + keywordScore(text, ws), 0);
-      const score = s1 + s2;
-      (c as any).__score = score;
-      candidates.push(c as any);
+        .filter(([k]) => k === c.l1)
+        .reduce((acc, [, ws]) => acc + scoreWords(text, ws), 0);
+      candidates.push({
+        row: { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords ?? [] },
+        score: s1 + s2,
+      });
     }
   }
 
-  // 2) ローカル辞書のカテゴリも混ぜてスコアリング
+  // 2) ローカル辞書もスコア
   for (const lc of LOCAL_CATS) {
     const words = (lc.pitch_keywords ?? []).concat([lc.l1, lc.l2]).filter(Boolean);
-    const s1 = keywordScore(text, words);
+    const s1 = scoreWords(text, words);
     const s2 = Object.entries(hintMap)
       .filter(([k]) => k === lc.l1)
-      .reduce((acc, [, ws]) => acc + keywordScore(text, ws), 0);
-    const score = s1 + s2;
+      .reduce((acc, [, ws]) => acc + scoreWords(text, ws), 0);
     candidates.push({
-      l1: lc.l1,
-      l2: lc.l2,
-      mode: lc.mode,
-      pitch_keywords: lc.pitch_keywords,
-      __score: score,
-      __local: true,
-    } as any);
+      row: { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords ?? [] },
+      score: s1 + s2,
+    });
   }
 
-  // 3) スコア最大を採用（ゼロしかない場合は DB/ローカルの先頭）
-  candidates.sort((a: any, b: any) => (b.__score ?? 0) - (a.__score ?? 0));
+  // 3) ベスト候補 or フォールバック
+  candidates.sort((a, b) => b.score - a.score);
   let cat: CategoryRow | null =
-    (candidates[0]?.__score ?? 0) > 0
-      ? { l1: candidates[0].l1, l2: candidates[0].l2, mode: candidates[0].mode, pitch_keywords: candidates[0].pitch_keywords }
-      : null;
+    (candidates[0]?.score ?? 0) > 0 ? candidates[0].row : null;
 
   if (!cat) {
-    // DB先頭→なければローカル先頭
     if (!dbCats.error && dbCats.data?.length) {
       const c = dbCats.data[0];
-      cat = { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords };
+      cat = { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords ?? [] };
     } else if (LOCAL_CATS.length) {
       const lc = LOCAL_CATS[0];
-      cat = { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords };
+      cat = { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords ?? [] };
     }
   }
 
-  // 4) 感情（DB overrides → DB emotions → ローカルJSON）
+  // 4) 感情
   let emotion: EmotionRow | null = null;
   if (cat) {
     const over = await supabase
@@ -299,9 +278,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
       emotion = fbRes.data ?? null;
     }
   }
-
   if (!emotion) {
-    // ローカル fallback
     const defId = LOCAL_EMO.default_emotion || "安心";
     const hit = LOCAL_EMO.emotions?.find(e => e.id === defId) ?? LOCAL_EMO.emotions?.[0];
     if (hit) {
@@ -315,12 +292,11 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 5) 文体（DB styles → ローカル styles）
+  // 5) 文体
   let style: StyleRow | null = null;
   const toneId = emotion?.tones?.[0] || "やわらかい";
   const sr = await supabase.from("styles").select("*").eq("id", toneId).maybeSingle();
   style = sr.data ?? null;
-
   if (!style) {
     const def = LOCAL_STYLE.styles?.find(s => s.id === toneId) ?? LOCAL_STYLE.styles?.[0];
     if (def) {
@@ -335,7 +311,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 6) 媒体オーバーライド（DB → ローカル）
+  // 6) 媒体オーバーライド
   let sentence_length = "short";
   let emoji = false;
   if (media) {
@@ -412,15 +388,15 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY not set" }), { status: 500 });
     }
 
-    // 1) サーバ側でログインユーザー取得（cookie セッション）
+    // サーバ側でログインユーザー取得
     const sb = await sbServer();
     const { data: userRes } = await sb.auth.getUser();
     const userId = userRes?.user?.id ?? null;
 
-    // 2) DB→ローカル辞書で推論
+    // 推論（DB→ローカル）
     const intent = await mapIntentWithDBThenLocal(String(prompt ?? ""), String(media ?? "ad"));
 
-    // 3) プロンプト構築
+    // プロンプト構築
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
     const replaceTable =
       REPLACE_RULES.length > 0
@@ -475,7 +451,7 @@ export async function POST(req: Request) {
       typeof prompt === "string" ? String(prompt) : JSON.stringify(prompt),
     ].join("\n");
 
-    // 4) OpenAI 実行（gpt-5 既定、温度は5系には付けない）
+    // OpenAI 実行（gpt-5 既定、5系には温度を付けない）
     const model = typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5";
     const baseTemp = 0.35;
     const temp = typeof reqTemp === "number" ? reqTemp : jitter ? 0.45 : baseTemp;
@@ -493,11 +469,9 @@ export async function POST(req: Request) {
       payload.top_p = 0.9;
     }
 
-    // 1発目: 指定モデル
     const first = await callOpenAI(payload, apiKey);
     let text = first.ok ? first.content : "";
 
-    // だめ/空ならミニに自動フォールバック
     if (!text.trim()) {
       const p2: ChatPayload = { ...payload, model: "gpt-5-mini" };
       if (!isFiveFamily(p2.model)) { p2.temperature = temp; p2.top_p = 0.9; }
@@ -512,7 +486,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5) intent_logs へ保存（DB側 default auth.uid() を利用 / RLS: INSERT with check (user_id = auth.uid())）
+    // intent_logs へ保存（RLS: INSERT with check (user_id = auth.uid())）
     await sb.from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
