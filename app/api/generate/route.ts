@@ -45,7 +45,7 @@ function readCategoryCsv(rel: string) {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  // 想定：ヘッダ: l1,l2,mode,pitch_keywords(カンマ区切り)
+  // 想定：ヘッダ: l1,l2,mode,pitch_keywords(パイプ区切り)
   const out: Array<{ l1: string; l2: string; mode: string; pitch_keywords: string[] }> = [];
   for (const line of rows.slice(1)) {
     const cols = line.split(",").map((s) => s.trim());
@@ -69,6 +69,7 @@ function readJsonSafe<T>(rel: string, fallback: T): T {
     return fallback;
   }
 }
+
 type EmotionJSON = {
   $schema?: string; version?: string; default_emotion?: string;
   emotions: Array<{
