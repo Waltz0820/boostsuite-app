@@ -7,6 +7,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export const runtime = "nodejs";
+export const maxDuration = 120; // ← Vercel関数の最大実行時間を延長
+export const dynamic = "force-dynamic";
 
 /* =========================
    ユーティリティ（ファイルIO）
@@ -38,7 +40,7 @@ function parseCsvWords(src: string): string[] {
     .filter(Boolean);
 }
 
-/* === 追加：ローカル知識のロード（起動時1回） === */
+/* === ローカル知識のロード（起動時1回） === */
 function readCategoryCsv(rel: string) {
   const t = readText(rel);
   const rows = t
@@ -69,7 +71,6 @@ function readJsonSafe<T>(rel: string, fallback: T): T {
     return fallback;
   }
 }
-
 type EmotionJSON = {
   $schema?: string; version?: string; default_emotion?: string;
   emotions: Array<{
@@ -104,9 +105,7 @@ const YAKKI_ALL = [
   readText("prompts/filters/BoostSuite_薬機法フィルターB.txt"),
   readText("prompts/filters/BoostSuite_薬機法フィルターC.txt"),
   readText("prompts/filters/BoostSuite_薬機法フィルターD.txt"),
-]
-  .filter(Boolean)
-  .join("\n");
+].filter(Boolean).join("\n");
 const REPLACE_RULES = parseReplaceDict(readText("prompts/filters/Boost_Fashion_置き換え辞書.txt"));
 const BEAUTY_WORDS = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
 
@@ -123,6 +122,49 @@ type ChatPayload = {
   temperature?: number;
   top_p?: number;
 };
+
+// ---- サーバ側タイムアウト＋リトライ ----
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = 110_000) {
+  const init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(payload),
+  };
+
+  let lastErr: any;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", init, timeoutMs);
+      const raw = await res.text();
+      let json: any = {};
+      try { json = JSON.parse(raw); } catch {}
+      const content = json?.choices?.[0]?.message?.content ?? "";
+
+      if (res.ok && content?.trim()) {
+        return { ok: true as const, content, raw: json };
+      }
+      lastErr = { status: res.status, body: json || raw };
+      if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
+        await new Promise(r => setTimeout(r, 800 * (i + 1)));
+        continue;
+      }
+      return { ok: false as const, error: lastErr };
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+  return { ok: false as const, error: lastErr };
+}
 
 /* =========================
    Supabase クライアント
@@ -143,7 +185,7 @@ async function sbServer() {
       get(name: string) {
         return cookieStore.get(name)?.value;
       },
-      // このAPIではサーバー側で書き換え不要（no-op）
+      // このAPIではサーバ側での書き換え不要（no-op）
       set() {},
       remove() {},
     },
@@ -168,7 +210,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   // 1) カテゴリ（DB優先 → ローカル辞書）
   let cat: CategoryRow | null = null;
 
-  // シンプルなキーワード拾い
   const kw = String(input || "");
   const dbKeys = [
     { q: "%ギフト%", f: "l1" },
@@ -253,7 +294,11 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   let sentence_length = "short";
   let emoji = false;
   if (media) {
-    const mr = await supabase.from("media_overrides").select("*").eq("media", media).maybeSingle();
+    const mr: PostgrestSingleResponse<MediaOverrideRow | null> = await supabase
+      .from("media_overrides")
+      .select("*")
+      .eq("media", media)
+      .maybeSingle();
     if (mr.data) {
       sentence_length = mr.data.sentence_length;
       emoji = mr.data.emoji;
@@ -275,7 +320,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
 }
 
 /* =========================
-   GET: ヘルスチェック（DB疎通＋ローカル読込カウント）
+   GET: ヘルス（DB疎通＋ローカル読込）
 ========================= */
 export async function GET() {
   try {
@@ -339,7 +384,7 @@ export async function POST(req: Request) {
     const beautyList = BEAUTY_WORDS.length > 0 ? BEAUTY_WORDS.map((w) => `- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock = YAKKI_ALL || "（薬機フィルター未設定）";
     const controlLine = jitter
-      ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5),)} を有効化。余韻のみ微変化し、FACTSは共有。`
+      ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
       : `JITTERは無効化（安定出力）。`;
 
     const intentBlockLines = [
@@ -403,32 +448,26 @@ export async function POST(req: Request) {
       payload.top_p = 0.9;
     }
 
-    let res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(payload),
-    });
+    // 1発目: 指定モデル
+    const first = await callOpenAI(payload, apiKey);
+    let text = first.ok ? first.content : "";
 
-    let data: any = {};
-    try { data = await res.json(); } catch {}
-    let text: string = data?.choices?.[0]?.message?.content ?? "";
-
-    // 念のためフォールバック（空返却や失敗時は gpt-5-mini）
-    if (!res.ok || !text?.trim()) {
+    // だめ/空ならミニに自動フォールバック
+    if (!text.trim()) {
       const p2: ChatPayload = { ...payload, model: "gpt-5-mini" };
       if (!isFiveFamily(p2.model)) { p2.temperature = temp; p2.top_p = 0.9; }
-      const r2 = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify(p2),
-      });
-      const d2 = await r2.json().catch(() => ({}));
-      const text2: string = d2?.choices?.[0]?.message?.content ?? "";
-      if (text2?.trim()) text = text2;
+      const second = await callOpenAI(p2, apiKey, 90_000);
+      if (second.ok) text = second.content;
+      else {
+        console.error("OpenAI failed", { first: (first as any).error, second: (second as any).error });
+        return new Response(
+          JSON.stringify({ error: "openai_fetch_failed", detail: (first as any).error ?? (second as any).error }),
+          { status: 502 }
+        );
+      }
     }
 
-    // 5) intent_logs へ保存（DB側 default auth.uid() を利用）
-    // RLS: INSERT with check (user_id = auth.uid())
+    // 5) intent_logs へ保存（DB側 default auth.uid() を利用 / RLS: INSERT with check (user_id = auth.uid())）
     await sb.from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
@@ -467,6 +506,3 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
   }
 }
-
-/* App Router のキャッシュ回避（毎回最新） */
-export const dynamic = "force-dynamic";
