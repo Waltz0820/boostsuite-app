@@ -7,7 +7,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // Vercel 関数の最大実行時間延長
+// ★ タイムアウト耐性UP（Vercel上限想定：最大300秒）
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /* =========================
@@ -113,6 +114,13 @@ const BEAUTY_WORDS = parseCsvWords(readText("prompts/filters/美顔器キーワ�
    OpenAIユーティリティ
 ========================= */
 const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
+// ★ 4o系の判定を追加
+const isFourOFamily = (m: string) => /^gpt-4o($|-)/i.test(m);
+
+// ★ タイムアウト管理（maxDuration に同期）
+const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
+// ★ デフォルトは「しゃべり」が強い 4o-mini。環境変数で上書き可能
+const DEFAULT_MODEL = process.env.BOOST_MODEL?.trim() || "gpt-4o-mini";
 
 type ChatPayload = {
   model: string;
@@ -132,7 +140,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
     clearTimeout(t);
   }
 }
-async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = 110_000) {
+async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = SERVER_TIMEOUT_MS) {
   const init: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -202,7 +210,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   const supabase = sbRead();
   const text = String(input || "");
 
-  // ざっくりジャンル検出のヒント
   const hintMap: Record<string, string[]> = {
     "ガジェット": ["モバイルバッテリー","mAh","充電","Type-C","USB","出力","ポート","PSE","LED","LCD","ワット","A","電源","ケーブル"],
     "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿"],
@@ -211,10 +218,8 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   const scoreWords = (s: string, words: string[]) =>
     words.reduce((acc, w) => acc + (w && s.includes(w) ? 1 : 0), 0);
 
-  // 候補は {row, score} で型安全に持つ
   const candidates: Array<{ row: CategoryRow; score: number }> = [];
 
-  // 1) DB から全部取得してスコア
   const dbCats = await supabase.from("categories").select("l1,l2,mode,pitch_keywords");
   if (!dbCats.error && dbCats.data?.length) {
     for (const c of dbCats.data) {
@@ -230,7 +235,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 2) ローカル辞書もスコア
   for (const lc of LOCAL_CATS) {
     const words = (lc.pitch_keywords ?? []).concat([lc.l1, lc.l2]).filter(Boolean);
     const s1 = scoreWords(text, words);
@@ -243,7 +247,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     });
   }
 
-  // 3) ベスト候補 or フォールバック
   candidates.sort((a, b) => b.score - a.score);
   let cat: CategoryRow | null =
     (candidates[0]?.score ?? 0) > 0 ? candidates[0].row : null;
@@ -258,7 +261,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 4) 感情
   let emotion: EmotionRow | null = null;
   if (cat) {
     const over = await supabase
@@ -292,7 +294,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 5) 文体
   let style: StyleRow | null = null;
   const toneId = emotion?.tones?.[0] || "やわらかい";
   const sr = await supabase.from("styles").select("*").eq("id", toneId).maybeSingle();
@@ -311,7 +312,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 6) 媒体オーバーライド
   let sentence_length = "short";
   let emoji = false;
   if (media) {
@@ -370,6 +370,19 @@ export async function GET() {
 /* =========================
    POST: 生成 本体（user_id 自動付与/RLS対応）
 ========================= */
+// ★ 長文圧縮：トークン過多・タイムアウト対策（意味を壊さず軽量化）
+function compactInputText(src: string, maxChars = 16000) {
+  if (!src) return "";
+  let s = src.replace(/\r/g, "");
+  // 画像URLやASIN等の固有値以外の連続空白を圧縮
+  s = s.replace(/[ \t]{2,}/g, " ");
+  // 連続改行を最大2つに制限
+  s = s.replace(/\n{3,}/g, "\n\n");
+  // 超過分は末尾を切る（JSON等は原文で渡るため通常テキスト前提）
+  if (s.length > maxChars) s = s.slice(0, maxChars) + "\n…（一部省略）";
+  return s;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -380,6 +393,8 @@ export async function POST(req: Request) {
       model: reqModel,
       temperature: reqTemp,
       media = "ad",
+      // ★ 任意：humanize優先（リード/クロージングを4o系で回したい時に true ）
+      humanize = false,
     } = body ?? {};
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -388,15 +403,12 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY not set" }), { status: 500 });
     }
 
-    // サーバ側でログインユーザー取得
     const sb = await sbServer();
     const { data: userRes } = await sb.auth.getUser();
     const userId = userRes?.user?.id ?? null;
 
-    // 推論（DB→ローカル）
     const intent = await mapIntentWithDBThenLocal(String(prompt ?? ""), String(media ?? "ad"));
 
-    // プロンプト構築
     const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
     const replaceTable =
       REPLACE_RULES.length > 0
@@ -431,6 +443,11 @@ export async function POST(req: Request) {
       `- media: ${media} / sentence_length: ${intent.media.sentence_length} / emoji: ${intent.media.emoji ? "true" : "false"}`,
     ];
 
+    // ★ 長文を事前にコンパクト化（タイムアウト率を下げる）
+    const compacted = typeof prompt === "string"
+      ? compactInputText(String(prompt))
+      : compactInputText(JSON.stringify(prompt));
+
     const userContent = [
       "以下の原文を Boost 構文 v1.9.9 で“段階整流”してください。",
       "出力は日本語。FACTSを固定し、最小の余韻＋音の自然さ（PhonoSense）で販売文に整えます。",
@@ -448,11 +465,16 @@ export async function POST(req: Request) {
       beautyList,
       "",
       "— 原文 —",
-      typeof prompt === "string" ? String(prompt) : JSON.stringify(prompt),
+      compacted,
     ].join("\n");
 
-    // OpenAI 実行（gpt-5 既定、5系には温度を付けない）
-    const model = typeof reqModel === "string" && reqModel.trim() ? reqModel.trim() : "gpt-5";
+    // ★ モデル選択ロジック：
+    //   1) humanize 指定 or 未指定時の既定は 4o-mini（“しゃべり”重視）
+    //   2) 明示指定があればそれを優先
+    const model = (typeof reqModel === "string" && reqModel.trim())
+      ? reqModel.trim()
+      : (humanize ? "gpt-4o-mini" : DEFAULT_MODEL);
+
     const baseTemp = 0.35;
     const temp = typeof reqTemp === "number" ? reqTemp : jitter ? 0.45 : baseTemp;
 
@@ -464,6 +486,7 @@ export async function POST(req: Request) {
       ],
       stream: false,
     };
+    // ★ 5系は温度固定／4o系は温度・top_pを軽く解放して“息遣い”を出す
     if (!isFiveFamily(model)) {
       payload.temperature = temp;
       payload.top_p = 0.9;
@@ -473,9 +496,14 @@ export async function POST(req: Request) {
     let text = first.ok ? first.content : "";
 
     if (!text.trim()) {
-      const p2: ChatPayload = { ...payload, model: "gpt-5-mini" };
-      if (!isFiveFamily(p2.model)) { p2.temperature = temp; p2.top_p = 0.9; }
-      const second = await callOpenAI(p2, apiKey, 90_000);
+      // ★ フォールバック順を“異系”に切替：5→4o / 4o→5（相補）
+      const alt =
+        isFiveFamily(model) ? "gpt-4o-mini" :
+        (isFourOFamily(model) ? "gpt-5-mini" : "gpt-4o-mini");
+
+      const p2: ChatPayload = { ...payload, model: alt };
+      if (!isFiveFamily(p2.model)) { p2.temperature = temp; p2.top_p = 0.9; } else { delete p2.temperature; delete p2.top_p; }
+      const second = await callOpenAI(p2, apiKey, Math.min(SERVER_TIMEOUT_MS, 240_000));
       if (second.ok) text = second.content;
       else {
         console.error("OpenAI failed", { first: (first as any).error, second: (second as any).error });
@@ -486,7 +514,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // intent_logs へ保存（RLS: INSERT with check (user_id = auth.uid())）
     await sb.from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
