@@ -1,122 +1,113 @@
 {
   "$schema": "https://boostsuite.schemas/style-layer.v1.json",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "defaults": {
     "voice": "です・ます",
     "sentence_length": "short",
-    "emoji": false
+    "emoji": false,
+    "pacing": "medium",
+    "punctuation_policy": "標準。読点は控えめ。三点リーダは使用しない。",
+    "linebreak_policy": "段落は3〜5文で改行。見出し直後は1行空ける。",
+    "allow_fragments": false
   },
   "styles": [
     {
       "id": "キビキビ",
       "voice": "です・ます",
       "rhythm": "短文中心。動詞始まりを許容。",
-      "lexicon_plus": [
-        "すぐ",
-        "パッと",
-        "ラクに"
-      ],
-      "lexicon_minus": [
-        "冗長",
-        "抽象的"
-      ],
-      "use_for_modes": [
-        "gadget",
-        "lifestyle",
-        "diy"
-      ]
+      "pacing": "fast",
+      "punctuation_policy": "句点を減らし、読点は要所のみ。括弧は極力使わない。",
+      "linebreak_policy": "2〜3文で改行。箇条書きは最大5点まで。",
+      "allow_fragments": true,
+      "lexicon_plus": ["すぐ", "パッと", "ラクに", "手数を減らす"],
+      "lexicon_minus": ["冗長", "抽象的"],
+      "boosters": ["もう", "ただ", "そのまま"],
+      "taboo_phrases": ["最先端の〇〇体験"],
+      "use_for_modes": ["gadget", "lifestyle", "diy"]
     },
     {
       "id": "やわらかい",
       "voice": "です・ます",
       "rhythm": "中短文。主語明示で丁寧に。",
-      "lexicon_plus": [
-        "そっと",
-        "やさしく",
-        "安心"
-      ],
-      "lexicon_minus": [
-        "強い断定",
-        "専門用語"
-      ],
-      "use_for_modes": [
-        "kids",
-        "beauty",
-        "gift",
-        "lifestyle"
-      ]
+      "pacing": "slow",
+      "punctuation_policy": "句点多め。読点でリズムを整える。言い切りを基本。",
+      "linebreak_policy": "3〜4文で改行。比喩は一段落に1回まで。",
+      "allow_fragments": false,
+      "lexicon_plus": ["そっと", "やさしく", "安心", "丁寧"],
+      "lexicon_minus": ["強い断定", "専門用語"],
+      "boosters": ["ほんの少し", "ゆっくりと"],
+      "taboo_phrases": ["癒やしの新常識"],
+      "use_for_modes": ["kids", "beauty", "gift", "lifestyle"]
     },
     {
       "id": "インスパイア",
       "voice": "常体ミックス",
       "rhythm": "比喩を少量。余白を残す。",
-      "lexicon_plus": [
-        "らしさ",
-        "自由",
-        "アップデート"
-      ],
-      "lexicon_minus": [
-        "形式的",
-        "説明的"
-      ],
-      "use_for_modes": [
-        "fashion",
-        "entertainment",
-        "beauty"
-      ]
+      "pacing": "medium",
+      "punctuation_policy": "余分な記号は使わない。ダッシュ（—）で間を作るのは可。",
+      "linebreak_policy": "2〜3文で改行。単文の断片を効果的に挿入可。",
+      "allow_fragments": true,
+      "lexicon_plus": ["らしさ", "自由", "アップデート", "静かに印象が変わる"],
+      "lexicon_minus": ["形式的", "説明的"],
+      "boosters": ["ただ一言で", "それだけで"],
+      "evidentials": ["着丈130cm", "Super120’s", "カシミヤ100%"],
+      "taboo_phrases": ["誰でも似合う"],
+      "use_for_modes": ["fashion", "entertainment", "beauty"]
     },
     {
       "id": "プレミアム",
       "voice": "です・ます",
       "rhythm": "やや長文。語尾を柔らかく統一。",
-      "lexicon_plus": [
-        "上質",
-        "優雅",
-        "特別"
-      ],
-      "lexicon_minus": [
-        "カジュアル語"
-      ],
-      "use_for_modes": [
-        "beauty",
-        "gift",
-        "food"
-      ]
+      "pacing": "slow",
+      "punctuation_policy": "句点主体。カンマは少なめ。誇張は禁止。",
+      "linebreak_policy": "4〜5文で改行。数値は静かに提示。",
+      "allow_fragments": false,
+      "lexicon_plus": ["上質", "端正", "静謐", "品格"],
+      "lexicon_minus": ["カジュアル語", "煽り表現"],
+      "evidentials": ["産地表示", "原料比率", "番手/密度"],
+      "taboo_phrases": ["極上のひととき", "ワンランク上"],
+      "use_for_modes": ["beauty", "gift", "food", "luxury"]
     },
     {
       "id": "ナチュラル",
       "voice": "です・ます",
       "rhythm": "自然体。主観を控えめに。",
-      "lexicon_plus": [
-        "毎日",
-        "自然",
-        "穏やか"
-      ],
-      "lexicon_minus": [
-        "過度な誇張"
-      ],
-      "use_for_modes": [
-        "lifestyle",
-        "kids",
-        "food"
-      ]
+      "pacing": "medium",
+      "punctuation_policy": "標準。体験談調は避ける。",
+      "linebreak_policy": "3〜4文で改行。箇条書きは必要最小限。",
+      "allow_fragments": false,
+      "lexicon_plus": ["毎日", "自然", "穏やか", "ふだん"],
+      "lexicon_minus": ["過度な誇張"],
+      "taboo_phrases": ["驚きの〇〇"],
+      "use_for_modes": ["lifestyle", "kids", "food"]
     }
   ],
   "media_overrides": [
     {
       "media": "ad",
       "sentence_length": "very_short",
-      "emoji": false
+      "emoji": false,
+      "pacing": "fast",
+      "linebreak_policy": "見出し＋1文。箇条書きは3点以内。",
+      "hashtag_max": 0
     },
     {
       "media": "social",
       "sentence_length": "short",
-      "emoji": true
+      "emoji": true,
+      "pacing": "medium",
+      "punctuation_policy": "句点省略を許容。読点は控えめ。",
+      "linebreak_policy": "1〜2文で改行。ハッシュタグは文末に集約。",
+      "hashtag_max": 3
     },
     {
       "media": "lp",
       "sentence_length": "long",
-      "emoji": false
+      "emoji": false,
+      "pacing": "slow",
+      "punctuation_policy": "標準。数字根拠を併記。",
+      "linebreak_policy": "5文前後で改行。セクションごとに小見出し。",
+      "hashtag_max": 0
     }
   ]
 }

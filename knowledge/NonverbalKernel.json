@@ -1,0 +1,15 @@
+{
+  "$schema": "https://boostsuite.schemas/nonverbal-kernel.v1.json",
+  "version": "1.0.0",
+  "axes": ["weight","silence","minimal","warmth","transparency","precision","distance"],
+  "presets": {
+    "fashion.coat":   {"weight":0.85,"silence":0.70,"minimal":0.70,"warmth":0.30,"transparency":0.20,"precision":0.70,"distance":0.60},
+    "beauty.rf":      {"weight":0.30,"silence":0.50,"minimal":0.50,"warmth":0.90,"transparency":0.60,"precision":0.70,"distance":0.50},
+    "gadget.power":   {"weight":0.30,"silence":0.40,"minimal":0.80,"warmth":0.20,"transparency":0.20,"precision":0.80,"distance":0.55}
+  },
+  "rules": [
+    {"if":{"silence":">=0.7"},"then":{"style":{"endings":"体言止め↑","adverbs":"抑制"},"syntax":{"punctuation":"少"}}},
+    {"if":{"weight":">=0.8"},"then":{"syntax":{"sentence_chunks":"大"},"lexicon":{"ban":["軽やか","ふんわり"]}}},
+    {"if":{"minimal":">=0.75"},"then":{"syntax":{"lists":"短","connectives":"減"}}}
+  ]
+}

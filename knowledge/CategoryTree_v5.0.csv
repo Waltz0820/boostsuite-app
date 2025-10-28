@@ -1,56 +1,30 @@
-第一階層カテゴリ,第二階層カテゴリ,出力モードタグ,訴求軸キーワード
-家電・IoT・デジタル,生活家電,gadget,機能性、省エネ、操作性、デザイン性
-家電・IoT・デジタル,キッチン家電,gadget,効率、衛生、省エネ、コンパクト
-家電・IoT・デジタル,美容家電,gadget,効果、時短、安全性、デザイン性
-家電・IoT・デジタル,AV・音響機器,gadget,音質、映像美、拡張性、臨場感
-家電・IoT・デジタル,スマートデバイス,gadget,多機能、連携、操作性、省エネ
-家電・IoT・デジタル,調理家電,gadget,時短、健康、安全性、清掃性
-キッチン・日用品,調理器具,lifestyle,使いやすさ、清潔、収納、時短
-キッチン・日用品,保存容器,lifestyle,密閉、清潔、省スペース、耐久性
-キッチン・日用品,食器・カトラリー,lifestyle,デザイン性、手触り、収納、衛生
-キッチン・日用品,バス・衛生用品,lifestyle,衛生、抗菌、省スペース、防臭
-キッチン・日用品,清掃・ランドリー,lifestyle,清潔、効率、耐久性、省エネ
-キッチン・日用品,収納・オーガナイザー,lifestyle,整理、拡張、省スペース、価格
-キッチン・日用品,インテリア雑貨,lifestyle,デザイン性、快適、トレンド、実用性
-ファッション,レディースウェア,fashion,着心地、素材感、デザイン性、トレンド
-ファッション,メンズウェア,fashion,着心地、耐久性、デザイン、コスパ
-ファッション,バッグ・小物,fashion,収納力、素材感、デザイン性、携帯性
-ファッション,シューズ,fashion,履き心地、軽量、デザイン、通気性
-ファッション,アクセサリー,fashion,見た目、品質、耐久性、流行
-ファッション,ファッション雑貨,fashion,デザイン性、季節感、コスパ、実用性
-ファッション,スポーツ・アウトドアウェア,fashion,通気性、機能性、動きやすさ、トレンド
-美容・ヘルスケア,スキンケア,beauty,保湿、浸透力、成分、安心
-美容・ヘルスケア,メイクアップ,beauty,色持ち、使いやすさ、落ちにくさ、コスパ
-美容・ヘルスケア,ヘアケア,beauty,ダメージケア、香り、指通り、コスパ
-美容・ヘルスケア,ボディケア,beauty,保湿、癒し、香り、使用感
-美容・ヘルスケア,健康食品・サプリ,beauty/food,健康、成分、飲みやすさ、毎日
-キッズ・ベビー,ベビー服・肌着,kids,安全性、素材感、ギフト、快適
-キッズ・ベビー,キッズウェア,kids,成長対応、動きやすさ、デザイン性
-キッズ・ベビー,知育・玩具,kids/entertainment,知育、安全性、楽しさ、耐久性
-キッズ・ベビー,ベビーカー・抱っこひも,kids,安全性、携帯性、動きやすさ
-キッズ・ベビー,マタニティ,kids/lifestyle,快適、安全性、成長、価格
-ペット,ペットフード,food,栄養、安全性、価格、高嗜好性
-ペット,ケア・衛生,lifestyle,清潔、抗菌、利便性、安全性
-ペット,ベッド・ケージ,lifestyle,快適、安全性、デザイン性、手入れ
-ペット,おもちゃ・しつけ,entertainment,耐久性、知育、安全性、遊び
-DIY・カー,DIY・工具,gadget/lifestyle,使いやすさ、精度、耐久性
-DIY・カー,カー・バイク用品,gadget/lifestyle,快適性、安全性、デザイン性、収納力
-DIY・カー,オフィス・文具,lifestyle,書きやすさ、コスパ、整理、機能性
-DIY・カー,防災・防犯,lifestyle,安全性、省スペース、利便性、安心感
-ホビー・エンタメ,玩具・ホビー,entertainment,体験、没入感、人気、安全
-ホビー・エンタメ,クラフト・模型,entertainment,創作、品質、こだわり、表現
-ホビー・エンタメ,音楽・映像・書籍,entertainment,感動、質感、収集、体験
-ホビー・エンタメ,ゲーム・AR,entertainment,臨場感、拡張性、新規性、話題
-ホビー・エンタメ,イベント・推し活,gift/entertainment,特別感、シェア、話題、交流
-ギフト,パーソナルギフト,gift,名入れ、特別感、サプライズ、包装
-ギフト,法人・ビジネスギフト,gift,実用性、品格、信頼、特別感
-ギフト,シーン別ギフト,gift,季節感、冠婚、用途、特別感
-ギフト,フード・スイーツギフト,food/gift,味、見た目、包装、感謝
-ギフト,体験・デジタルギフト,entertainment/gift,新鮮さ、体験、シェア、話題
-ギフト,インテリアギフト,lifestyle/gift,デザイン、快適、感謝、特別感
-ギフト,ビューティギフト,beauty/gift,癒し、贅沢、見た目、気持ち
-食品・飲料,スイーツ・菓子,food,味、見た目、健康、贈答
-食品・飲料,惣菜・冷凍・レトルト,food,時短、健康、価格、保存性
-食品・飲料,健康食品,food,成分、ヘルシー、飲みやすさ
-食品・飲料,飲料,food,味、香り、産地、ギフト
-食品・飲料,特産・ふるさとグルメ,food,希少性、旬、地域性、贈答
+﻿l1,l2,mode,pitch_keywords,nonverbal_profile,evidence_urls,banned_claims,notes
+ファッション,ステンカラーコート,B,"コットン, ポリエステル, 裏地付き, シングルブレスト, 前立て比翼, 着丈90cm, 撥水, 春秋向け, 都会的, 滑らか",preset:fashion.coat,https://www.amazon.co.jp/dp/B07X9VXYCN;https://item.rakuten.co.jp/auc-petitpas/stencil-0001/,,主要ECに同仕様複数掲載
+ファッション,チェスターコート（ウール）,B,"ウール, シングルブレスト, ノッチドラペル, 総裏, 前ポケット, 着丈100cm, 秋冬定番, 重厚感, 直線的シルエット",preset:fashion.coat,https://www.amazon.co.jp/dp/B07Y9HWXKQ;https://item.rakuten.co.jp/auc-honatei/10000048/,,主要ECでウール素材複数掲載
+ファッション,チェスターコート（カシミヤ）,B,"カシミヤ, 比翼仕立て, 総裏, ノッチドラペル, 着丈95cm, 高級感, なめらか, 秋冬, 保温",preset:fashion.coat,https://www.amazon.co.jp/dp/B07ZVJFMGV;https://item.rakuten.co.jp/auc-petitpas/cashmere001/,,ECにカシミヤ素材実売品確認
+ファッション,トレンチコート（春夏）,B,"綿混紡, 裏地なし, ダブルブレスト, ベルト付き, ラグラン袖, 着丈110cm, 通気性, 春夏, クラシック",preset:fashion.coat,https://www.amazon.co.jp/dp/B00JG4UGEK;https://item.rakuten.co.jp/smilemart/trench_spring/,,春夏仕様コートの定番
+ファッション,トレンチコート（ポリエステル）,B,"ポリエステル, 防水加工, 裏地付き, ダブルブレスト, ベルト付き, 着丈115cm, 防風, 秋冬, 都会的",preset:fashion.coat,https://www.amazon.co.jp/dp/B08T5HPG8S;https://item.rakuten.co.jp/poly-trench/trench01/,,防水/秋冬仕様多数
+ファッション,ダッフルコート,B,"ウール混紡, トグル釦, フード付き, 総裏, ローウエスト, 着丈90cm, 英国調, 暖か, 質実剛健",preset:fashion.coat,https://www.amazon.co.jp/dp/B07XN6NW7X;https://item.rakuten.co.jp/loop-shoes/c21/,,類似仕様多数
+ファッション,ピーコート,B,"ウール混紡, アンカー釦, ダブルブレスト, ラペルカラー, サイドポケット, 着丈75cm, 防寒, 無骨, 冬定番",preset:fashion.coat,https://www.amazon.co.jp/dp/B07T7Q5FWK;https://item.rakuten.co.jp/sorezore/c-3629/,,仕様互換製品あり
+ファッション,ウールジャケット,B,"ウール, アンゴラ混, シングルブレスト, 総裏, パッチポケット, 着丈65cm, 高級感, 秋冬, ソフト",preset:fashion.jacket,https://www.amazon.co.jp/dp/B01MTLEF7N;https://item.rakuten.co.jp/fashionh/10011059/,,同仕様モデル掲載
+ファッション,レザージャケット,B,"牛革, ジップアップ, スタンドカラー, 裏地付き, 肩パッド, 着丈60cm, マット, 防風, 無骨",preset:fashion.jacket,https://www.amazon.co.jp/dp/B07TXC7P5V;https://item.rakuten.co.jp/chez-moi/001/,,多数販売中
+ファッション,デニムジャケット,B,"綿100％, インディゴ, ボタン留め, 胸ポケット, 調整タブ, 着丈58cm, 丈夫, カジュアル, 粗野感",preset:fashion.jacket,https://www.amazon.co.jp/dp/B01B0YWK9E;https://item.rakuten.co.jp/cosme/denimjacket01/,,定番仕様
+ファッション,シャツ（ボタンダウン）,B,"綿100％, 長袖, ボタンダウン, 胸ポケット, レギュラーフィット, 丈70cm, さらり, 爽やか, 通勤",preset:fashion.top,https://www.amazon.co.jp/dp/B07KXBD7YF;https://item.rakuten.co.jp/shirtco/shirt001/,,基本仕様広く販売
+ファッション,セーター（クルーネック）,B,"アクリル混, ウール混, 長袖, リブ編み, 着丈65cm, 暖か, ふっくら, 冬定番, デイリー",preset:fashion.top,https://www.amazon.co.jp/dp/B01LYL8PCD;https://item.rakuten.co.jp/knitwear-shop/sweter001/,,類似仕様多
+ファッション,Tシャツ（コットン）,B,"綿100％, 半袖, クルーネック, リブ袖, 着丈68cm, 通気性, 軽快, デイリー, ソフト",preset:fashion.top,https://www.amazon.co.jp/dp/B07RWZTYD9;https://item.rakuten.co.jp/tshirt-shop/tshirt001/,,基本仕様商品多
+ファッション,ワイドパンツ,B,"綿混紡, ワイドレッグ, ウエストゴム, ポケット付き, フルレングス, 裾幅45cm, リラックス, 動きやすい",preset:fashion.pants,https://www.amazon.co.jp/dp/B07JFDBJ7N;https://item.rakuten.co.jp/takasu/widepan001/,,類似品販売
+ファッション,スラックス（ビジネス）,B,"ポリエステル, ストレート, ジッパーフライ, 裏地付き, ウエスト78cm, 耐久性, 通勤, 都会的, 上品",preset:fashion.pants,https://www.amazon.co.jp/dp/B01MRJ91YH;https://item.rakuten.co.jp/businesspants/bsp001/,,就業用仕様多
+ファッション,デニムパンツ（ストレート）,B,"綿100％, ストレート, ジッパーフライ, バックポケット, 股下75cm, 丈夫, アメリカン, 定番",preset:fashion.pants,https://www.amazon.co.jp/dp/B01MUIF0HT;https://item.rakuten.co.jp/denim-ya/denimpants-001/,,主要ECでスタンダード
+ファッション,スカート（プリーツ）,B,"ポリエステル, プリーツ, ミディ丈, ウエストゴム, 裏地付き, 丈60cm, エレガント, 通勤, さらり",preset:fashion.bottom,https://www.amazon.co.jp/dp/B07P2M5GJH;https://item.rakuten.co.jp/skirt-shop/skirt001/,,主力ECで仕様確認
+美容,RF美顔器,C,"RF高周波, 温感, LEDライト, 密着ヘッド, 充電式, ハンドヘルド, 角質層まで, しっとり, 自宅ケア",preset:beauty.rf,https://www.amazon.co.jp/dp/B07V4S6K5H;https://item.rakuten.co.jp/beautyshop/rfdevice001/,"リフトアップ, シワ改善, たるみ改善, 美白効果, 医療効果, 痩身, 発毛促進",レビュー高評価多数（機能説明は“角質層まで”表現に統一）
+美容,EMS美顔器,C,"低周波EMS, やさしい刺激, 充電式, 軽量, コードレス, フェイスラインケア, 時短, 自宅ケア",preset:beauty.rf,https://www.amazon.co.jp/dp/B08L45PZ79;https://item.rakuten.co.jp/emsbeauty/ems001/,"リフトアップ, シワ改善, たるみ改善, 医療効果, 筋肥大促進",感覚表現は“印象”“ような”に寄せる
+美容,フェイススチーマー,C,"ナノスチーム, アロマ対応, 水タンク, タイマー設定, 充電式, うるおい, リラックス, 自宅ケア",preset:beauty.steamer,https://www.amazon.co.jp/dp/B07FRS3V3B;https://item.rakuten.co.jp/steamshop/steam001/,"毛穴が消える, 医療効果, アレルギー治療",保湿表現は一般的効用に留める
+美容,IPL脱毛器,C,"光照射, 充電式, 冷却機能, 波長調整, コードレス, 自宅ムダ毛ケア, レベル調整, 家庭用",preset:beauty.hair,https://www.amazon.co.jp/dp/B08PFT1VZ1;https://item.rakuten.co.jp/ipldevice001/,"永久脱毛, 医療脱毛, 痛みゼロ, 医療効果",“家庭用”“自己処理補助”の語感を維持
+美容,ヘアドライヤー,C,"大風量, イオンケア, 軽量, 折りたたみ, AC電源, 速乾, 静音, 旅行用",preset:beauty.hair,https://www.amazon.co.jp/dp/B07JWQRMZT;https://item.rakuten.co.jp/hairdryer/cordless001/,"髪が生える, 医療効果",“速乾の目安”など数値は製品個別で
+美容,ヘアアイロン,C,"セラミックプレート, 温度調整, コードレス, 折りたたみ, 軽量, 滑らか, カール, ストレート",preset:beauty.hair,https://www.amazon.co.jp/dp/B07RPDH7F1;https://item.rakuten.co.jp/hairiron/ht001/,"髪質改善を保証, 永続効果, 医療効果",温度・仕上がりは“目安”表現
+家電,モバイルバッテリー（22000mAh）,C,"リチウムポリマー, USB-C入力, USB-A出力, 22000mAh, 4台同時, 内蔵ケーブル, LCD残量表示, LEDライト, 低電流モード, PSE適合",preset:gadget.power,https://www.amazon.co.jp/dp/B09FMCN1SV,"充電効率95%保証, 30分で必ず50%充電",数値は“目安”。航空機内持込は各社規定確認
+家電,ワイヤレスイヤホン,B,"Bluetooth5.0, ENCノイズ低減, マイク内蔵, 充電ケース, 防水IPX5, 低遅延, 高音質, 軽量, 通勤用",preset:gadget.audio,https://www.amazon.co.jp/dp/B07Y5Y36WD;https://item.rakuten.co.jp/earphone/wp001/,"完全遮音, プロ品質保証",音質は主観表現を避け“傾向”で記載
+家電,スマートウォッチ（フィットネス）,B,"心拍センサー, 歩数計, GPS, 防水, 運動記録, 活動量, OLED, バッテリー約10日, 健康管理",preset:gadget.wearable,https://www.amazon.co.jp/dp/B08L5VG9QZ;https://item.rakuten.co.jp/smartwatch/fit001/,"医療測定, 疾病診断, 体重減少保証",ヘルス機能は“参考用”の語感に統一
+家電,スティック掃除機,C,"コードレス, サイクロン集塵, リチウムイオン, パワフル, 軽量, 回転ヘッド, 静音, 省スペース",preset:gadget.vacuum,https://www.amazon.co.jp/dp/B07W5VWY3N;https://item.rakuten.co.jp/cleaning/svacuum001/,"完全静音, ダニ完全除去",吸引目安は個別製品で管理
+家電,加湿器（卓上）,C,"超音波方式, 加湿量約100ml/h, 水タンク1L, 卓上仕様, USB給電, LED, コンパクト, 静音, 省スペース",preset:gadget.humidifier,https://www.amazon.co.jp/dp/B082TYD7P2;https://item.rakuten.co.jp/desktophumidifier/d001/,"菌を完全除去, 医療効果",除菌表現は避け“清潔に保ちやすい設計”へ
+家電,空気清浄機（HEPA）,C,"HEPAフィルター, 活性炭, センサー, 空気質表示, 風量調整, 静音, 省スペース, 花粉対策",preset:gadget.air,https://www.amazon.co.jp/dp/B07Y6NNF6X;https://item.rakuten.co.jp/clean-air/cleanair001/,"ウイルス完全除去, 医療効果",“捕集率〇％”などは製品固有で記載
