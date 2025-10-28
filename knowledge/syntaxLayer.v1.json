@@ -1,0 +1,165 @@
+{
+  "$schema": "https://boostsuite.schemas/syntax-layer.v1.json",
+  "version": "1.0.0",
+  "description": "Lead/Close 用の呼吸構文。Emotion/Style と連動して句読点・改行・語気を制御する。",
+  "globals": {
+    "punctuation": {
+      "jp": {
+        "comma": "、",
+        "period": "。",
+        "mdash": "──",
+        "allow_exclaim": false
+      }
+    },
+    "breath_to_markup": {
+      "short": "、",
+      "medium": "。\\n",
+      "long": "。\\n\\n"
+    },
+    "length_guidelines": {
+      "lead_total_max_chars": 110,
+      "sentence_max_chars": 42,
+      "min_sentences": 2,
+      "max_sentences": 3
+    },
+    "numeric_rules": {
+      "percent_style": "半角+％",
+      "x_by_y_style": "半角×",
+      "unit_spacing": "no-space-before-unit"
+    },
+    "banned_phrases": [
+      "世界初",
+      "必ず",
+      "完全に",
+      "医療効果",
+      "劇的に"
+    ],
+    "softeners": [
+      "目安です",
+      "場合があります",
+      "配慮しています"
+    ]
+  },
+
+  "slot_defaults": {
+    "brand": "",
+    "product_type": "",
+    "pain_point": "バッテリー残量",
+    "key_feature": "",
+    "benefit": "毎日が少しラクになる"
+  },
+
+  "linkages": {
+    "emotion_to_style_bias": {
+      "安心": ["やわらかい", "ナチュラル"],
+      "効率": ["キビキビ"],
+      "自己表現": ["インスパイア"],
+      "挑戦": ["キビキビ", "インスパイア"],
+      "癒し": ["やわらかい"],
+      "絆": ["やわらかい", "ナチュラル"]
+    },
+    "style_to_breath_bias": {
+      "キビキビ": { "共感": "short", "構造": "short", "余韻": "medium" },
+      "やわらかい": { "共感": "medium", "構造": "short", "余韻": "long" },
+      "インスパイア": { "共感": "short", "構造": "medium", "余韻": "long" },
+      "プレミアム": { "共感": "medium", "構造": "medium", "余韻": "long" },
+      "ナチュラル": { "共感": "medium", "構造": "short", "余韻": "medium" }
+    }
+  },
+
+  "lead_modes": {
+    "H": {
+      "name": "Human core lead",
+      "sequence": ["共感", "構造", "余韻"],
+      "blocks": {
+        "共感": {
+          "variants": [
+            "もう{pain_point}に悩まない。",
+            "{pain_point}の不安から、そっと自由に。",
+            "足りないのは充電じゃなく、余裕かもしれない。"
+          ],
+          "breath": "medium"
+        },
+        "構造": {
+          "variants": [
+            "{brand}の{product_type}は{key_feature}。",
+            "{brand}の{product_type}、{key_feature}で迷わない。",
+            "{key_feature}。{brand}の{product_type}にできること。"
+          ],
+          "breath": "short"
+        },
+        "余韻": {
+          "variants": [
+            "これ一台で、{benefit}。",
+            "道具が静かだと、毎日が整う。",
+            "使うたびに、いつものリズムへ。"
+          ],
+          "breath": "long"
+        }
+      },
+      "rules": {
+        "max_sentences": 3,
+        "trim_double_punct": true,
+        "collapse_spaces": true,
+        "avoid_colon_in_lead": true,
+        "no_exclaim": true
+      }
+    }
+  },
+
+  "close_modes": {
+    "H": {
+      "name": "Human core close",
+      "variants": [
+        "迷いが減ると、時間は増える。",
+        "必要なときに、必要なだけ。",
+        "静かな安心を、日常の標準に。"
+      ],
+      "breath": "medium",
+      "rules": { "no_exclaim": true }
+    }
+  },
+
+  "adapters": {
+    "domain_overrides": [
+      {
+        "if_category_prefix": "ファッション",
+        "lead_pain_point_map": {
+          "デフォルト": "サイズ感や素材選び",
+          "コート": "体温とシルエットのバランス",
+          "ニット": "毛玉・チクつき"
+        },
+        "benefit_bias": [
+          "着るだけで姿勢が整うような安心感",
+          "質感で伝わる上品さ"
+        ],
+        "forbid_words": ["高見え", "映えすぎ"]
+      },
+      {
+        "if_category_prefix": "美容",
+        "lead_pain_point_map": {
+          "デフォルト": "スキンケアの手応え",
+          "RF": "温感のムラ",
+          "EMS": "刺激の強さ"
+        },
+        "benefit_bias": [
+          "毎日のケアが続けやすい",
+          "肌をいたわる余白が生まれる"
+        ],
+        "forbid_words": ["小顔になる", "シワが消える"]
+      },
+      {
+        "if_category_prefix": "家電・IoT・デジタル",
+        "lead_pain_point_map": {
+          "デフォルト": "バッテリー残量",
+          "オーディオ": "途切れやノイズ",
+          "ウェアラブル": "充電と通知の負担"
+        },
+        "benefit_bias": [
+          "持ち物が一つ減る",
+          "使い方に迷わない"
+        ]
+      }
+    ]
+  }
+}
