@@ -6,14 +6,22 @@ import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
+/* =========================================================================
+   Runtime / Timeouts
+   - Vercel の上限に合わせて余裕を持たせる（最大 300s）
+   ====================================================================== */
 export const runtime = "nodejs";
-// ★ タイムアウト耐性UP（Vercel上限想定：最大300秒）
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-/* =========================
-   ユーティリティ（ファイルIO）
-========================= */
+// サーバ側タイムアウト（maxDuration と同期、余白 5s）
+const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
+const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
+const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
+
+/* =========================================================================
+   File utils
+   ====================================================================== */
 function readText(rel: string): string {
   try {
     const p = path.join(process.cwd(), rel);
@@ -41,14 +49,16 @@ function parseCsvWords(src: string): string[] {
     .filter(Boolean);
 }
 
-/* === ローカル知識のロード（起動時1回） === */
+/* =========================================================================
+   Local knowledge
+   ====================================================================== */
 function readCategoryCsv(rel: string) {
   const t = readText(rel);
   const rows = t
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  // 想定：ヘッダ: l1,l2,mode,pitch_keywords(パイプ区切り)
+  // Header: l1,l2,mode,pitch_keywords(|-sep)
   const out: Array<{ l1: string; l2: string; mode: string; pitch_keywords: string[] }> = [];
   for (const line of rows.slice(1)) {
     const cols = line.split(",").map((s) => s.trim());
@@ -72,23 +82,19 @@ function readJsonSafe<T>(rel: string, fallback: T): T {
     return fallback;
   }
 }
+
 type EmotionJSON = {
   $schema?: string; version?: string; default_emotion?: string;
   emotions: Array<{
-    id: string; aliases?: string[]; tones?: string[]; patterns?: string[];
-    use_for_modes?: string[];
+    id: string; aliases?: string[]; tones?: string[]; patterns?: string[]; use_for_modes?: string[];
   }>;
-  category_overrides?: Array<{
-    category: string; primary_emotion: string; fallbacks?: string[];
-  }>;
+  category_overrides?: Array<{ category: string; primary_emotion: string; fallbacks?: string[] }>;
 };
 type StyleJSON = {
   $schema?: string; version?: string;
   defaults?: { voice?: string; sentence_length?: string; emoji?: boolean };
   styles: Array<{
-    id: string; voice: string; rhythm: string;
-    lexicon_plus?: string[]; lexicon_minus?: string[];
-    use_for_modes?: string[];
+    id: string; voice: string; rhythm: string; lexicon_plus?: string[]; lexicon_minus?: string[]; use_for_modes?: string[];
   }>;
   media_overrides?: Array<{ media: string; sentence_length: string; emoji?: boolean }>;
 };
@@ -97,10 +103,13 @@ const LOCAL_CATS = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
 const LOCAL_EMO = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
 const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
 
-/* =========================
-   プロンプト素材（ローカル）
-========================= */
-const CORE_PROMPT = readText("prompts/bs_prompt_v1.9.9.txt");
+/* =========================================================================
+   Prompts (v2 へ。なければ v1.9.9 フォールバック)
+   ====================================================================== */
+const CORE_PROMPT_V2 = readText("prompts/bs_prompt_v2.0.0.txt");
+const CORE_PROMPT_V199 = readText("prompts/bs_prompt_v1.9.9.txt");
+const CORE_PROMPT = CORE_PROMPT_V2 || CORE_PROMPT_V199 || "You are Boost Suite copy refiner.";
+
 const YAKKI_ALL = [
   readText("prompts/filters/BoostSuite_薬機法フィルターA.txt"),
   readText("prompts/filters/BoostSuite_薬機法フィルターB.txt"),
@@ -110,17 +119,15 @@ const YAKKI_ALL = [
 const REPLACE_RULES = parseReplaceDict(readText("prompts/filters/Boost_Fashion_置き換え辞書.txt"));
 const BEAUTY_WORDS = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
 
-/* =========================
-   OpenAIユーティリティ
-========================= */
+/* =========================================================================
+   OpenAI helpers
+   ====================================================================== */
 const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
-// ★ 4o系の判定を追加
 const isFourOFamily = (m: string) => /^gpt-4o($|-)/i.test(m);
 
-// ★ タイムアウト管理（maxDuration に同期）
-const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
-// ★ デフォルトは「しゃべり」が強い 4o-mini。環境変数で上書き可能
-const DEFAULT_MODEL = process.env.BOOST_MODEL?.trim() || "gpt-4o-mini";
+// 既定モデル：Stage1=5-mini（FACT硬め） / Stage2=4o-mini（Humanize）
+const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
+const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
 
 type ChatPayload = {
   model: string;
@@ -130,7 +137,6 @@ type ChatPayload = {
   top_p?: number;
 };
 
-// ---- サーバ側タイムアウト＋リトライ ----
 async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
@@ -140,7 +146,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
     clearTimeout(t);
   }
 }
-async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = SERVER_TIMEOUT_MS) {
+async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs: number) {
   const init: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -155,7 +161,6 @@ async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = SERV
       let json: any = {};
       try { json = JSON.parse(raw); } catch {}
       const content = json?.choices?.[0]?.message?.content ?? "";
-
       if (res.ok && content?.trim()) {
         return { ok: true as const, content, raw: json };
       }
@@ -173,9 +178,9 @@ async function callOpenAI(payload: ChatPayload, apiKey: string, timeoutMs = SERV
   return { ok: false as const, error: lastErr };
 }
 
-/* =========================
-   Supabase クライアント
-========================= */
+/* =========================================================================
+   Supabase
+   ====================================================================== */
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -188,15 +193,14 @@ async function sbServer() {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
-      },
-      set() {}, remove() {},
+      }, set() {}, remove() {},
     },
   });
 }
 
-/* =========================
-   推論（カテゴリ→感情→文体）
-========================= */
+/* =========================================================================
+   Intent mapping (category → emotion → style)
+   ====================================================================== */
 type CategoryRow = { l1: string; l2: string; mode: string; pitch_keywords: string[] | null };
 type EmotionRow = {
   id: string; aliases: string[] | null; tones: string[] | null; patterns: string[] | null; use_for_modes: string[] | null;
@@ -228,10 +232,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
       const s2 = Object.entries(hintMap)
         .filter(([k]) => k === c.l1)
         .reduce((acc, [, ws]) => acc + scoreWords(text, ws), 0);
-      candidates.push({
-        row: { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords ?? [] },
-        score: s1 + s2,
-      });
+      candidates.push({ row: { l1: c.l1, l2: c.l2, mode: c.mode, pitch_keywords: c.pitch_keywords ?? [] }, score: s1 + s2 });
     }
   }
 
@@ -241,15 +242,11 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     const s2 = Object.entries(hintMap)
       .filter(([k]) => k === lc.l1)
       .reduce((acc, [, ws]) => acc + scoreWords(text, ws), 0);
-    candidates.push({
-      row: { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords ?? [] },
-      score: s1 + s2,
-    });
+    candidates.push({ row: { l1: lc.l1, l2: lc.l2, mode: lc.mode, pitch_keywords: lc.pitch_keywords ?? [] }, score: s1 + s2 });
   }
 
   candidates.sort((a, b) => b.score - a.score);
-  let cat: CategoryRow | null =
-    (candidates[0]?.score ?? 0) > 0 ? candidates[0].row : null;
+  let cat: CategoryRow | null = (candidates[0]?.score ?? 0) > 0 ? candidates[0].row : null;
 
   if (!cat) {
     if (!dbCats.error && dbCats.data?.length) {
@@ -316,19 +313,13 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   let emoji = false;
   if (media) {
     const mr: PostgrestSingleResponse<MediaOverrideRow | null> = await supabase
-      .from("media_overrides")
-      .select("*")
-      .eq("media", media)
-      .maybeSingle();
+      .from("media_overrides").select("*").eq("media", media).maybeSingle();
     if (mr.data) {
       sentence_length = mr.data.sentence_length;
       emoji = mr.data.emoji;
     } else if (LOCAL_STYLE.media_overrides?.length) {
       const mo = LOCAL_STYLE.media_overrides.find(m => m.media === media);
-      if (mo) {
-        sentence_length = mo.sentence_length;
-        emoji = !!mo.emoji;
-      }
+      if (mo) { sentence_length = mo.sentence_length; emoji = !!mo.emoji; }
     }
   }
 
@@ -340,61 +331,63 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   };
 }
 
-/* =========================
-   GET: ヘルス（DB疎通＋ローカル読込）
-========================= */
+/* =========================================================================
+   Health check
+   ====================================================================== */
 export async function GET() {
   try {
     const supabase = sbRead();
     const { data, error } = await supabase.from("categories").select("l1,l2,mode").limit(1);
     if (error) throw error;
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        sampleCategory: data?.[0] ?? null,
-        localLoaded: {
-          cats: LOCAL_CATS.length,
-          emos: LOCAL_EMO.emotions?.length ?? 0,
-          styles: LOCAL_STYLE.styles?.length ?? 0,
-        },
-      }),
-      { status: 200 }
-    );
+    return new Response(JSON.stringify({
+      ok: true,
+      sampleCategory: data?.[0] ?? null,
+      localLoaded: {
+        cats: LOCAL_CATS.length,
+        emos: LOCAL_EMO.emotions?.length ?? 0,
+        styles: LOCAL_STYLE.styles?.length ?? 0,
+      },
+      promptVersion: CORE_PROMPT === CORE_PROMPT_V2 ? "v2.0.0" : (CORE_PROMPT === CORE_PROMPT_V199 ? "v1.9.9" : "custom"),
+    }), { status: 200 });
   } catch (e: any) {
-    return new Response(JSON.stringify({ ok: false, message: e?.message ?? String(e) }), {
-      status: 500,
-    });
+    return new Response(JSON.stringify({ ok: false, message: e?.message ?? String(e) }), { status: 500 });
   }
 }
 
-/* =========================
-   POST: 生成 本体（user_id 自動付与/RLS対応）
-========================= */
-// ★ 長文圧縮：トークン過多・タイムアウト対策（意味を壊さず軽量化）
+/* =========================================================================
+   Helpers
+   ====================================================================== */
+// 長文圧縮：トークン過多・タイムアウト対策
 function compactInputText(src: string, maxChars = 16000) {
   if (!src) return "";
   let s = src.replace(/\r/g, "");
-  // 画像URLやASIN等の固有値以外の連続空白を圧縮
-  s = s.replace(/[ \t]{2,}/g, " ");
-  // 連続改行を最大2つに制限
-  s = s.replace(/\n{3,}/g, "\n\n");
-  // 超過分は末尾を切る（JSON等は原文で渡るため通常テキスト前提）
+  s = s.replace(/[ \t]{2,}/g, " ");   // 連続空白圧縮
+  s = s.replace(/\n{3,}/g, "\n\n");   // 連続改行を最大2つに
   if (s.length > maxChars) s = s.slice(0, maxChars) + "\n…（一部省略）";
   return s;
 }
 
+/* =========================================================================
+   POST: Dual-Core generation (Stage1 → Stage2)
+   ====================================================================== */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
       prompt,
+      media = "ad",
       jitter = false,
       variants = 0,
-      model: reqModel,
-      temperature: reqTemp,
-      media = "ad",
-      // ★ 任意：humanize優先（リード/クロージングを4o系で回したい時に true ）
-      humanize = false,
+      // 任意オーバーライド
+      stage1Model,
+      stage2Model,
+      temperature, // 全体override
+      // 片ステージのみ温度個別指定も許容
+      stage1Temperature,
+      stage2Temperature,
+      // 失敗時のフォールバック挙動
+      allowStage2Fallback = true,
+      allowReturnStage1IfStage2Fail = true,
     } = body ?? {};
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -407,13 +400,12 @@ export async function POST(req: Request) {
     const { data: userRes } = await sb.auth.getUser();
     const userId = userRes?.user?.id ?? null;
 
+    // 推論（カテゴリ/感情/文体/媒体）
     const intent = await mapIntentWithDBThenLocal(String(prompt ?? ""), String(media ?? "ad"));
 
-    const system = CORE_PROMPT || "You are Boost Suite copy refiner.";
+    // 共通素材
     const replaceTable =
-      REPLACE_RULES.length > 0
-        ? REPLACE_RULES.map((r) => `- 「${r.from}」=>「${r.to}」`).join("\n")
-        : "（辞書なし）";
+      REPLACE_RULES.length > 0 ? REPLACE_RULES.map((r) => `- 「${r.from}」=>「${r.to}」`).join("\n") : "（辞書なし）";
     const beautyList = BEAUTY_WORDS.length > 0 ? BEAUTY_WORDS.map((w) => `- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock = YAKKI_ALL || "（薬機フィルター未設定）";
     const controlLine = jitter
@@ -441,80 +433,155 @@ export async function POST(req: Request) {
       "",
       "《媒体最適化》",
       `- media: ${media} / sentence_length: ${intent.media.sentence_length} / emoji: ${intent.media.emoji ? "true" : "false"}`,
-    ];
+    ].join("\n");
 
-    // ★ 長文を事前にコンパクト化（タイムアウト率を下げる）
-    const compacted = typeof prompt === "string"
-      ? compactInputText(String(prompt))
-      : compactInputText(JSON.stringify(prompt));
+    // 入力をコンパクト化
+    const compacted = typeof prompt === "string" ? compactInputText(String(prompt)) : compactInputText(JSON.stringify(prompt));
 
-    const userContent = [
-      "以下の原文を Boost 構文 v1.9.9 で“段階整流”してください。",
-      "出力は日本語。FACTSを固定し、最小の余韻＋音の自然さ（PhonoSense）で販売文に整えます。",
-      controlLine,
+    /* -------------------------
+       Stage1: FACT整流（gpt-5-mini 推奨）
+       ------------------------- */
+    const s1Model = (typeof stage1Model === "string" && stage1Model.trim()) ? stage1Model.trim() : DEFAULT_STAGE1_MODEL;
+    const s1Temp = typeof stage1Temperature === "number"
+      ? stage1Temperature
+      : (typeof temperature === "number" ? temperature : 0.25); // 硬め
+
+    const s1UserContent = [
+      "【Stage1｜FACT整流・法規配慮（v2）】",
+      "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。",
+      "禁止：感情語・比喩増幅・断定比較・過剰誇張。AI臭い凡庸句も禁止。",
       "",
-      intentBlockLines.join("\n"),
+      "以降の Stage2 で Humanize するため、本文はフラットに保つこと。",
       "",
-      "《Safety Layer｜薬機・景表 配慮ガイド》",
+      intentBlockLines,
+      "",
+      "《Safety Layer（薬機/景表）》",
       yakkiBlock,
       "",
       "《置き換え辞書（参考）》",
       replaceTable,
       "",
-      "《カテゴリ語彙（Beauty）参考リスト》",
+      "《カテゴリ語彙（Beauty）参考》",
       beautyList,
       "",
       "— 原文 —",
       compacted,
+      "",
+      "出力は Boost Suite v2 のテンプレ全項目を含む“完成形”だが、リード/クロージングは控えめ（後段で温度付与）。",
+      "タイトルは事実優先、SNS要約は感情薄めで可読性重視。",
     ].join("\n");
 
-    // ★ モデル選択ロジック：
-    //   1) humanize 指定 or 未指定時の既定は 4o-mini（“しゃべり”重視）
-    //   2) 明示指定があればそれを優先
-    const model = (typeof reqModel === "string" && reqModel.trim())
-      ? reqModel.trim()
-      : (humanize ? "gpt-4o-mini" : DEFAULT_MODEL);
-
-    const baseTemp = 0.35;
-    const temp = typeof reqTemp === "number" ? reqTemp : jitter ? 0.45 : baseTemp;
-
-    let payload: ChatPayload = {
-      model,
+    const s1Payload: ChatPayload = {
+      model: s1Model,
       messages: [
-        { role: "system", content: system },
-        { role: "user", content: userContent },
+        { role: "system", content: CORE_PROMPT },
+        { role: "user", content: s1UserContent },
       ],
       stream: false,
+      ...(isFiveFamily(s1Model) ? {} : { temperature: s1Temp, top_p: 0.9 }),
     };
-    // ★ 5系は温度固定／4o系は温度・top_pを軽く解放して“息遣い”を出す
-    if (!isFiveFamily(model)) {
-      payload.temperature = temp;
-      payload.top_p = 0.9;
-    }
 
-    const first = await callOpenAI(payload, apiKey);
-    let text = first.ok ? first.content : "";
-
-    if (!text.trim()) {
-      // ★ フォールバック順を“異系”に切替：5→4o / 4o→5（相補）
-      const alt =
-        isFiveFamily(model) ? "gpt-4o-mini" :
-        (isFourOFamily(model) ? "gpt-5-mini" : "gpt-4o-mini");
-
-      const p2: ChatPayload = { ...payload, model: alt };
-      if (!isFiveFamily(p2.model)) { p2.temperature = temp; p2.top_p = 0.9; } else { delete p2.temperature; delete p2.top_p; }
-      const second = await callOpenAI(p2, apiKey, Math.min(SERVER_TIMEOUT_MS, 240_000));
-      if (second.ok) text = second.content;
-      else {
-        console.error("OpenAI failed", { first: (first as any).error, second: (second as any).error });
-        return new Response(
-          JSON.stringify({ error: "openai_fetch_failed", detail: (first as any).error ?? (second as any).error }),
-          { status: 502 }
-        );
+    const s1 = await callOpenAI(s1Payload, process.env.OPENAI_API_KEY!, STAGE1_TIMEOUT_MS);
+    if (!s1.ok) {
+      // 代替：4o-mini で事実寄せ（温度かなり下げる）
+      const altModel = "gpt-4o-mini";
+      const altPayload: ChatPayload = {
+        ...s1Payload,
+        model: altModel,
+        temperature: Math.min(0.2, s1Temp),
+        top_p: 0.8,
+      };
+      const s1b = await callOpenAI(altPayload, process.env.OPENAI_API_KEY!, Math.min(STAGE1_TIMEOUT_MS, 90_000));
+      if (!s1b.ok) {
+        return new Response(JSON.stringify({ error: "stage1_failed", detail: (s1 as any).error ?? (s1b as any).error }), { status: 502 });
       }
+      (s1 as any).content = s1b.content;
+    }
+    const stage1Text = (s1 as any).content as string;
+
+    /* -------------------------
+       Stage2: Humanize（gpt-4o-mini 推奨）
+       ------------------------- */
+    const s2Model = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
+    const baseTemp = 0.35;
+    const s2Temp = typeof stage2Temperature === "number"
+      ? stage2Temperature
+      : (typeof temperature === "number" ? temperature : (jitter ? 0.5 : baseTemp));
+
+    const s2UserContent = [
+      "【Stage2｜Warmflow-Humanize（v2）】",
+      "目的：Stage1の FACT を改変せず、リード/クロージングに“人の息遣い”を付与し、AI臭を除去する。",
+      "指針：句読点の間合い、体言止めの許容、凡庸句は排除。「〜でも、〜」の機械接続は避ける。",
+      "",
+      "次の3点を特に強化：",
+      "1) リード（WP/5行構文）：外出/所有の情景を最短で想起。詩化しない。口語は最小。",
+      "2) クロージング（B）：“続けやすさ”を一文で描き、静かに締める。",
+      "3) SNS要約（180〜220字）：絵文字は2〜4。音読して自然なリズム。",
+      "",
+      "— Stage1 素体 —",
+      stage1Text,
+      "",
+      "出力は Boost Suite v2 のテンプレ全項目を“1回で完成”させること。",
+    ].join("\n");
+
+    const s2Payload: ChatPayload = {
+      model: s2Model,
+      messages: [
+        { role: "system", content: CORE_PROMPT },
+        { role: "user", content: s2UserContent },
+      ],
+      stream: false,
+      ...(isFiveFamily(s2Model) ? {} : { temperature: s2Temp, top_p: 0.9 }),
+    };
+
+    let s2 = await callOpenAI(s2Payload, process.env.OPENAI_API_KEY!, STAGE2_TIMEOUT_MS);
+
+    if (!s2.ok && allowStage2Fallback) {
+      // 相補フォールバック：5-mini で Humanize 最小付与（温度かなり低め）
+      const altModel = isFourOFamily(s2Model) ? "gpt-5-mini" : "gpt-4o-mini";
+      const altPayload: ChatPayload = {
+        ...s2Payload,
+        model: altModel,
+        ...(isFiveFamily(altModel) ? {} : { temperature: Math.min(0.3, s2Temp), top_p: 0.85 }),
+      };
+      const s2b = await callOpenAI(altPayload, process.env.OPENAI_API_KEY!, Math.min(STAGE2_TIMEOUT_MS, 90_000));
+      if (!s2b.ok) {
+        if (allowReturnStage1IfStage2Fail) {
+          // 最低限の劣化モード：Stage1結果を返す（利用側で再Humanize可能）
+          await sbRead().from("intent_logs").insert({
+            media,
+            input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
+            category_l1: intent.category?.l1 ?? null,
+            category_l2: intent.category?.l2 ?? null,
+            mode: intent.category?.mode ?? null,
+            emotion_id: intent.emotion?.id ?? null,
+            style_id: intent.style?.id ?? null,
+          });
+          return new Response(JSON.stringify({
+            text: stage1Text,
+            modelUsed: `${s1Model} (Stage1 only)`,
+            degraded: true,
+            reason: "stage2_failed",
+            intent: {
+              category: intent.category,
+              emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
+              style: intent.style
+                ? { id: intent.style.id, voice: intent.style.voice, rhythm: intent.style.rhythm,
+                    sentence_length: intent.media.sentence_length, emoji: intent.media.emoji }
+                : null,
+            },
+            userId,
+          }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ error: "stage2_failed", detail: (s2 as any).error ?? (s2b as any).error }), { status: 502 });
+      }
+      s2 = s2b;
     }
 
-    await sb.from("intent_logs").insert({
+    const finalText = s2.ok ? s2.content : stage1Text;
+
+    // ログ保存（RLS: user_id=auth.uid()）
+    await sbRead().from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
       category_l1: intent.category?.l1 ?? null,
@@ -524,29 +591,20 @@ export async function POST(req: Request) {
       style_id: intent.style?.id ?? null,
     });
 
-    return new Response(
-      JSON.stringify({
-        text,
-        modelUsed: model,
-        intent: {
-          category: intent.category,
-          emotion: intent.emotion
-            ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null }
-            : null,
-          style: intent.style
-            ? {
-                id: intent.style.id,
-                voice: intent.style.voice,
-                rhythm: intent.style.rhythm,
-                sentence_length: intent.media.sentence_length,
-                emoji: intent.media.emoji,
-              }
-            : null,
-        },
-        userId,
-      }),
-      { status: 200 }
-    );
+    return new Response(JSON.stringify({
+      text: finalText,
+      modelUsed: { stage1: s1Model, stage2: s2Model, fallback: !s2.ok ? true : false },
+      intent: {
+        category: intent.category,
+        emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
+        style: intent.style
+          ? { id: intent.style.id, voice: intent.style.voice, rhythm: intent.style.rhythm,
+              sentence_length: intent.media.sentence_length, emoji: intent.media.emoji }
+          : null,
+      },
+      userId,
+    }), { status: 200 });
+
   } catch (e: any) {
     console.error("API route crashed:", e?.stack || e?.message || e);
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
