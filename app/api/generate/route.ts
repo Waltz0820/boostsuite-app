@@ -85,9 +85,10 @@ const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワ
 const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
   "prompts/filters/SEO_related_words.json",
   {
-    "アロマ": ["アロマ加湿器","間接照明","癒し家電","就寝用","リラックス"],
-    "美顔器": ["RF美顔器","EMS美顔器","光美容","温冷ケア","ホームエステ"],
-    "ギフト": ["プレゼント","ラッピング","誕生日","記念日","母の日"]
+    "アロマ": ["アロマ加湿器","ムードライト","間接照明","癒し家電","就寝用","リラックス","タイマー"],
+    "美顔器": ["RF美顔器","EMS美顔器","光美容","温冷ケア","ホームエステ","イオン導入","LEDケア"],
+    "ギフト": ["プレゼント","ラッピング","誕生日","記念日","母の日","贈り物"],
+    "モバイルバッテリー": ["PSE適合","Type-C入出力","急速充電","ケーブル内蔵","LED表示","機内持ち込み"]
   }
 );
 
@@ -121,9 +122,7 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
       const content = json?.choices?.[0]?.message?.content ?? "";
       if (res.ok && content?.trim()) return { ok: true as const, content };
       lastErr = { status: res.status, body: json?.error ?? raw?.slice?.(0, 600) ?? raw };
-      if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
-        await new Promise(r=>setTimeout(r, 800*(i+1))); continue;
-      }
+      if (res.status === 429 || (res.status >= 500 && res.status <= 599)) { await new Promise(r=>setTimeout(r, 800*(i+1))); continue; }
       break;
     } catch (e:any) {
       lastErr = { status: "fetch_error", body: String(e?.message || e) };
@@ -304,9 +303,14 @@ export async function POST(req: Request) {
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock  = YAKKI_ALL || "（薬機フィルター未設定）";
 
-    // ★ SEO補助候補（カテゴリから推定）
+    // === SEO補助候補（カテゴリ + 原文）: v2.0.1-seo_patch ===
     const kwKey = intent.category?.l2 || intent.category?.l1 || "";
-    const relatedSEO = (SEO_WORDS[kwKey] || []).slice(0,5);
+    const textLower = String(prompt || "").toLowerCase();
+    const fromText = Object.entries(SEO_WORDS)
+      .filter(([key]) => textLower.includes(key.toLowerCase()))
+      .flatMap(([, arr]) => arr);
+    const fromCat = SEO_WORDS[kwKey] || [];
+    const relatedSEO = Array.from(new Set([...fromText, ...fromCat])).slice(0, 6);
 
     const controlLine = jitter
       ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
@@ -334,7 +338,7 @@ export async function POST(req: Request) {
     const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.25);
 
     const s1UserContent = [
-      "【Stage1｜FACT整流・法規配慮（v2）】",
+      "【Stage1｜FACT整流・法規配慮（v2.0.1-seo_patch）】",
       "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
       "",
       intentBlockLines,
@@ -357,8 +361,9 @@ export async function POST(req: Request) {
       "— 原文 —",
       compacted,
       "",
+      // ★ ここを強化：タイトルで2〜3語採用を明示
       "出力は Boost Suite v2 テンプレ全項目を含む完成形。ただしリード/クロージングは控えめ（後段で人間味付与）。",
-      "タイトルSEOは「カテゴリ｜主要語｜補助語｜容量/色 等」で過密を避けつつ候補語を1〜2語だけ自然に混ぜること。",
+      "タイトル（SEO版）は「カテゴリ｜主要語｜補助語｜容量/色 等」で構成し、上記SEO候補語の**上位2〜3語を自然な形で必ず含めること**（過密・不自然な羅列は避ける）。",
       controlLine,
     ].join("\n");
 
@@ -370,7 +375,6 @@ export async function POST(req: Request) {
       ],
       stream: false,
     };
-    // ★ 5系は温度未指定／4o系は温度付与で安定
     if (!isFiveFamily(s1Model)) { s1Payload.temperature = s1Temp; s1Payload.top_p = 0.9; }
 
     let s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
@@ -378,12 +382,7 @@ export async function POST(req: Request) {
     // フォールバック：4o-mini → gpt-5
     if (!s1.ok) {
       console.warn("Stage1 primary failed:", s1.error);
-      const alt1: any = {
-        ...s1Payload,
-        model: "gpt-4o-mini",
-        temperature: Math.min(0.2, s1Temp),
-        top_p: 0.85,
-      };
+      const alt1: any = { ...s1Payload, model: "gpt-4o-mini", temperature: Math.min(0.2, s1Temp), top_p: 0.85 };
       let s1b = await callOpenAI(alt1, apiKey, Math.min(STAGE1_TIMEOUT_MS, 90_000));
       if (!s1b.ok) {
         console.warn("Stage1 alt(gpt-4o-mini) failed:", s1b.error);
@@ -406,7 +405,6 @@ export async function POST(req: Request) {
     const baseTemp = 0.35;
     const s2Temp   = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.5 : baseTemp));
 
-    // 挿入用（即効性/情景/CTA）
     const DEFAULT_INSTANT_ACTION = "電源を入れてすぐ始められる";
     const DEFAULT_SENSORY_IMAGE  = "夜の手元灯のようにやわらかい明かり";
     const DEFAULT_CTA_PHRASE     = "今夜は香りでひと休み。";
@@ -441,7 +439,7 @@ export async function POST(req: Request) {
       "",
       "《出力要件》",
       "- Boost Suite v2 テンプレすべてを“一度で完成”。",
-      "- タイトルSEOはStage1の候補語を自然に分散、過密にしない。",
+      "- タイトルSEOはStage1の候補語を自然に分散し、**最低1語は必ず（SEO版）に反映**する。",
       "- 注意事項/FAQは簡潔な短問短答を維持。",
       "- JITTER有効時は 3.1 と 3.6 に [v1]〜 の複数案を明示し、他セクションは1本にまとめる。",
     ].join("\n");
