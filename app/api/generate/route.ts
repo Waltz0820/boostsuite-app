@@ -66,9 +66,10 @@ const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { style
 /* =========================================================================
    Prompts
    ====================================================================== */
-const CORE_PROMPT_V2   = readText("prompts/bs_prompt_v2.0.0.txt");
+const CORE_PROMPT_V202 = readText("prompts/bs_prompt_v2.0.2.txt");
+const CORE_PROMPT_V200 = readText("prompts/bs_prompt_v2.0.0.txt");
 const CORE_PROMPT_V199 = readText("prompts/bs_prompt_v1.9.9.txt");
-const CORE_PROMPT      = CORE_PROMPT_V2 || CORE_PROMPT_V199 || "You are Boost Suite copy refiner.";
+const CORE_PROMPT      = CORE_PROMPT_V202 || CORE_PROMPT_V200 || CORE_PROMPT_V199 || "You are Boost Suite copy refiner.";
 
 const YAKKI_ALL = [
   readText("prompts/filters/BoostSuite_薬機法フィルターA.txt"),
@@ -254,7 +255,10 @@ export async function GET() {
       ok: true,
       sampleCategory: data?.[0] ?? null,
       localLoaded: { cats: LOCAL_CATS.length, emos: LOCAL_EMO.emotions?.length ?? 0, styles: LOCAL_STYLE.styles?.length ?? 0 },
-      promptVersion: CORE_PROMPT === CORE_PROMPT_V2 ? "v2.0.0" : (CORE_PROMPT === CORE_PROMPT_V199 ? "v1.9.9" : "custom"),
+      promptVersion:
+        CORE_PROMPT === CORE_PROMPT_V202 ? "v2.0.2" :
+        CORE_PROMPT === CORE_PROMPT_V200 ? "v2.0.0" :
+        (CORE_PROMPT === CORE_PROMPT_V199 ? "v1.9.9" : "custom"),
     }), { status: 200 });
   } catch (e:any) {
     return new Response(JSON.stringify({ ok:false, message: e?.message ?? String(e) }), { status: 500 });
@@ -303,7 +307,7 @@ export async function POST(req: Request) {
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock  = YAKKI_ALL || "（薬機フィルター未設定）";
 
-    // === SEO補助候補（カテゴリ + 原文）: v2.0.1-seo_patch ===
+    // === SEO補助候補（カテゴリ + 原文）: v2.0.2 SmartSEO ===
     const kwKey = intent.category?.l2 || intent.category?.l1 || "";
     const textLower = String(prompt || "").toLowerCase();
     const fromText = Object.entries(SEO_WORDS)
@@ -338,7 +342,7 @@ export async function POST(req: Request) {
     const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.25);
 
     const s1UserContent = [
-      "【Stage1｜FACT整流・法規配慮（v2.0.1-seo_patch）】",
+      "【Stage1｜FACT整流・法規配慮（v2.0.2）】",
       "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
       "",
       intentBlockLines,
@@ -361,7 +365,6 @@ export async function POST(req: Request) {
       "— 原文 —",
       compacted,
       "",
-      // ★ ここを強化：タイトルで2〜3語採用を明示
       "出力は Boost Suite v2 テンプレ全項目を含む完成形。ただしリード/クロージングは控えめ（後段で人間味付与）。",
       "タイトル（SEO版）は「カテゴリ｜主要語｜補助語｜容量/色 等」で構成し、上記SEO候補語の**上位2〜3語を自然な形で必ず含めること**（過密・不自然な羅列は避ける）。",
       controlLine,
@@ -418,7 +421,7 @@ export async function POST(req: Request) {
       : "JITTER無効：各セクション単一出力。";
 
     const s2UserContent = [
-      "【Stage2｜Warmflow-Humanize（v2.0.1 Extended）】",
+      "【Stage2｜Warmflow-Humanize（v2.0.2 Extended）】",
       "目的：Stage1のFACTを改変せず、リード/クロージング中心に“人の息遣い”と即効性を加える。AI臭は除去。",
       "",
       "《必須ルール》",
