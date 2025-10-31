@@ -31,6 +31,9 @@ function parseReplaceDict(src: string) {
 function parseCsvWords(src: string) {
   return src.split(/[\r\n,]+/).map(s=>s.trim()).filter(Boolean);
 }
+function readJsonSafe<T>(rel: string, fb: T): T {
+  try { const t = readText(rel); return t ? JSON.parse(t) as T : fb; } catch { return fb; }
+}
 
 /* =========================================================================
    Local knowledge
@@ -49,9 +52,6 @@ function readCategoryCsv(rel: string) {
   }
   return out;
 }
-function readJsonSafe<T>(rel: string, fb: T): T {
-  try { const t = readText(rel); return t ? JSON.parse(t) as T : fb; } catch { return fb; }
-}
 
 type EmotionJSON = { default_emotion?: string; emotions: Array<{ id: string; aliases?: string[]; tones?: string[]; patterns?: string[]; use_for_modes?: string[] }> };
 type StyleJSON = {
@@ -59,9 +59,9 @@ type StyleJSON = {
   media_overrides?: Array<{ media: string; sentence_length: string; emoji?: boolean }>;
 };
 
-const LOCAL_CATS = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
-const LOCAL_EMO  = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
-const LOCAL_STYLE= readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
+const LOCAL_CATS  = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
+const LOCAL_EMO   = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
+const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
 
 /* =========================================================================
    Prompts
@@ -77,7 +77,19 @@ const YAKKI_ALL = [
   readText("prompts/filters/BoostSuite_薬機法フィルターD.txt"),
 ].filter(Boolean).join("\n");
 const REPLACE_RULES = parseReplaceDict(readText("prompts/filters/Boost_Fashion_置き換え辞書.txt"));
-const BEAUTY_WORDS = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
+const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
+
+/* =========================================================================
+   SEO related words (初期辞書：Cometで随時拡張)
+   ====================================================================== */
+const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
+  "prompts/filters/SEO_related_words.json",
+  {
+    "アロマ": ["アロマ加湿器","間接照明","癒し家電","就寝用","リラックス"],
+    "美顔器": ["RF美顔器","EMS美顔器","光美容","温冷ケア","ホームエステ"],
+    "ギフト": ["プレゼント","ラッピング","誕生日","記念日","母の日"]
+  }
+);
 
 /* =========================================================================
    OpenAI helpers
@@ -136,8 +148,8 @@ async function sbServer() {
    Intent mapping (category → emotion → style → media)
    ====================================================================== */
 type CategoryRow = { l1: string; l2: string; mode: string; pitch_keywords: string[] | null };
-type EmotionRow = { id: string; aliases: string[] | null; tones: string[] | null; patterns: string[] | null; use_for_modes: string[] | null };
-type StyleRow   = { id: string; voice: string; rhythm: string; lexicon_plus: string[] | null; lexicon_minus: string[] | null; use_for_modes: string[] | null };
+type EmotionRow  = { id: string; aliases: string[] | null; tones: string[] | null; patterns: string[] | null; use_for_modes: string[] | null };
+type StyleRow    = { id: string; voice: string; rhythm: string; lexicon_plus: string[] | null; lexicon_minus: string[] | null; use_for_modes: string[] | null };
 type MediaOverrideRow = { media: string; sentence_length: string; emoji: boolean };
 
 async function mapIntentWithDBThenLocal(input: string, media: string) {
@@ -146,8 +158,9 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
 
   const hintMap: Record<string,string[]> = {
     "ガジェット": ["モバイルバッテリー","mAh","充電","Type-C","USB","出力","ポート","PSE","LED","LCD","ワット","A","電源","ケーブル"],
-    "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿"],
+    "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿","RF","EMS","LED","温冷"],
     "ギフト": ["ギフト","プレゼント","贈り物","名入れ","ラッピング","のし"],
+    "家電": ["加湿器","空気清浄","アロマ","ディフューザー","ヒーター","冷風","調光","タイマー"],
   };
   const scoreWords = (s:string, words:string[]) => words.reduce((acc,w)=>acc+(w && s.includes(w) ? 1:0),0);
 
@@ -290,6 +303,11 @@ export async function POST(req: Request) {
     const replaceTable = REPLACE_RULES.length ? REPLACE_RULES.map(r=>`- 「${r.from}」=>「${r.to}」`).join("\n") : "（辞書なし）";
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock  = YAKKI_ALL || "（薬機フィルター未設定）";
+
+    // ★ SEO補助候補（カテゴリから推定）
+    const kwKey = intent.category?.l2 || intent.category?.l1 || "";
+    const relatedSEO = (SEO_WORDS[kwKey] || []).slice(0,5);
+
     const controlLine = jitter
       ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
       : `JITTERは無効化（安定出力）。`;
@@ -317,10 +335,7 @@ export async function POST(req: Request) {
 
     const s1UserContent = [
       "【Stage1｜FACT整流・法規配慮（v2）】",
-      "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。",
-      "禁止：感情語・比喩増幅・断定比較・過剰誇張・機械接続の凡庸句。",
-      "",
-      "以降の Stage2 で Humanize するため、本文はフラットに保つこと。",
+      "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
       "",
       intentBlockLines,
       "",
@@ -333,11 +348,18 @@ export async function POST(req: Request) {
       "《カテゴリ語彙（Beauty）参考》",
       beautyList,
       "",
+      "《SEO補助候補（タイトル用）》",
+      relatedSEO.length ? `- ${relatedSEO.join(" / ")}` : "（候補なし）",
+      "",
+      "《注意事項の提示形式》",
+      "- Objections(FAQ)は「短問短答」を原則に3件以上。注意事項は冗長にせず、FAQ形式でも提示可。",
+      "",
       "— 原文 —",
       compacted,
       "",
-      "出力は Boost Suite v2 のテンプレ全項目を含む“完成形”だが、リード/クロージングは控えめ（後段で温度付与）。",
-      "タイトルは事実優先、SNS要約は感情薄めで可読性重視。",
+      "出力は Boost Suite v2 テンプレ全項目を含む完成形。ただしリード/クロージングは控えめ（後段で人間味付与）。",
+      "タイトルSEOは「カテゴリ｜主要語｜補助語｜容量/色 等」で過密を避けつつ候補語を1〜2語だけ自然に混ぜること。",
+      controlLine,
     ].join("\n");
 
     const s1Payload: any = {
@@ -348,12 +370,12 @@ export async function POST(req: Request) {
       ],
       stream: false,
     };
-    // ★ 5系は温度未指定（以前の安定挙動に戻す）／4o系は温度解放
+    // ★ 5系は温度未指定／4o系は温度付与で安定
     if (!isFiveFamily(s1Model)) { s1Payload.temperature = s1Temp; s1Payload.top_p = 0.9; }
 
     let s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
 
-    // フォールバック：4o-mini（低温）→ gpt-5（最終）
+    // フォールバック：4o-mini → gpt-5
     if (!s1.ok) {
       console.warn("Stage1 primary failed:", s1.error);
       const alt1: any = {
@@ -362,14 +384,10 @@ export async function POST(req: Request) {
         temperature: Math.min(0.2, s1Temp),
         top_p: 0.85,
       };
-      if (isFiveFamily(s1Model)) { /* ensure 4oに温度を付与 */ }
       let s1b = await callOpenAI(alt1, apiKey, Math.min(STAGE1_TIMEOUT_MS, 90_000));
       if (!s1b.ok) {
         console.warn("Stage1 alt(gpt-4o-mini) failed:", s1b.error);
-        const alt2: any = {
-          ...s1Payload,
-          model: "gpt-5",
-        };
+        const alt2: any = { ...s1Payload, model: "gpt-5" };
         delete alt2.temperature; delete alt2.top_p;
         let s1c = await callOpenAI(alt2, apiKey, Math.min(STAGE1_TIMEOUT_MS, 90_000));
         if (!s1c.ok) {
@@ -383,26 +401,49 @@ export async function POST(req: Request) {
     }
     const stage1Text = s1.content as string;
 
-    /* ------------------------- Stage2 : Humanize（合理リード） ------------------------- */
+    /* ------------------------- Stage2 : Humanize（Warmflow Extended） ------------------------- */
     const s2Model = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
     const baseTemp = 0.35;
-    const s2Temp = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.5 : baseTemp));
+    const s2Temp   = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.5 : baseTemp));
+
+    // 挿入用（即効性/情景/CTA）
+    const DEFAULT_INSTANT_ACTION = "電源を入れてすぐ始められる";
+    const DEFAULT_SENSORY_IMAGE  = "夜の手元灯のようにやわらかい明かり";
+    const DEFAULT_CTA_PHRASE     = "今夜は香りでひと休み。";
+
+    const instantAction = DEFAULT_INSTANT_ACTION;
+    const sensoryImage  = DEFAULT_SENSORY_IMAGE;
+    const ctaPhrase     = DEFAULT_CTA_PHRASE;
+
+    const jitterNote = jitter
+      ? "JITTER有効：3.1リードと3.6クロージングのみ [v1],[v2],[v3] の複数案を提示。その他セクションは共通の単一出力。"
+      : "JITTER無効：各セクション単一出力。";
 
     const s2UserContent = [
-      "【Stage2｜Warmflow-Humanize（v2）】",
-      "目的：Stage1の FACT を改変せず、リード/クロージングに“人の息遣い”を付与し、AI臭を除去する。",
-      "指針：句読点の間合い、体言止めの許容、凡庸句は排除。「〜でも、〜」の機械接続は避ける。",
+      "【Stage2｜Warmflow-Humanize（v2.0.1 Extended）】",
+      "目的：Stage1のFACTを改変せず、リード/クロージング中心に“人の息遣い”と即効性を加える。AI臭は除去。",
       "",
-      "《リード強化ルール（WP型5行）》",
-      "1行目：状況提示（例：いざという時、もし○○なら？）",
-      "2行目：本製品が不安を解消する主旨を明言",
-      "3–4行目：具体シーンやスペック1〜2点（詩的表現・比喩は禁止）",
-      "5行目：安心感で締める（抽象ワード禁止）",
+      "《必須ルール》",
+      "- Stage1のスペック・注意・Q&Aの事実は変更しない（語尾調整のみ可）。",
+      "- リードに「即効性の一言」を添える：例）ワンプッシュ、すぐ切り替わる、差してすぐ 等。",
+      "- 体験の情景を一語で：例）夜の手元灯、鞄のポケット、帰宅後の一呼吸。",
+      "- SNS要約は末尾に短いCTAを1文：例）今夜は香りでひと休み。",
+      "",
+      "《挿入用フレーズ》",
+      `- 即効性: ${instantAction}`,
+      `- 情景: ${sensoryImage}`,
+      `- CTA: ${ctaPhrase}`,
+      "",
+      jitterNote,
       "",
       "— Stage1 素体 —",
       stage1Text,
       "",
-      "出力は Boost Suite v2 のテンプレ全項目を“1回で完成”させること。",
+      "《出力要件》",
+      "- Boost Suite v2 テンプレすべてを“一度で完成”。",
+      "- タイトルSEOはStage1の候補語を自然に分散、過密にしない。",
+      "- 注意事項/FAQは簡潔な短問短答を維持。",
+      "- JITTER有効時は 3.1 と 3.6 に [v1]〜 の複数案を明示し、他セクションは1本にまとめる。",
     ].join("\n");
 
     const s2Payload: any = {
@@ -469,6 +510,8 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({
       text: finalText,
       modelUsed: { stage1: s1Model, stage2: (s2.ok ? s2Model : null) },
+      jitter,
+      relatedSEO,
       intent: {
         category: intent.category,
         emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
