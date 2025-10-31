@@ -86,9 +86,9 @@ const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワ
 const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
   "prompts/filters/SEO_related_words.json",
   {
-    "アロマ": ["アロマ加湿器","ムードライト","間接照明","癒し家電","就寝用","リラックス","タイマー"],
+    "アロマ": ["アロマディフューザー","ムードライト","アロマ加湿器","間接照明","癒し家電","就寝用","リラックス","タイマー"],
     "美顔器": ["RF美顔器","EMS美顔器","光美容","温冷ケア","ホームエステ","イオン導入","LEDケア"],
-    "ギフト": ["プレゼント","ラッピング","誕生日","記念日","母の日","贈り物"],
+    "ギフト": ["ギフト","プレゼント","ラッピング","誕生日","記念日","母の日","贈り物"],
     "モバイルバッテリー": ["PSE適合","Type-C入出力","急速充電","ケーブル内蔵","LED表示","機内持ち込み"]
   }
 );
@@ -307,14 +307,16 @@ export async function POST(req: Request) {
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
     const yakkiBlock  = YAKKI_ALL || "（薬機フィルター未設定）";
 
-    // === SEO補助候補（カテゴリ + 原文）: v2.0.2 SmartSEO ===
+    // === SmartSEO（カテゴリ + 原文） & ギフト接頭辞判定 ===
     const kwKey = intent.category?.l2 || intent.category?.l1 || "";
-    const textLower = String(prompt || "").toLowerCase();
+    const rawText = String(prompt || "");
+    const textLower = rawText.toLowerCase();
     const fromText = Object.entries(SEO_WORDS)
       .filter(([key]) => textLower.includes(key.toLowerCase()))
       .flatMap(([, arr]) => arr);
     const fromCat = SEO_WORDS[kwKey] || [];
-    const relatedSEO = Array.from(new Set([...fromText, ...fromCat])).slice(0, 6);
+    const relatedSEO = Array.from(new Set([...fromText, ...fromCat])).slice(0, 8);
+    const giftFlag = /(ギフト|プレゼント|贈り物|ラッピング)/.test(rawText) || relatedSEO.includes("ギフト") || relatedSEO.includes("プレゼント");
 
     const controlLine = jitter
       ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
@@ -333,16 +335,20 @@ export async function POST(req: Request) {
       "",
       "《媒体最適化》",
       `- media: ${media} / sentence_length: ${intent.media.sentence_length} / emoji: ${intent.media.emoji ? "true" : "false"}`,
+      "",
+      "《SmartSEO候補（max8）》",
+      relatedSEO.length ? `- ${relatedSEO.join(" / ")}` : "- なし",
+      `- ギフト接頭辞の許可: ${giftFlag ? "true" : "false"}`,
     ].join("\n");
 
     const compacted = typeof prompt === "string" ? compactInputText(String(prompt)) : compactInputText(JSON.stringify(prompt));
 
     /* ------------------------- Stage1 : FACT整流 ------------------------- */
     const s1Model = (typeof stage1Model === "string" && stage1Model.trim()) ? stage1Model.trim() : DEFAULT_STAGE1_MODEL;
-    const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.25);
+    const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.22);
 
     const s1UserContent = [
-      "【Stage1｜FACT整流・法規配慮（v2.0.2）】",
+      "【Stage1｜FACT整流・法規配慮（v2.0.2 SmartSEO+LeadGuard）】",
       "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
       "",
       intentBlockLines,
@@ -356,8 +362,12 @@ export async function POST(req: Request) {
       "《カテゴリ語彙（Beauty）参考》",
       beautyList,
       "",
-      "《SEO補助候補（タイトル用）》",
-      relatedSEO.length ? `- ${relatedSEO.join(" / ")}` : "（候補なし）",
+      "《タイトル生成規則》",
+      "- 出力は必ず2本：「タイトル（バランス）」「タイトル（SEO）」。",
+      "- 左詰め優先：カテゴリ/代表語 → 主要語（例：ムードライト）→ 補助語（静音/タイマー等）→ 容量/型番/色。",
+      "- SEO版はSmartSEO候補から**2〜3語**を“自然に”採用（羅列・読みにくさ禁止）。",
+      "- 【ギフト｜】接頭辞は《許可=true》のときのみ先頭に付与。falseのときは付けない。",
+      "- 例：『アロマディフューザー｜ムードライト搭載・500mL｜USB充電式』",
       "",
       "《注意事項の提示形式》",
       "- Objections(FAQ)は「短問短答」を原則に3件以上。注意事項は冗長にせず、FAQ形式でも提示可。",
@@ -365,8 +375,7 @@ export async function POST(req: Request) {
       "— 原文 —",
       compacted,
       "",
-      "出力は Boost Suite v2 テンプレ全項目を含む完成形。ただしリード/クロージングは控えめ（後段で人間味付与）。",
-      "タイトル（SEO版）は「カテゴリ｜主要語｜補助語｜容量/色 等」で構成し、上記SEO候補語の**上位2〜3語を自然な形で必ず含めること**（過密・不自然な羅列は避ける）。",
+      "出力は Boost Suite v2 テンプレ全項目を含む完成形。リード/クロージングは控えめ（後段で人間味付与）。",
       controlLine,
     ].join("\n");
 
@@ -382,10 +391,9 @@ export async function POST(req: Request) {
 
     let s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
 
-    // フォールバック：4o-mini → gpt-5
     if (!s1.ok) {
       console.warn("Stage1 primary failed:", s1.error);
-      const alt1: any = { ...s1Payload, model: "gpt-4o-mini", temperature: Math.min(0.2, s1Temp), top_p: 0.85 };
+      const alt1: any = { ...s1Payload, model: "gpt-4o-mini", temperature: Math.min(0.18, s1Temp), top_p: 0.85 };
       let s1b = await callOpenAI(alt1, apiKey, Math.min(STAGE1_TIMEOUT_MS, 90_000));
       if (!s1b.ok) {
         console.warn("Stage1 alt(gpt-4o-mini) failed:", s1b.error);
@@ -405,8 +413,8 @@ export async function POST(req: Request) {
 
     /* ------------------------- Stage2 : Humanize（Warmflow Extended） ------------------------- */
     const s2Model = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
-    const baseTemp = 0.35;
-    const s2Temp   = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.5 : baseTemp));
+    const baseTemp = 0.34;
+    const s2Temp   = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.48 : baseTemp));
 
     const DEFAULT_INSTANT_ACTION = "電源を入れてすぐ始められる";
     const DEFAULT_SENSORY_IMAGE  = "夜の手元灯のようにやわらかい明かり";
@@ -421,14 +429,15 @@ export async function POST(req: Request) {
       : "JITTER無効：各セクション単一出力。";
 
     const s2UserContent = [
-      "【Stage2｜Warmflow-Humanize（v2.0.2 Extended）】",
+      "【Stage2｜Warmflow-Humanize（v2.0.2 LeadGuard）】",
       "目的：Stage1のFACTを改変せず、リード/クロージング中心に“人の息遣い”と即効性を加える。AI臭は除去。",
       "",
-      "《必須ルール》",
-      "- Stage1のスペック・注意・Q&Aの事実は変更しない（語尾調整のみ可）。",
-      "- リードに「即効性の一言」を添える：例）ワンプッシュ、すぐ切り替わる、差してすぐ 等。",
-      "- 体験の情景を一語で：例）夜の手元灯、鞄のポケット、帰宅後の一呼吸。",
-      "- SNS要約は末尾に短いCTAを1文：例）今夜は香りでひと休み。",
+      "《固定ルール》",
+      "- **タイトル（バランス/SEO）は一切変更しない**（句読点や表記揺れも不可）。",
+      "- リードは WP+（6行）固定：1)状況提示 / 2)即効ワード / 3)機能A+B / 4)体験 / 5)データ / 6)余韻。",
+      "- 即効ワードは必ず1行を独立させて挿入：例）「電源を入れてすぐ始められる。」",
+      "- 具体語を1語：例）「手元灯」「ポケット」「朝の支度」。詩的誇張は不可。",
+      "- Q&A/注意の事実改変禁止（語尾の整えのみ可）。",
       "",
       "《挿入用フレーズ》",
       `- 即効性: ${instantAction}`,
@@ -441,10 +450,9 @@ export async function POST(req: Request) {
       stage1Text,
       "",
       "《出力要件》",
-      "- Boost Suite v2 テンプレすべてを“一度で完成”。",
-      "- タイトルSEOはStage1の候補語を自然に分散し、**最低1語は必ず（SEO版）に反映**する。",
-      "- 注意事項/FAQは簡潔な短問短答を維持。",
-      "- JITTER有効時は 3.1 と 3.6 に [v1]〜 の複数案を明示し、他セクションは1本にまとめる。",
+      "- Boost Suite v2 テンプレ（バレット含む）を“一度で完成”。",
+      "- SNS要約は180〜220字／絵文字2〜4個／末尾にCTA1文。",
+      "- JITTER有効時は 3.1 と 3.6 のみ複数案。[v1]〜で明示。他は単一。",
     ].join("\n");
 
     const s2Payload: any = {
@@ -513,6 +521,7 @@ export async function POST(req: Request) {
       modelUsed: { stage1: s1Model, stage2: (s2.ok ? s2Model : null) },
       jitter,
       relatedSEO,
+      giftPrefixAllowed: giftFlag,
       intent: {
         category: intent.category,
         emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
