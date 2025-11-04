@@ -278,6 +278,52 @@ function compactInputText(src: string, maxChars = 16000) {
 }
 
 /* =========================================================================
+   Utils: Fact Lock (暴走防止フィルター)
+   ====================================================================== */
+function factLock(text: string) {
+  if (!text) return text;
+  let result = text;
+
+  // 1) 医療・誇張・断定の強制緩和
+  const hardClaims = [
+    /完治/g, /永久に/g, /100%/g, /１００％/g, /絶対/g, /治す/g, /劇的/g, /最強/g,
+    /即効性がある/g, /即効で/g, /保証/g, /完全/g, /奇跡/g, /誰でも/g, /必ず/g
+  ];
+  hardClaims.forEach((re)=>{ result = result.replace(re, "※個人差があります"); });
+
+  // 2) 単位の正規化
+  result = result
+    .replace(/ｍｌ/gi, "mL")
+    .replace(/ＭＬ/g, "mL")
+    .replace(/㎖/g, "mL")
+    .replace(/ｗ/g, "W")
+    .replace(/Ｗ/g, "W")
+    .replace(/ｖ/gi, "V")
+    .replace(/Ｖ/g, "V")
+    .replace(/℃/g, "°C");
+
+  // 3) 句読点・全角スペースの整形
+  result = result
+    .replace(/　/g, " ")
+    .replace(/。。/g, "。")
+    .replace(/、、/g, "、")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // 4) 「名入れ／ラッピング」など、原文がない場合の削除（安全側）
+  //   → Stage1でギフト接頭辞がfalseなら本文でも過度に推さない
+  if (!/名入れ|ラッピング/.test(result)) {
+    // no-op
+  } else {
+    // 後段でギフト判定が false の場合、この文言は削れるように軽整流
+    // （最終削除は呼び出し元の giftPrefixAllowed で制御推奨）
+  }
+
+  return result;
+}
+
+/* =========================================================================
    POST: Dual-Core generation (Stage1 → Stage2)
    ====================================================================== */
 export async function POST(req: Request) {
@@ -487,7 +533,7 @@ export async function POST(req: Request) {
             style_id: intent.style?.id ?? null,
           });
           return new Response(JSON.stringify({
-            text: stage1Text,
+            text: factLock(stage1Text),
             modelUsed: `${s1Model} (Stage1 only)`,
             degraded: true,
             reason: { stage2_primary: s2.error, stage2_fallback: s2b.error },
@@ -504,8 +550,12 @@ export async function POST(req: Request) {
       s2 = s2b;
     }
 
-    const finalText = s2.ok ? s2.content : stage1Text;
+    const finalText = s2.ok ? (s2.content as string) : stage1Text;
 
+    // === ✅ 暴走防止層 FactLock 適用 ===
+    const lockedText = factLock(finalText);
+
+    // === ✅ intent_logs 保存（既存）
     await sbRead().from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
@@ -516,8 +566,18 @@ export async function POST(req: Request) {
       style_id: intent.style?.id ?? null,
     });
 
+    // === ✅ Lintログを Supabase に保存（差分監査）
+    await sbRead().from("lint_logs").insert({
+      user_id: userId,
+      input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
+      output_text: finalText,
+      locked_text: lockedText,
+      diff_chars: (finalText?.length ?? 0) - (lockedText?.length ?? 0),
+      created_at: new Date().toISOString(),
+    });
+
     return new Response(JSON.stringify({
-      text: finalText,
+      text: lockedText, // ← 安全化済み出力
       modelUsed: { stage1: s1Model, stage2: (s2.ok ? s2Model : null) },
       jitter,
       relatedSEO,
