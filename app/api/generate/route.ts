@@ -83,14 +83,13 @@ const REPLACE_RULES = parseReplaceDict(readText("prompts/filters/Boost_Fashion_�
 const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
 
 /* =========================================================================
-   SEO related words (初期辞書：Cometで随時拡張)
+   SEO related words（初期辞書）
    ========================================================================= */
 const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
   "prompts/filters/SEO_related_words.json",
   {
     "アロマ": ["アロマディフューザー","ムードライト","アロマ加湿器","間接照明","癒し家電","就寝用","リラックス","タイマー"],
     "美顔器": ["RF美顔器","EMS美顔器","光美容","温冷ケア","ホームエステ","イオン導入","LEDケア"],
-    "ギフト": ["ギフト","プレゼント","ラッピング","誕生日","記念日","母の日","贈り物"],
     "モバイルバッテリー": ["PSE適合","Type-C入出力","急速充電","ケーブル内蔵","LED表示","機内持ち込み"]
   }
 );
@@ -103,6 +102,7 @@ const isFourOFamily = (m: string) => /^gpt-4o($|-)/i.test(m);
 
 const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";   // FACT
 const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";  // Humanize
+const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5"; // 強化用（任意）
 
 async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
   const controller = new AbortController();
@@ -161,8 +161,8 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
   const hintMap: Record<string,string[]> = {
     "ガジェット": ["モバイルバッテリー","mAh","充電","Type-C","USB","出力","ポート","PSE","LED","LCD","ワット","A","電源","ケーブル"],
     "ビューティー": ["美顔器","美容液","化粧水","美容","洗顔","毛穴","保湿","RF","EMS","LED","温冷"],
-    "ギフト": ["ギフト","プレゼント","贈り物","名入れ","ラッピング","のし"],
     "家電": ["加湿器","空気清浄","アロマ","ディフューザー","ヒーター","冷風","調光","タイマー"],
+    "日用品": ["収納","掃除","ランドリー","キッチン","消耗品","詰替"],
   };
   const scoreWords = (s:string, words:string[]) => words.reduce((acc,w)=>acc+(w && s.includes(w) ? 1:0),0);
 
@@ -242,11 +242,6 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
     }
   }
 
-  // 追加：Warm系トーンからギフト語を除外（念押し）
-  if (style) {
-    style.lexicon_plus = (style.lexicon_plus ?? []).filter(w => !/贈|プレゼント|届ける|包む/i.test(w));
-  }
-
   return { category: cat, emotion, style, media: { id: media, sentence_length, emoji } };
 }
 
@@ -284,97 +279,27 @@ function compactInputText(src: string, maxChars = 16000) {
   return s;
 }
 
-/* =========================================================================
-   Layout Guard: 改行崩れの強制補正
-   ========================================================================= */
-function formatSections(src: string) {
-  let s = (src || "").replace(/\r/g, "");
+// 出力の見栄え（改行・セクション・箇条書き）を整える軽量フォーマッタ
+function formatSections(text: string) {
+  if (!text) return text;
+  let t = text;
 
-  // 見出し「n.【...】」の直後に改行を強制
-  s = s.replace(/(^|\n)\s*(\d+\.\s*【[^】]+】)([^\n]|$)/g, (_m, p1, title, after) => {
-    return `${p1}${title}\n${after ?? ""}`;
-  });
+  // セクション番号の前後に空行
+  t = t.replace(/(\n)?\s*([0-9]+\.\s*【[^】]+】)/g, (m, p1, p2)=>`\n\n${p2}`);
 
-  // サブセクション「3.x 〜」の直後に改行
-  s = s.replace(/(^|\n)\s*(\d+\.\d+\s+[^ \n【]+[^:\n]*)([^\n]|$)/g, (_m, p1, title, after) => {
-    return `${p1}${title}\n${after ?? ""}`;
-  });
+  // サブ番号（3.1/3.2 等）の前に空行
+  t = t.replace(/(\n)?\s*(3\.[1-6]\s+)/g, (m, p1, p2)=>`\n${p2}`);
 
-  // 次の見出しが続くときは前に空行を1つ挿入
-  s = s.replace(/([^\n])\n(?=\d+\.\s*【)/g, "$1\n\n");
+  // 箇条書き候補を1行1項目に
+  t = t.replace(/([^\n])\s*([・\-•] )/g, (m, a, b)=>`${a}\n${b}`);
 
-  // Q./A. は必ず単独行へ
-  s = s.replace(/(?<!^)\s(Q\.\s)/g, "\n$1");
-  s = s.replace(/(?<!^)\s(A\.\s)/g, "\n$1");
-
-  // 箇条書きが句点で詰まるケースを軽整形（。の後にスペースしかない→改行）
-  s = s.replace(/。(?!\n)\s(?!\n)/g, "。\n");
+  // 句点後にスペース詰まりを解消
+  t = t.replace(/。([^\n・\-•])/g, (m, a)=>`。\n${a}`);
 
   // 連続空行の圧縮（最大2行）
-  s = s.replace(/\n{3,}/g, "\n\n");
+  t = t.replace(/\n{3,}/g, "\n\n");
 
-  return s.trim();
-}
-
-/* =========================================================================
-   Utils: ギフト誤爆防止 / 販売者語禁止 / FactLock 強化
-   ========================================================================= */
-const SELLER_WORDS_RE = /\b(?:当店|弊社|当社|当ショップ|our store|our shop|the store|the shop)\b/g;
-const GIFT_WORDS_RE = /(ギフト|プレゼント|贈り物|ラッピング|名入れ|のし|gift)/gi;
-
-function stripSellerWords(text: string) {
-  return text.replace(SELLER_WORDS_RE, "").replace(/\s{2,}/g," ").trim();
-}
-
-// ギフト文面を安全側で弱める／削る（婉曲表現も除去）
-function pruneGift(text: string, allowGift: boolean) {
-  if (allowGift) return text;
-  let out = text
-    .replace(/【ギフト\｜?】/g,"")
-    .replace(/[（(]ギフト対応[)）]/g,"")
-    .replace(/ギフト[向用]?(として|に|向け|可)?/g,"")
-    .replace(/プレゼント[向用]?(として|に|向け|可)?/g,"")
-    .replace(/贈り物[向用]?(として|に|向け|可)?/g,"")
-    .replace(/ラッピング可|ラッピング対応|名入れ対応/g,"")
-    .replace(/(記念日|母の日|父の日|誕生日)の?[^。]*贈り物[^。]*。?/g, "")
-    .replace(/大切な方への贈り物に。?/g, "")
-    .replace(/贈る相手を選ばない[^。]*。?/g, "")
-    .replace(/贈る[^。]*?(向け|設計|仕様|方に)/g, "");
-  // Q/A のギフト項目を汎用に変換
-  out = out.replace(/^Q\.\s*(名入れ|ラッピング).+$/gmi, "Q. 付属品や仕様に関する質問は？");
-  out = out.replace(/^A\.\s*(名入れ|ラッピング).+$/gmi, "A. 仕様・付属品の詳細は商品ページの記載をご確認ください。");
-  return out;
-}
-
-// 医療/誇張/断定などの抑制＋単位/句読点整形＋販売者語除去
-function factLock(text: string) {
-  if (!text) return text;
-  let result = text;
-
-  const hardClaims = [
-    /完治/g, /永久に/g, /100%/g, /１００％/g, /絶対/g, /治す/g, /劇的/g, /最強/g,
-    /即効性がある/g, /即効で/g, /保証/g, /完全/g, /奇跡/g, /誰でも/g, /必ず/g
-  ];
-  hardClaims.forEach((re)=>{ result = result.replace(re, "※個人差があります"); });
-
-  result = result
-    .replace(/ｍｌ/gi, "mL")
-    .replace(/ＭＬ/g, "mL")
-    .replace(/㎖/g, "mL")
-    .replace(/ｗ/g, "W")
-    .replace(/Ｗ/g, "W")
-    .replace(/ｖ/gi, "V")
-    .replace(/Ｖ/g, "V")
-    .replace(/℃/g, "°C")
-    .replace(/　/g, " ")
-    .replace(/。。/g, "。")
-    .replace(/、、/g, "、")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  result = stripSellerWords(result);
-  return result;
+  return t.trim();
 }
 
 /* =========================================================================
@@ -404,10 +329,45 @@ async function loadYakkiBlockForCategory(cat: CategoryRow | null) {
       }
     }
   }
-
-  if (!need) return ""; // ← スキップ
-
+  if (!need) return "";
   return [YAKKI_A, YAKKI_B, YAKKI_C, YAKKI_D].filter(Boolean).join("\n");
+}
+
+/* =========================================================================
+   Utils: FactLock（軽整流のみ：強い禁止なし）
+   ========================================================================= */
+function factLock(text: string) {
+  if (!text) return text;
+  let result = text;
+
+  // 医療・誇張・断定（強い置換はせず緩和語を添える）
+  const hardClaims = [
+    /完治/g, /永久に/g, /100%/g, /１００％/g, /絶対/g, /治す/g, /劇的/g, /最強/g,
+    /即効性がある/g, /即効で/g, /保証/g, /完全/g, /奇跡/g, /誰でも/g, /必ず/g
+  ];
+  hardClaims.forEach((re)=>{ result = result.replace(re, (m)=>`${m}（※表現の一例。実際の体験には個人差があります）`); });
+
+  // 単位の正規化
+  result = result
+    .replace(/ｍｌ/gi, "mL")
+    .replace(/ＭＬ/g, "mL")
+    .replace(/㎖/g, "mL")
+    .replace(/ｗ/g, "W")
+    .replace(/Ｗ/g, "W")
+    .replace(/ｖ/gi, "V")
+    .replace(/Ｖ/g, "V")
+    .replace(/℃/g, "°C");
+
+  // 句読点・全角スペースの整形
+  result = result
+    .replace(/　/g, " ")
+    .replace(/。。/g, "。")
+    .replace(/、、/g, "、")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return result;
 }
 
 /* =========================================================================
@@ -422,6 +382,7 @@ export async function POST(req: Request) {
       stage1Model, stage2Model,
       temperature, stage1Temperature, stage2Temperature,
       allowStage2Fallback = true, allowReturnStage1IfStage2Fail = true,
+      strongHumanize = false, // ← 追加：Stage2だけ強いモデルを使うフラグ
     } = body ?? {};
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -439,7 +400,7 @@ export async function POST(req: Request) {
     const replaceTable = REPLACE_RULES.length ? REPLACE_RULES.map(r=>`- 「${r.from}」=>「${r.to}」`).join("\n") : "（辞書なし）";
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
 
-    // SmartSEO
+    // SmartSEO（カテゴリ + 原文）
     const kwKey = intent.category?.l2 || intent.category?.l1 || "";
     const rawText = String(prompt || "");
     const textLower = rawText.toLowerCase();
@@ -449,13 +410,9 @@ export async function POST(req: Request) {
     const fromCat = SEO_WORDS[kwKey] || [];
     const relatedSEO = Array.from(new Set([...fromText, ...fromCat])).slice(0, 8);
 
-    // ギフト許可は「原文明示」のときのみ
-    const giftExplicit = /(ギフト|プレゼント|贈り物|ラッピング|名入れ|のし|gift)/i.test(rawText);
-    const giftPrefixAllowed = !!giftExplicit;
-
-    // 薬機ブロック
+    // Yakki（必要時のみ）
     const yakkiBlock = await loadYakkiBlockForCategory(intent.category);
-    const yakkiNote = yakkiBlock ? "（薬機/景表フィルター適用）" : "（薬機/景表フィルター：該当なし→スキップ）";
+    const yakkiNote = yakkiBlock ? "（薬機/景表フィルター適用）" : "（薬機/景表：対象外）";
 
     const controlLine = jitter
       ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
@@ -477,21 +434,24 @@ export async function POST(req: Request) {
       "",
       "《SmartSEO候補（max8）》",
       relatedSEO.length ? `- ${relatedSEO.join(" / ")}` : "- なし",
-      `- ギフト接頭辞の許可（原文明示ベース）: ${giftPrefixAllowed ? "true" : "false"}`,
       `- Safety: ${yakkiNote}`,
     ].join("\n");
 
     const compacted = typeof prompt === "string" ? compactInputText(String(prompt)) : compactInputText(JSON.stringify(prompt));
 
-    /* ------------------------- Stage1 : FACT整流 ------------------------- */
+    /* ------------------------- Stage1 : FACT整流（Freedom整流） ------------------------- */
     const s1Model = (typeof stage1Model === "string" && stage1Model.trim()) ? stage1Model.trim() : DEFAULT_STAGE1_MODEL;
     const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.22);
 
-    const yakkiSection = yakkiBlock ? `《Safety Layer（薬機/景表）》\n${yakkiBlock}\n` : "（本カテゴリは薬機/景表の厳格適用対象外のため特別ルール無し）\n";
+    const yakkiSection = yakkiBlock ? `《Safety Layer（薬機/景表）》\n${yakkiBlock}\n` : "（本カテゴリは特別ルール無し）\n";
 
     const s1UserContent = [
-      "【Stage1｜FACT整流・法規配慮（v2.0.2 SmartSEO+LeadGuard）】",
-      "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
+      "【Stage1｜FACT整流・法規配慮（v2.1.2 Freedom整流）】",
+      "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。禁止ルールは設けず、自然整流を徹底。",
+      "",
+      "- 購買文脈は **まず自分用** を前提に記述。原文に明示がある場合のみ贈答を軽く触れる（過度に推さない）。",
+      "- 販売者語（当店/弊社等）は原則避けるが、**禁止はしない**（自然に出ない設計を優先）。",
+      "- タイトルは2本：『タイトル（バランス）』『タイトル（SEO）』。SEOはSmartSEO候補から2〜3語を自然採用。",
       "",
       intentBlockLines,
       "",
@@ -502,22 +462,12 @@ export async function POST(req: Request) {
       "《カテゴリ語彙（Beauty）参考》",
       beautyList || "（語彙なし）",
       "",
-      "《タイトル生成規則》",
-      "- 出力は必ず2本：「タイトル（バランス）」「タイトル（SEO）」。",
-      "- 左詰め優先：カテゴリ/代表語 → 主要語 → 補助語 → 容量/型番/色。",
-      "- SEO版はSmartSEO候補から**2〜3語**を“自然に”採用（羅列・不自然禁止）。",
-      "- **【ギフト｜】接頭辞は《許可=true》のときのみ**。falseのときは付けない（本文にも過度に含めない）。",
-      "- 例：『アロマディフューザー｜ムードライト搭載・500mL｜USB充電式』",
-      "",
-      "《禁止》販売者語（当店/弊社/our store 等）。",
-      "",
-      "《注意事項の提示形式》",
-      "- Objections(FAQ)は「短問短答」を原則に3件以上。注意事項は冗長にせず、FAQ形式でも提示可。",
+      "《注意事項/FAQ》は短問短答で3件以上。誇張・医療表現は避け、数値は“使用環境に依存”などの留保を明記。",
       "",
       "— 原文 —",
       compacted,
       "",
-      "出力は Boost Suite v2 テンプレ全項目を含む完成形。リード/クロージングは控えめ（後段で人間味付与）。",
+      "Boost Suite v2 テンプレの全項目を“1回で”組み立てること。",
       controlLine,
     ].join("\n");
 
@@ -554,9 +504,12 @@ export async function POST(req: Request) {
     const stage1TextRaw = s1.content as string;
 
     /* ------------------------- Stage2 : Humanize（Warmflow Extended） ------------------------- */
-    const s2Model = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
     const baseTemp = 0.34;
-    const s2Temp   = typeof stage2Temperature === "number" ? stage2Temperature : (typeof temperature === "number" ? temperature : (jitter ? 0.48 : baseTemp));
+    const s2ModelBase = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
+    const s2Model = strongHumanize ? STRONG_HUMANIZE_MODEL : s2ModelBase; // ← 強化切替
+    const s2Temp   = typeof stage2Temperature === "number"
+      ? stage2Temperature
+      : (typeof temperature === "number" ? temperature : (jitter ? 0.48 : baseTemp));
 
     const DEFAULT_INSTANT_ACTION = "電源を入れてすぐ始められる";
     const DEFAULT_SENSORY_IMAGE  = "夜の手元灯のようにやわらかい明かり";
@@ -571,17 +524,15 @@ export async function POST(req: Request) {
       : "JITTER無効：各セクション単一出力。";
 
     const s2UserContent = [
-      "【Stage2｜Warmflow-Humanize（v2.0.2 LeadGuard）】",
-      "目的：Stage1のFACTを改変せず、リード/クロージング中心に“人の息遣い”と即効性を加える。AI臭は除去。",
+      "【Stage2｜Warmflow-Humanize（v2.1.2 Freedom整流）】",
+      "目的：Stage1のFACTを改変せず、リード/クロージング中心に“静けさ・即効性”で人肌感を付与。禁止は設けず、自然整流。",
       "",
       "《固定ルール》",
-      "- **タイトル（バランス/SEO）は一切変更しない**（句読点や表記揺れも不可）。",
-      "- リードは WP+（6行）固定：1)状況提示 / 2)即効ワード / 3)機能A+B / 4)体験 / 5)データ / 6)余韻。",
-      "- 即効ワードは必ず1行を独立させて挿入：例）「電源を入れてすぐ始められる。」",
-      "- 具体語を1語：例）「手元灯」「ポケット」「朝の支度」。詩的誇張は不可。",
-      "- Q&A/注意の事実改変禁止（語尾の整えのみ可）。",
-      "- **販売者語（当店/弊社/our store 等）を使用しない**。",
-      "- **『ギフト／プレゼント／贈り物／ラッピング／名入れ／のし』等の語を使用しない（温かみは『光・香り・空気・時間・雰囲気』などで表現）。**",
+      "- **タイトル（バランス/SEO）は変更しない**（句読点や語順も維持）。",
+      "- リードは WP+（6行）固定：1)状況提示 / 2)即効ワード / 3)機能A+B / 4)体験 / 5)データ/留保 / 6)余韻。",
+      "- 即効ワードは1行で独立：例）「電源を入れてすぐ始められる。」",
+      "- 情景語は1語：例）「手元灯」「ポケット」「朝の支度」など過度に詩的にしない。",
+      "- FAQ/注意は事実改変禁止。語尾整えのみ可。",
       "",
       "《挿入用フレーズ》",
       `- 即効性: ${instantAction}`,
@@ -593,10 +544,7 @@ export async function POST(req: Request) {
       "— Stage1 素体 —",
       stage1TextRaw,
       "",
-      "《出力要件》",
-      "- Boost Suite v2 テンプレ（バレット含む）を“一度で完成”。",
-      "- SNS要約は180〜220字／絵文字2〜4個／末尾にCTA1文。",
-      "- JITTER有効時は 3.1 と 3.6 のみ複数案。[v1]〜で明示。他は単一。",
+      "《出力要件》Boost Suite v2 テンプレ（バレット含む）を“一度で完成”。SNS要約は180〜220字／絵文字2〜4個／末尾CTA1文。",
     ].join("\n");
 
     const s2Payload: any = {
@@ -630,7 +578,7 @@ export async function POST(req: Request) {
             emotion_id: intent.emotion?.id ?? null,
             style_id: intent.style?.id ?? null,
           });
-          const s1Locked = formatSections(factLock(stripSellerWords(pruneGift(stage1TextRaw, giftPrefixAllowed))));
+          const s1Locked = formatSections(factLock(stage1TextRaw));
           return new Response(JSON.stringify({
             text: s1Locked,
             modelUsed: `${s1Model} (Stage1 only)`,
@@ -651,13 +599,10 @@ export async function POST(req: Request) {
 
     const stage2TextRaw = s2.ok ? (s2.content as string) : stage1TextRaw;
 
-    // 事後フィルタ：ギフト抑止 → 販売者語禁止 → FactLock → 改行レイアウト補正
-    const noGift = pruneGift(stage2TextRaw, giftPrefixAllowed);
-    const noSeller = stripSellerWords(noGift);
-    const locked = factLock(noSeller);
-    const formatted = formatSections(locked);
+    // === 仕上げ：軽整流（強制禁止なし）
+    const lockedText = formatSections(factLock(stage2TextRaw));
 
-    // intent_logs
+    // === 監査ログ
     await sbRead().from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
@@ -668,23 +613,22 @@ export async function POST(req: Request) {
       style_id: intent.style?.id ?? null,
     });
 
-    // Lintログ
     await sbRead().from("lint_logs").insert({
       user_id: userId,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
       output_text: stage2TextRaw,
-      locked_text: formatted,
-      diff_chars: (stage2TextRaw?.length ?? 0) - (formatted?.length ?? 0),
+      locked_text: lockedText,
+      diff_chars: (stage2TextRaw?.length ?? 0) - (lockedText?.length ?? 0),
       created_at: new Date().toISOString(),
     });
 
     return new Response(JSON.stringify({
-      text: formatted, // ← 改行補正済み・安全化済み
+      text: lockedText,
       modelUsed: { stage1: s1Model, stage2: (s2.ok ? s2Model : null) },
       jitter,
       relatedSEO,
-      giftPrefixAllowed,
       safety: { yakkiApplied: !!yakkiBlock },
+      strongHumanize,
       intent: {
         category: intent.category,
         emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
