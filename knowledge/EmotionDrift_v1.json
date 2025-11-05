@@ -1,0 +1,39 @@
+{
+  "version": "EmotionDrift_v1",
+  "default": { "sentence_length": "short", "emoji": false, "temp_offset": 0.00 },
+
+  "media": {
+    "ad":   { "sentence_length": "short",  "emoji": false, "temp_offset": 0.00 },
+    "lp":   { "sentence_length": "medium", "emoji": false, "temp_offset": -0.02 },
+    "sns":  { "sentence_length": "short",  "emoji": true,  "temp_offset": 0.06 },
+    "mail": { "sentence_length": "short",  "emoji": false, "temp_offset": -0.02 },
+    "blog": { "sentence_length": "long",   "emoji": false, "temp_offset": 0.02 }
+  },
+
+  "keywords": [
+    {
+      "includes": ["アロマ", "ディフューザー", "ムードライト", "加湿器"],
+      "sentence_length": "short",
+      "emoji": false,
+      "temp_offset": -0.02
+    },
+    {
+      "includes": ["美顔器", "RF", "EMS", "LED", "イオン導入"],
+      "sentence_length": "short",
+      "emoji": false,
+      "temp_offset": -0.03
+    },
+    {
+      "includes": ["モバイルバッテリー", "mAh", "急速充電", "Type-C", "PSE"],
+      "sentence_length": "short",
+      "emoji": false,
+      "temp_offset": -0.01
+    },
+    {
+      "includes": ["ギフト", "贈り物", "プレゼント"],
+      "sentence_length": "medium",
+      "emoji": false,
+      "temp_offset": 0.02
+    }
+  ]
+}
