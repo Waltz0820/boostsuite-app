@@ -1,29 +1,195 @@
-【Boost Suite Prompt v2.0.5｜Warmflow Refine】
+/* eslint-disable no-console */
+import fs from "node:fs";
+import path from "node:path";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-目的：
-v2.0.4で整ったSmartBullet構文とFact整流を基盤に、
-リードとクロージングに「詩的→実利→詩的」の呼吸を持たせ、
-“喋るように伝える”構文を完成させる。
+/* =========================================================================
+   Runtime / Timeouts
+   ========================================================================= */
+export const runtime = "nodejs";
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
+const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
+const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 
-基本理念：
-論理の安心 × 人の息遣い × 即時理解 × 意味的SEO。
-完璧さより「少しの余白」と「共感の間」を残す。
+/* =========================================================================
+   File Utils
+   ========================================================================= */
+function readText(rel: string): string {
+  try { return fs.readFileSync(path.join(process.cwd(), rel), "utf8"); }
+  catch { console.warn(`⚠️ Missing file: ${rel}`); return ""; }
+}
+function readJsonSafe<T>(rel: string, fb: T): T {
+  try { const t = readText(rel); return t ? JSON.parse(t) as T : fb; } catch { return fb; }
+}
 
-Warmflow Ruleset v1.0：
-1. リード：6文前後／最初の1文で情景→2〜3文で実利→最後に体験描写。
-2. クロージング：2文構成（心象→未来→誘い）。
-3. 感情修飾語は1文1つまで。
-4. 距離語は触覚的（この○○／手に取ると／灯りがともる 等）。
-5. Q&A：安心・納得・具体のいずれかを補う。テンプレ禁止。
-6. SmartBullet（5点）を保持し、各文を「仕様→恩恵→状況/留保」で完結させる。
+/* =========================================================================
+   Local Knowledge
+   ========================================================================= */
+function readCategoryCsv(rel: string) {
+  const rows = readText(rel).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const out: Array<{ l1: string; l2: string; mode: string; pitch_keywords: string[] }> = [];
+  for (const line of rows.slice(1)) {
+    const cols = line.split(",").map(s=>s.trim());
+    if (cols.length >= 3) {
+      out.push({
+        l1: cols[0], l2: cols[1], mode: cols[2],
+        pitch_keywords: cols[3] ? cols[3].split("|").map(s=>s.trim()).filter(Boolean) : [],
+      });
+    }
+  }
+  return out;
+}
+type EmotionJSON = { default_emotion?: string; emotions: Array<{ id: string }> };
+type StyleJSON = { styles: Array<{ id: string }> };
 
-Stage設計：
-[Stage1] Fact整流＋SmartBullet素体  
-[Stage2] Warmflow整流＋Humanize呼吸制御
+const LOCAL_CATS  = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
+const LOCAL_EMO   = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
+const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
 
-出力要件：
-1〜6の見出し固定。本文は自然文。過剰改行・連読点禁止。
-タイトルは変更禁止。ギフト誘導を抑制。
+/* =========================================================================
+   Prompts
+   ========================================================================= */
+const CORE_PROMPT_V205 = readText("prompts/bs_prompt_v2.0.5.txt");
+const CORE_PROMPT      = CORE_PROMPT_V205 || "You are Boost Suite v2.0.5 copy refiner.";
+const YAKKI_A = readText("prompts/filters/BoostSuite_薬機法フィルターA.txt");
+const YAKKI_B = readText("prompts/filters/BoostSuite_薬機法フィルターB.txt");
+const YAKKI_C = readText("prompts/filters/BoostSuite_薬機法フィルターC.txt");
+const YAKKI_D = readText("prompts/filters/BoostSuite_薬機法フィルターD.txt");
 
-出力テンプレート：
-（省略、v2.0.4と同一構文）
+/* =========================================================================
+   OpenAI helpers
+   ========================================================================= */
+const isFiveFamily  = (m: string) => /^gpt-5($|-)/i.test(m);
+const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
+const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
+const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), ms);
+  try { return await fetch(url, { ...init, signal: controller.signal }); }
+  finally { clearTimeout(t); }
+}
+async function callOpenAI(payload: any, key: string, timeout: number) {
+  const init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify(payload),
+  };
+  const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", init, timeout);
+  const raw = await res.text();
+  let json: any = {}; try { json = JSON.parse(raw); } catch {}
+  const content = json?.choices?.[0]?.message?.content ?? "";
+  return res.ok ? { ok: true as const, content } : { ok: false as const, error: json?.error ?? res.statusText };
+}
+
+/* =========================================================================
+   Supabase
+   ========================================================================= */
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function sbRead() { return createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } }); }
+async function sbServer() {
+  const ck = await cookies();
+  return createServerClient(SUPABASE_URL, SUPABASE_ANON, { cookies: { get: n=>ck.get(n)?.value, set(){}, remove(){} } });
+}
+
+/* =========================================================================
+   Light FactLock（語尾・単位整形＋情緒語微整流）
+   ========================================================================= */
+function factLock(text: string) {
+  if (!text) return text;
+  return text
+    .replace(/ｍｌ|ＭＬ|㎖/g,"mL")
+    .replace(/ｗ|Ｗ/g,"W")
+    .replace(/　/g," ")
+    .replace(/このアイテム/g,"このディフューザー")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+}
+
+/* =========================================================================
+   POST : Stage1 → Stage2 Warmflow v2.0.5
+   ========================================================================= */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { prompt, strongHumanize=false, jitter=false } = body ?? {};
+    const apiKey = process.env.OPENAI_API_KEY!;
+    const sb = await sbServer();
+    const { data: userRes } = await sb.auth.getUser();
+    const userId = userRes?.user?.id ?? null;
+    const compact = String(prompt ?? "").slice(0,16000);
+
+    /* ---- Stage1 ---- */
+    const yakkiBlock = [YAKKI_A,YAKKI_B,YAKKI_C,YAKKI_D].filter(Boolean).join("\n");
+    const s1Prompt = [
+      "【Stage1｜FACT＋SmartBullet】",
+      "目的：構造・仕様・法規を整流し、v2.0.5構文の素体を生成。",
+      yakkiBlock,"","— 原文 —",compact
+    ].join("\n");
+
+    const s1Payload:any={
+      model:DEFAULT_STAGE1_MODEL,
+      messages:[{role:"system",content:CORE_PROMPT},{role:"user",content:s1Prompt}],
+      stream:false
+    };
+    if(!isFiveFamily(DEFAULT_STAGE1_MODEL)){s1Payload.temperature=0.25;s1Payload.top_p=0.9;}
+    const s1=await callOpenAI(s1Payload,apiKey,STAGE1_TIMEOUT_MS);
+    if(!s1.ok)return new Response(JSON.stringify({error:"stage1_failed",detail:s1.error}),{status:502});
+    const stage1=s1.content;
+
+    /* ---- Stage2 Warmflow v2.0.5 ---- */
+    const talkflowPrompt=[
+      "【Stage2｜Talkflow v2.0.5 “Warmflow Refine”】",
+      "目的：Stage1の構造を保持しつつ、“喋るような温度”と余韻を与える。",
+      "",
+      "Warmflow Ruleset v1.0：",
+      "1. 文頭は感情語で始めず状況を描写。2. 体験で締める。3. 距離語は触覚系。4. 感情修飾語は1文1つ。5. クロージングに香り/光/時間を含める。",
+      "",
+      "— Stage1（素体） —",stage1
+    ].join("\n");
+
+    const s2Payload:any={
+      model:strongHumanize?STRONG_HUMANIZE_MODEL:DEFAULT_STAGE2_MODEL,
+      messages:[{role:"system",content:CORE_PROMPT},{role:"user",content:talkflowPrompt}],
+      stream:false,temperature:0.36,top_p:0.9
+    };
+    const s2=await callOpenAI(s2Payload,apiKey,STAGE2_TIMEOUT_MS);
+    if(!s2.ok)return new Response(JSON.stringify({error:"stage2_failed",detail:s2.error}),{status:502});
+
+    const finalText=factLock(s2.content);
+    return new Response(JSON.stringify({
+      text:finalText,
+      modelUsed:{stage1:DEFAULT_STAGE1_MODEL,stage2:DEFAULT_STAGE2_MODEL},
+      strongHumanize,
+      userId,
+      promptVersion:"v2.0.5"
+    }),{status:200});
+  }catch(e:any){
+    console.error("API crashed:",e);
+    return new Response(JSON.stringify({error:String(e?.message||e)}),{status:500});
+  }
+}
+
+/* =========================================================================
+   GET : Health Check
+   ========================================================================= */
+export async function GET() {
+  try {
+    const supabase = sbRead();
+    const { data } = await supabase.from("categories").select("l1,l2,mode").limit(1);
+    return new Response(JSON.stringify({
+      ok:true,
+      sampleCategory:data?.[0]??null,
+      localLoaded:{cats:LOCAL_CATS.length,emos:LOCAL_EMO.emotions?.length??0,styles:LOCAL_STYLE.styles?.length??0},
+      promptVersion:"v2.0.5"
+    }),{status:200});
+  } catch(e:any) {
+    return new Response(JSON.stringify({ok:false,message:e?.message||String(e)}),{status:500});
+  }
+}
