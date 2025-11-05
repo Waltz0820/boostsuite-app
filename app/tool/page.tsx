@@ -1,18 +1,30 @@
-// app/tool/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
-type Msg = { role: "user" | "assistant"; content: string; ts: number };
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  ts: number;
+  annotations?: Annotation[];
+};
 
-const MAX_FREE_CREDITS = 5;        // ゲスト上限
-const MAX_INPUT_CHARS = 4000;      // 入力上限（巨大ペースト対策）
+type Annotation = {
+  section: string;
+  text: string;
+  type: string;
+  importance: "low" | "medium" | "high";
+};
+
+const MAX_FREE_CREDITS = 5;
+const MAX_INPUT_CHARS = 4000;
 
 export default function ToolPage() {
   const [input, setInput] = useState("");
   const [media, setMedia] = useState<"ad" | "social" | "lp">("ad");
   const [model, setModel] = useState("Boost Suite v0");
+  const [annotationMode, setAnnotationMode] = useState(true);
 
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
@@ -35,13 +47,9 @@ export default function ToolPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("bs_msgs", JSON.stringify(msgs));
-    }
-  }, [msgs]);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
       localStorage.setItem("bs_free_credits", String(credits));
     }
-  }, [credits]);
+  }, [msgs, credits]);
 
   // スクロール末尾
   const scRef = useRef<HTMLDivElement>(null);
@@ -52,47 +60,50 @@ export default function ToolPage() {
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
   const handleSend = async () => {
-  if (!canSend) {
-    if (credits <= 0) setShowWall(true);
-    return;
-  }
+    if (!canSend) {
+      if (credits <= 0) setShowWall(true);
+      return;
+    }
 
-  const raw = input.trim();
-  const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
+    const raw = input.trim();
+    const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
+    const user: Msg = { role: "user", content: prompt, ts: Date.now() };
+    setMsgs((m) => [...m, user]);
+    setInput("");
+    setBusy(true);
+    setCredits((c) => Math.max(0, c - 1));
 
-  const user: Msg = { role: "user", content: prompt, ts: Date.now() };
-  setMsgs((m) => [...m, user]);
-  setInput("");
-  setBusy(true);
-  setCredits((c) => Math.max(0, c - 1));
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt, media, annotation_mode: annotationMode }),
+      });
 
-  try {
-    // ← タイムアウト関連削除！
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // Cookie送信で user_id 判別
-      body: JSON.stringify({ prompt, media }),
-    });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || res.statusText);
+      const data = JSON.parse(text);
 
-    const text = await res.text();
-    if (!res.ok) throw new Error(text || res.statusText);
-    const data = JSON.parse(text);
-
-    setMsgs((m) => [
-      ...m,
-      { role: "assistant", content: String(data?.text ?? "(応答なし)"), ts: Date.now() },
-    ]);
-  } catch (e: any) {
-    setMsgs((m) => [
-      ...m,
-      { role: "assistant", content: `⚠️ エラー: ${e?.message || e}`, ts: Date.now() },
-    ]);
-    console.error("generate failed:", e);
-  } finally {
-    setBusy(false);
-  }
-};
+      setMsgs((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: String(data?.text ?? "(応答なし)"),
+          ts: Date.now(),
+          annotations: data?.annotations ?? [],
+        },
+      ]);
+    } catch (e: any) {
+      setMsgs((m) => [
+        ...m,
+        { role: "assistant", content: `⚠️ エラー: ${e?.message || e}`, ts: Date.now() },
+      ]);
+      console.error("generate failed:", e);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleClear = () => {
     setMsgs(seedWelcome());
@@ -108,12 +119,12 @@ export default function ToolPage() {
   return (
     <main className="min-h-[100svh] bg-black text-white">
       {/* Top bar */}
-      <div className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-400">ツール</span>
+      <div className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-zinc-400">ツール</span>
             <span className="h-4 w-px bg-white/10" />
-            <span className="text-sm text-zinc-300">モデル</span>
+            <span className="text-zinc-300">モデル</span>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
@@ -122,9 +133,8 @@ export default function ToolPage() {
               <option>Boost Suite v0</option>
               <option disabled>Boost Suite v1（準備中）</option>
             </select>
-
             <span className="h-4 w-px bg-white/10 ml-3" />
-            <span className="text-sm text-zinc-300">媒体</span>
+            <span className="text-zinc-300">媒体</span>
             <select
               value={media}
               onChange={(e) => setMedia(e.target.value as any)}
@@ -134,6 +144,14 @@ export default function ToolPage() {
               <option value="social">social（SNS）</option>
               <option value="lp">lp（LP/詳細）</option>
             </select>
+            <label className="ml-3 flex items-center gap-1 text-xs text-zinc-400">
+              <input
+                type="checkbox"
+                checked={annotationMode}
+                onChange={(e) => setAnnotationMode(e.target.checked)}
+              />
+              赤ペン先生ON
+            </label>
           </div>
 
           <div className="flex items-center gap-2">
@@ -153,7 +171,7 @@ export default function ToolPage() {
 
       {/* Body */}
       <div className="mx-auto max-w-6xl grid md:grid-cols-[280px_1fr] gap-6 px-4 py-6">
-        {/* Sidebar（履歴） */}
+        {/* Sidebar */}
         <aside className="hidden md:block">
           <div className="rounded-2xl border border-white/10 bg-white/5">
             <div className="px-4 py-3 border-b border-white/10 text-sm text-zinc-300">履歴</div>
@@ -167,7 +185,6 @@ export default function ToolPage() {
                     key={i}
                     onClick={() => setInput(m.content)}
                     className="w-full text-left rounded-lg px-3 py-2 bg-white/5 hover:bg-white/10 text-xs text-zinc-300"
-                    title="クリックで本文に再投入"
                   >
                     {truncate(m.content, 64)}
                   </button>
@@ -179,30 +196,30 @@ export default function ToolPage() {
           </div>
         </aside>
 
-        {/* Chat area */}
-        <section className="flex flex-col min-h-[70svh]">
+        {/* Main */}
+        <section className="flex flex-col min-h-[calc(100svh-160px)]">
           <div
             ref={scRef}
             className="flex-1 overflow-auto rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4"
           >
             {msgs.map((m, i) => (
-              <Bubble key={i} role={m.role} text={m.content} />
+              <Bubble key={i} msg={m} />
             ))}
             {busy && <Typing />}
           </div>
 
           {/* Input */}
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="商品説明・原文・URLなどを貼り付けてください"
               rows={3}
-              className="w-full resize-none bg-transparent outline-none text-sm placeholder:text-zinc-500"
+              className="w-full resize-none bg-transparent outline-none text-sm placeholder:text-zinc-500 leading-relaxed"
             />
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-zinc-500">
-                ヒント：CN/EN 原文もOK。日本語の“買いたくなる言い回し”に整流します。
+                CN/EN原文もOK。Boost Suiteが自然な日本語へ整流＋注釈します。
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -229,13 +246,13 @@ export default function ToolPage() {
             </div>
           </div>
 
-          {/* Soft Wall */}
+          {/* Wall */}
           {showWall && (
             <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm">
               <div className="w-[92%] max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 text-center">
                 <h3 className="text-lg font-semibold text-white">無料体験の上限に達しました</h3>
                 <p className="mt-2 text-sm text-zinc-400">
-                  続きは無料アカウントで解放できます。登録は30秒。
+                  続きは無料アカウント登録で解放できます。
                 </p>
                 <div className="mt-5 flex flex-col gap-2">
                   <Link
@@ -248,7 +265,7 @@ export default function ToolPage() {
                     onClick={() => setShowWall(false)}
                     className="text-xs text-zinc-400 hover:text-zinc-200 underline decoration-white/20"
                   >
-                    とりあえず閉じる
+                    閉じる
                   </button>
                 </div>
               </div>
@@ -262,18 +279,67 @@ export default function ToolPage() {
 
 /* ---------------- sub components ---------------- */
 
-function Bubble({ role, text }: { role: Msg["role"]; text: string }) {
-  const isUser = role === "user";
+function Bubble({ msg }: { msg: Msg }) {
+  const isUser = msg.role === "user";
+  const hasAnnotations = !!msg.annotations?.length;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(msg.content);
+      alert("コピーしました！");
+    } catch {
+      alert("コピーに失敗しました");
+    }
+  };
+
   return (
     <div
       className={[
-        "max-w-[92%] md:max-w-[80%] rounded-2xl px-4 py-3",
+        "relative w-fit max-w-full break-words rounded-2xl px-4 py-3",
         isUser
           ? "ml-auto bg-white text-zinc-950"
           : "mr-auto bg-white/5 border border-white/10 text-zinc-100",
       ].join(" ")}
     >
-      <div className="whitespace-pre-wrap text-sm leading-relaxed">{text}</div>
+      <div className="whitespace-pre-wrap text-sm leading-relaxed pr-6">{msg.content}</div>
+
+      {!isUser && (
+        <>
+          <button
+            onClick={handleCopy}
+            className="absolute top-2 right-2 text-zinc-400 hover:text-white transition"
+            aria-label="コピー"
+          >
+            📋
+          </button>
+
+          {hasAnnotations && (
+            <details className="mt-3 bg-black/20 rounded-lg border border-white/10 p-3">
+              <summary className="cursor-pointer text-sm text-zinc-300">
+                💬 整流注釈を見る（{msg.annotations?.length}）
+              </summary>
+              <div className="mt-2 space-y-1 text-xs text-zinc-400">
+                {msg.annotations?.map((a, i) => (
+                  <div key={i}>
+                    <span
+                      className={`inline-block px-1.5 py-[1px] mr-2 rounded text-[10px] ${
+                        a.importance === "high"
+                          ? "bg-rose-500/40 text-rose-100"
+                          : a.importance === "medium"
+                          ? "bg-amber-500/30 text-amber-100"
+                          : "bg-white/10 text-zinc-300"
+                      }`}
+                    >
+                      {a.type}
+                    </span>
+                    {a.text}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -287,8 +353,12 @@ function Typing() {
         <Dot className="animation-delay-300" />
       </div>
       <style jsx>{`
-        .animation-delay-150 { animation-delay: 0.15s; }
-        .animation-delay-300 { animation-delay: 0.3s; }
+        .animation-delay-150 {
+          animation-delay: 0.15s;
+        }
+        .animation-delay-300 {
+          animation-delay: 0.3s;
+        }
       `}</style>
     </div>
   );
@@ -306,8 +376,6 @@ function ArrowRight() {
   );
 }
 
-/* ---------------- helpers ---------------- */
-
 function truncate(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
@@ -316,7 +384,7 @@ function seedWelcome(): Msg[] {
   return [
     {
       role: "assistant",
-      content: "原文を貼って「Boost」を押してください。\n直訳感を抑え、“買いたくなる日本語”へ整流します。",
+      content: "原文を貼って「Boost」を押してください。\n赤ペン先生ONで、整流後に“どこがどう良くなったか”も注釈表示します。",
       ts: Date.now(),
     },
   ];
