@@ -8,23 +8,26 @@ import { createServerClient } from "@supabase/ssr";
 
 /* =========================================================================
    Runtime / Timeouts
-   ====================================================================== */
+   ========================================================================= */
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
+
 const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
 const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 
 /* =========================================================================
    File utils
-   ====================================================================== */
+   ========================================================================= */
 function readText(rel: string): string {
   try { return fs.readFileSync(path.join(process.cwd(), rel), "utf8"); }
   catch { console.warn(`⚠️  Missing file: ${rel}`); return ""; }
 }
 function parseReplaceDict(src: string) {
-  return src.split(/\r?\n/).map(l=>l.trim()).filter(l=>l && !l.startsWith("#") && l.includes("=>"))
+  return src.split(/\r?\n/)
+    .map(l=>l.trim())
+    .filter(l=>l && !l.startsWith("#") && l.includes("=>"))
     .map(l=>{const [from,to]=l.split("=>");return {from:(from??"").trim(),to:(to??"").trim()};})
     .filter(r=>r.from && r.to);
 }
@@ -37,7 +40,7 @@ function readJsonSafe<T>(rel: string, fb: T): T {
 
 /* =========================================================================
    Local knowledge
-   ====================================================================== */
+   ========================================================================= */
 function readCategoryCsv(rel: string) {
   const rows = readText(rel).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
   const out: Array<{ l1: string; l2: string; mode: string; pitch_keywords: string[] }> = [];
@@ -65,24 +68,23 @@ const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { style
 
 /* =========================================================================
    Prompts
-   ====================================================================== */
+   ========================================================================= */
 const CORE_PROMPT_V202 = readText("prompts/bs_prompt_v2.0.2.txt");
 const CORE_PROMPT_V200 = readText("prompts/bs_prompt_v2.0.0.txt");
 const CORE_PROMPT_V199 = readText("prompts/bs_prompt_v1.9.9.txt");
 const CORE_PROMPT      = CORE_PROMPT_V202 || CORE_PROMPT_V200 || CORE_PROMPT_V199 || "You are Boost Suite copy refiner.";
 
-const YAKKI_ALL = [
-  readText("prompts/filters/BoostSuite_薬機法フィルターA.txt"),
-  readText("prompts/filters/BoostSuite_薬機法フィルターB.txt"),
-  readText("prompts/filters/BoostSuite_薬機法フィルターC.txt"),
-  readText("prompts/filters/BoostSuite_薬機法フィルターD.txt"),
-].filter(Boolean).join("\n");
+const YAKKI_A = readText("prompts/filters/BoostSuite_薬機法フィルターA.txt");
+const YAKKI_B = readText("prompts/filters/BoostSuite_薬機法フィルターB.txt");
+const YAKKI_C = readText("prompts/filters/BoostSuite_薬機法フィルターC.txt");
+const YAKKI_D = readText("prompts/filters/BoostSuite_薬機法フィルターD.txt");
+
 const REPLACE_RULES = parseReplaceDict(readText("prompts/filters/Boost_Fashion_置き換え辞書.txt"));
 const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワード.csv"));
 
 /* =========================================================================
    SEO related words (初期辞書：Cometで随時拡張)
-   ====================================================================== */
+   ========================================================================= */
 const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
   "prompts/filters/SEO_related_words.json",
   {
@@ -95,7 +97,7 @@ const SEO_WORDS = readJsonSafe<Record<string, string[]>>(
 
 /* =========================================================================
    OpenAI helpers
-   ====================================================================== */
+   ========================================================================= */
 const isFiveFamily  = (m: string) => /^gpt-5($|-)/i.test(m);
 const isFourOFamily = (m: string) => /^gpt-4o($|-)/i.test(m);
 
@@ -135,7 +137,7 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
 
 /* =========================================================================
    Supabase
-   ====================================================================== */
+   ========================================================================= */
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 function sbRead() { return createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } }); }
@@ -146,7 +148,7 @@ async function sbServer() {
 
 /* =========================================================================
    Intent mapping (category → emotion → style → media)
-   ====================================================================== */
+   ========================================================================= */
 type CategoryRow = { l1: string; l2: string; mode: string; pitch_keywords: string[] | null };
 type EmotionRow  = { id: string; aliases: string[] | null; tones: string[] | null; patterns: string[] | null; use_for_modes: string[] | null };
 type StyleRow    = { id: string; voice: string; rhythm: string; lexicon_plus: string[] | null; lexicon_minus: string[] | null; use_for_modes: string[] | null };
@@ -245,7 +247,7 @@ async function mapIntentWithDBThenLocal(input: string, media: string) {
 
 /* =========================================================================
    GET: Health
-   ====================================================================== */
+   ========================================================================= */
 export async function GET() {
   try {
     const supabase = sbRead();
@@ -267,7 +269,7 @@ export async function GET() {
 
 /* =========================================================================
    Helpers
-   ====================================================================== */
+   ========================================================================= */
 function compactInputText(src: string, maxChars = 16000) {
   if (!src) return "";
   let s = src.replace(/\r/g,"");
@@ -278,13 +280,41 @@ function compactInputText(src: string, maxChars = 16000) {
 }
 
 /* =========================================================================
-   Utils: Fact Lock (暴走防止フィルター)
-   ====================================================================== */
+   Utils: ギフト誤爆防止 / 販売者語禁止 / FactLock 強化
+   ========================================================================= */
+const SELLER_WORDS_RE = /\b(?:当店|弊社|当社|当ショップ|our store|our shop|the store|the shop)\b/g;
+const GIFT_WORDS_RE = /(ギフト|プレゼント|贈り物|ラッピング|名入れ|のし|gift)/gi;
+
+function stripSellerWords(text: string) {
+  return text.replace(SELLER_WORDS_RE, "").replace(/\s{2,}/g," ").trim();
+}
+
+// ギフト文面を安全側で弱める／削る
+function pruneGift(text: string, allowGift: boolean) {
+  if (allowGift) return text;
+  // タイトル行の接頭辞【ギフト｜】系や「贈り物」訴求を除去
+  let out = text
+    .replace(/^[ \t]*[0-9]+\.\s*【タイトル※SEO】[^\n]*\n?/m, (m)=>m.replace(/【ギフト[^\]]*】/g,""))
+    .replace(/【ギフト\｜?】/g,"")
+    .replace(/[（(]ギフト対応[)）]/g,"")
+    .replace(/ギフト[向用]?(として|に|向け|可)?/g,"")
+    .replace(/プレゼント[向用]?(として|に|向け|可)?/g,"")
+    .replace(/贈り物[向用]?(として|に|向け|可)?/g,"")
+    .replace(/ラッピング可|ラッピング対応|名入れ対応/g,"")
+    .replace(/(記念日|母の日|父の日|誕生日)の?[^。]*贈り物[^。]*。?/g, "")
+    .replace(/大切な方への贈り物に。?/g, "");
+  // Q&A項目に残ったギフト可否のQを軽整流
+  out = out.replace(/^Q\.\s*(名入れ|ラッピング).+$/gm, "Q. 付属品や仕様に関する質問は？");
+  out = out.replace(/^A\.\s*(名入れ|ラッピング).+$/gm, "A. 仕様・付属品の詳細は商品ページの記載をご確認ください。");
+  return out;
+}
+
+// ⚠️ 医療/誇張/断定などを抑制＋単位/句読点整形＋危険語緩和
 function factLock(text: string) {
   if (!text) return text;
   let result = text;
 
-  // 1) 医療・誇張・断定の強制緩和
+  // 1) 医療・誇張・断定
   const hardClaims = [
     /完治/g, /永久に/g, /100%/g, /１００％/g, /絶対/g, /治す/g, /劇的/g, /最強/g,
     /即効性がある/g, /即効で/g, /保証/g, /完全/g, /奇跡/g, /誰でも/g, /必ず/g
@@ -311,21 +341,52 @@ function factLock(text: string) {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // 4) 「名入れ／ラッピング」など、原文がない場合の削除（安全側）
-  //   → Stage1でギフト接頭辞がfalseなら本文でも過度に推さない
-  if (!/名入れ|ラッピング/.test(result)) {
-    // no-op
-  } else {
-    // 後段でギフト判定が false の場合、この文言は削れるように軽整流
-    // （最終削除は呼び出し元の giftPrefixAllowed で制御推奨）
-  }
+  // 4) 「当店/弊社/our store」などの販売者語を削除
+  result = stripSellerWords(result);
 
   return result;
 }
 
 /* =========================================================================
+   Yakki（薬機/景表）適用判定
+   - DB: yakki_sensitive_categories(category_l1, category_l2) があれば優先
+   - なければ簡易推論（ビューティー/ヘルス/化粧品系をヒット）
+   ========================================================================= */
+async function loadYakkiBlockForCategory(cat: CategoryRow | null) {
+  const supabase = sbRead();
+  let need = false;
+
+  if (cat) {
+    const r = await supabase
+      .from("yakki_sensitive_categories")
+      .select("category_l1,category_l2")
+      .eq("category_l1", cat.l1)
+      .eq("category_l2", cat.l2)
+      .maybeSingle();
+    if (!r.error && r.data) {
+      need = true;
+    } else {
+      // 簡易ヒューリスティクス
+      const l1 = (cat.l1 || "").toLowerCase();
+      const l2 = (cat.l2 || "").toLowerCase();
+      if (
+        /(beauty|ビューティー|コスメ|美容|ヘルス|健康|サプリ|スキンケア|スカルプ|脱毛|ダイエット)/i.test(l1) ||
+        /(美容|美顔器|化粧水|美容液|クリーム|育毛|育発|医療|治療|血圧|血糖|体脂肪)/i.test(l2)
+      ) {
+        need = true;
+      }
+    }
+  }
+
+  if (!need) return ""; // ← スキップ（**重要**）
+
+  // 適用（A〜Dを連結）
+  return [YAKKI_A, YAKKI_B, YAKKI_C, YAKKI_D].filter(Boolean).join("\n");
+}
+
+/* =========================================================================
    POST: Dual-Core generation (Stage1 → Stage2)
-   ====================================================================== */
+   ========================================================================= */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -351,9 +412,8 @@ export async function POST(req: Request) {
 
     const replaceTable = REPLACE_RULES.length ? REPLACE_RULES.map(r=>`- 「${r.from}」=>「${r.to}」`).join("\n") : "（辞書なし）";
     const beautyList  = BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）";
-    const yakkiBlock  = YAKKI_ALL || "（薬機フィルター未設定）";
 
-    // === SmartSEO（カテゴリ + 原文） & ギフト接頭辞判定 ===
+    // === SmartSEO（カテゴリ + 原文） & ギフト接頭辞厳格判定 ===
     const kwKey = intent.category?.l2 || intent.category?.l1 || "";
     const rawText = String(prompt || "");
     const textLower = rawText.toLowerCase();
@@ -362,7 +422,14 @@ export async function POST(req: Request) {
       .flatMap(([, arr]) => arr);
     const fromCat = SEO_WORDS[kwKey] || [];
     const relatedSEO = Array.from(new Set([...fromText, ...fromCat])).slice(0, 8);
-    const giftFlag = /(ギフト|プレゼント|贈り物|ラッピング)/.test(rawText) || relatedSEO.includes("ギフト") || relatedSEO.includes("プレゼント");
+
+    // ✅ ギフト許可は「原文に明示」されたときのみ（SEO候補ヒットだけでは許可しない）
+    const giftExplicit = /(ギフト|プレゼント|贈り物|ラッピング|名入れ|のし|gift)/i.test(rawText);
+    const giftPrefixAllowed = !!giftExplicit;
+
+    // ✅ 薬機フィルターをカテゴリで自動スキップ/適用
+    const yakkiBlock = await loadYakkiBlockForCategory(intent.category);
+    const yakkiNote = yakkiBlock ? "（薬機/景表フィルター適用）" : "（薬機/景表フィルター：該当なし→スキップ）";
 
     const controlLine = jitter
       ? `JITTER=${Math.max(1, Math.min(Number(variants) || 3, 5))} を有効化。余韻のみ微変化し、FACTSは共有。`
@@ -384,7 +451,8 @@ export async function POST(req: Request) {
       "",
       "《SmartSEO候補（max8）》",
       relatedSEO.length ? `- ${relatedSEO.join(" / ")}` : "- なし",
-      `- ギフト接頭辞の許可: ${giftFlag ? "true" : "false"}`,
+      `- ギフト接頭辞の許可（原文明示ベース）: ${giftPrefixAllowed ? "true" : "false"}`,
+      `- Safety: ${yakkiNote}`,
     ].join("\n");
 
     const compacted = typeof prompt === "string" ? compactInputText(String(prompt)) : compactInputText(JSON.stringify(prompt));
@@ -393,27 +461,30 @@ export async function POST(req: Request) {
     const s1Model = (typeof stage1Model === "string" && stage1Model.trim()) ? stage1Model.trim() : DEFAULT_STAGE1_MODEL;
     const s1Temp  = typeof stage1Temperature === "number" ? stage1Temperature : (typeof temperature === "number" ? temperature : 0.22);
 
+    // 薬機ブロックは必要時のみ付与
+    const yakkiSection = yakkiBlock ? `《Safety Layer（薬機/景表）》\n${yakkiBlock}\n` : "（本カテゴリは薬機/景表の厳格適用対象外のため特別ルール無し）\n";
+
     const s1UserContent = [
       "【Stage1｜FACT整流・法規配慮（v2.0.2 SmartSEO+LeadGuard）】",
       "目的：事実・仕様・法規の整合を最優先し、過不足ない“素体文”を作る。感情語や煽り表現は排除し、後段で温度付与する。",
       "",
       intentBlockLines,
       "",
-      "《Safety Layer（薬機/景表）》",
-      yakkiBlock,
-      "",
+      yakkiSection,
       "《置き換え辞書（参考）》",
-      replaceTable,
+      replaceTable || "（辞書なし）",
       "",
       "《カテゴリ語彙（Beauty）参考》",
-      beautyList,
+      BEAUTY_WORDS.length ? BEAUTY_WORDS.map(w=>`- ${w}`).join("\n") : "（語彙なし）",
       "",
       "《タイトル生成規則》",
       "- 出力は必ず2本：「タイトル（バランス）」「タイトル（SEO）」。",
-      "- 左詰め優先：カテゴリ/代表語 → 主要語（例：ムードライト）→ 補助語（静音/タイマー等）→ 容量/型番/色。",
-      "- SEO版はSmartSEO候補から**2〜3語**を“自然に”採用（羅列・読みにくさ禁止）。",
-      "- 【ギフト｜】接頭辞は《許可=true》のときのみ先頭に付与。falseのときは付けない。",
+      "- 左詰め優先：カテゴリ/代表語 → 主要語 → 補助語 → 容量/型番/色。",
+      "- SEO版はSmartSEO候補から**2〜3語**を“自然に”採用（羅列・不自然禁止）。",
+      "- **【ギフト｜】接頭辞は《許可=true》のときのみ**。falseのときは付けない（本文にも過度に含めない）。",
       "- 例：『アロマディフューザー｜ムードライト搭載・500mL｜USB充電式』",
+      "",
+      "《禁止》販売者語（当店/弊社/our store 等）。",
       "",
       "《注意事項の提示形式》",
       "- Objections(FAQ)は「短問短答」を原則に3件以上。注意事項は冗長にせず、FAQ形式でも提示可。",
@@ -455,7 +526,7 @@ export async function POST(req: Request) {
         s1 = s1b;
       }
     }
-    const stage1Text = s1.content as string;
+    const stage1TextRaw = s1.content as string;
 
     /* ------------------------- Stage2 : Humanize（Warmflow Extended） ------------------------- */
     const s2Model = (typeof stage2Model === "string" && stage2Model.trim()) ? stage2Model.trim() : DEFAULT_STAGE2_MODEL;
@@ -484,6 +555,7 @@ export async function POST(req: Request) {
       "- 即効ワードは必ず1行を独立させて挿入：例）「電源を入れてすぐ始められる。」",
       "- 具体語を1語：例）「手元灯」「ポケット」「朝の支度」。詩的誇張は不可。",
       "- Q&A/注意の事実改変禁止（語尾の整えのみ可）。",
+      "- **販売者語（当店/弊社/our store 等）を使用しない**。",
       "",
       "《挿入用フレーズ》",
       `- 即効性: ${instantAction}`,
@@ -493,7 +565,7 @@ export async function POST(req: Request) {
       jitterNote,
       "",
       "— Stage1 素体 —",
-      stage1Text,
+      stage1TextRaw,
       "",
       "《出力要件》",
       "- Boost Suite v2 テンプレ（バレット含む）を“一度で完成”。",
@@ -523,6 +595,7 @@ export async function POST(req: Request) {
       if (!s2b.ok) {
         console.warn("Stage2 fallback failed:", s2b.error);
         if (allowReturnStage1IfStage2Fail) {
+          // 監査ログ
           await sbRead().from("intent_logs").insert({
             media,
             input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
@@ -532,8 +605,9 @@ export async function POST(req: Request) {
             emotion_id: intent.emotion?.id ?? null,
             style_id: intent.style?.id ?? null,
           });
+          const s1Locked = factLock(stripSellerWords(pruneGift(stage1TextRaw, giftPrefixAllowed)));
           return new Response(JSON.stringify({
-            text: factLock(stage1Text),
+            text: s1Locked,
             modelUsed: `${s1Model} (Stage1 only)`,
             degraded: true,
             reason: { stage2_primary: s2.error, stage2_fallback: s2b.error },
@@ -550,12 +624,14 @@ export async function POST(req: Request) {
       s2 = s2b;
     }
 
-    const finalText = s2.ok ? (s2.content as string) : stage1Text;
+    const stage2TextRaw = s2.ok ? (s2.content as string) : stage1TextRaw;
 
-    // === ✅ 暴走防止層 FactLock 適用 ===
-    const lockedText = factLock(finalText);
+    // === ✅ 事後フィルタ：ギフト誤爆防止 → 販売者語禁止 → FactLock ===
+    const noGift = pruneGift(stage2TextRaw, giftPrefixAllowed);
+    const noSeller = stripSellerWords(noGift);
+    const lockedText = factLock(noSeller);
 
-    // === ✅ intent_logs 保存（既存）
+    // === ✅ intent_logs 保存
     await sbRead().from("intent_logs").insert({
       media,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
@@ -566,22 +642,23 @@ export async function POST(req: Request) {
       style_id: intent.style?.id ?? null,
     });
 
-    // === ✅ Lintログを Supabase に保存（差分監査）
+    // === ✅ Lintログ保存（差分監査）
     await sbRead().from("lint_logs").insert({
       user_id: userId,
       input_text: typeof prompt === "string" ? prompt : JSON.stringify(prompt),
-      output_text: finalText,
+      output_text: stage2TextRaw,
       locked_text: lockedText,
-      diff_chars: (finalText?.length ?? 0) - (lockedText?.length ?? 0),
+      diff_chars: (stage2TextRaw?.length ?? 0) - (lockedText?.length ?? 0),
       created_at: new Date().toISOString(),
     });
 
     return new Response(JSON.stringify({
-      text: lockedText, // ← 安全化済み出力
+      text: lockedText, // ← 安全化済み
       modelUsed: { stage1: s1Model, stage2: (s2.ok ? s2Model : null) },
       jitter,
       relatedSEO,
-      giftPrefixAllowed: giftFlag,
+      giftPrefixAllowed,
+      safety: { yakkiApplied: !!yakkiBlock },
       intent: {
         category: intent.category,
         emotion: intent.emotion ? { id: intent.emotion.id, sample: intent.emotion.patterns?.[0] ?? null } : null,
