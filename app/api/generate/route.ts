@@ -62,21 +62,9 @@ type StyleJSON = {
   media_overrides?: Array<{ media: string; sentence_length: string; emoji?: boolean }> ;
 };
 
-/* Breath制御（EmotionDrift） */
-type DriftRow = { sentence_length?: "short" | "medium" | "long"; emoji?: boolean; temp_offset?: number; includes?: string[] };
-type EmotionDrift = {
-  version?: string;
-  default: DriftRow;
-  media?: Record<string, DriftRow>;
-  keywords?: DriftRow[];
-};
-
 const LOCAL_CATS  = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
 const LOCAL_EMO   = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
 const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
-const EMO_DRIFT   = readJsonSafe<EmotionDrift>("knowledge/EmotionDrift_v1.json", {
-  default: { sentence_length: "short", emoji: false, temp_offset: 0 }
-});
 
 /* =========================================================================
    Prompts
@@ -99,9 +87,9 @@ const BEAUTY_WORDS  = parseCsvWords(readText("prompts/filters/美顔器キーワ
 const isFiveFamily  = (m: string) => /^gpt-5($|-)/i.test(m);
 const isFourOFamily = (m: string) => /^gpt-4o($|-)/i.test(m);
 
-const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
-const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
-const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";   // FACT
+const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";  // Talkflow
+const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5"; // fallback
 
 async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
   const controller = new AbortController();
@@ -116,9 +104,11 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
     body: JSON.stringify(payload),
   };
   const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", init, timeout);
-  const json = await res.json();
+  const raw = await res.text();
+  let json: any = {};
+  try { json = JSON.parse(raw); } catch {}
   const content = json?.choices?.[0]?.message?.content ?? "";
-  return res.ok ? { ok: true as const, content } : { ok: false as const, error: json?.error ?? res.statusText };
+  return res.ok ? { ok: true as const, content } : { ok: false as const, error: json?.error ?? raw || res.statusText };
 }
 
 /* =========================================================================
@@ -147,39 +137,7 @@ function factLock(text: string) {
 }
 
 /* =========================================================================
-   Breath Controller（EmotionDrift）: media + keywords → sentence/emoji/temp
-   ========================================================================= */
-function clamp(n: number, min: number, max: number) { return Math.max(min, Math.min(max, n)); }
-
-function planBreath(input: string, media: string) {
-  const base: DriftRow = { ...(EMO_DRIFT.default || {}) };
-  const md   = (EMO_DRIFT.media && EMO_DRIFT.media[media]) ? EMO_DRIFT.media[media]! : {};
-  const low  = String(input || "").toLowerCase();
-
-  let best: DriftRow = { ...base, ...md };
-  let hitKey: string[] = [];
-
-  for (const row of (EMO_DRIFT.keywords || [])) {
-    const inc = (row.includes || []);
-    if (inc.length && inc.some(w => w && low.includes(String(w).toLowerCase()))) {
-      best = { ...best, ...row };
-      hitKey = inc;
-      break; // 最初のマッチを採用（過学習回避）
-    }
-  }
-
-  // 正常化
-  const sentence_length = (["short","medium","long"] as const).includes(best.sentence_length as any)
-    ? best.sentence_length as "short"|"medium"|"long"
-    : "short";
-  const emoji = !!best.emoji;
-  const temp_offset = clamp(Number(best.temp_offset || 0), -0.1, 0.1);
-
-  return { sentence_length, emoji, temp_offset, hitKey };
-}
-
-/* =========================================================================
-   POST : Stage1 → Stage2（Dual-Core Warmflow System + Breath）
+   POST : Stage1 FACT → Stage2 Talkflow
    ========================================================================= */
 export async function POST(req: Request) {
   try {
@@ -192,7 +150,7 @@ export async function POST(req: Request) {
 
     const compact = String(prompt ?? "").slice(0, 16000);
 
-    /* ---------------- Stage1: FACT ---------------- */
+    /* ---------------- Stage1: FACT（temperature送信しない） ---------------- */
     const s1Prompt = [
       "【Stage1｜FACT整流】",
       "目的：構造・仕様・法規の整合を最優先し、温度を抑えた脚本文を生成。",
@@ -201,16 +159,22 @@ export async function POST(req: Request) {
       compact
     ].join("\n");
 
-    const s1Payload = {
+    const s1Payload: any = {
       model: DEFAULT_STAGE1_MODEL,
       messages:[{role:"system",content:CORE_PROMPT},{role:"user",content:s1Prompt}],
-      temperature:0.25
+      stream: false
     };
+    // gpt-5 ファミリは temperature/top_p を送らない（固定値のみ対応）
+    if (!isFiveFamily(DEFAULT_STAGE1_MODEL)) {
+      s1Payload.temperature = 0.25;
+      s1Payload.top_p = 0.9;
+    }
+
     const s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
     if (!s1.ok) return new Response(JSON.stringify({error:"stage1_failed",detail:s1.error}),{status:502});
     const stage1 = s1.content;
 
-    /* ---------------- Breath Planning ---------------- */
+    /* ---------------- Stage2: Talkflow v2.2.0 “Breath Layer” ---------------- */
     const {
       stage2Model,
       temperature = 0.34,
@@ -220,50 +184,53 @@ export async function POST(req: Request) {
       variants = 0,
     } = body ?? {};
 
-    const drift = planBreath(compact, String(media || "ad"));
-
     const s2Model =
       (typeof stage2Model === "string" && stage2Model.trim())
         ? stage2Model.trim()
         : (strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL);
 
-    // 温度：指定優先 → ドリフトのオフセット反映 → クランプ
-    const baseTemp = typeof stage2Temperature === "number"
+    const s2Temp = typeof stage2Temperature === "number"
       ? stage2Temperature
       : (jitter ? Math.max(0.45, Number(temperature) || 0.34) : Number(temperature) || 0.34);
 
-    const s2Temp = clamp(baseTemp + drift.temp_offset, 0.25, 0.60);
-
-    // Breath 指示を明示（句読点／改行／絵文字／文長）
-    const sentenceGuide =
-      drift.sentence_length === "short"  ? "文長は短め。1〜2文単位でテンポよく。" :
-      drift.sentence_length === "medium" ? "文長は中庸。2〜3文で一塊、読みのリズムを保つ。" :
-                                           "文長はやや長め。ただし『、』は連打しない。適度に分割する。";
-
-    const emojiGuide = drift.emoji
-      ? "絵文字は自然に2〜4個まで（SNS要約のみ）。本文では乱用しない。"
-      : "絵文字は使用しない（SNS要約にも原則不要）。";
-
-    const linebreakGuide = "不要な空行や箇条書きは避け、セクション見出し以外は改行を最小化。";
-
-    /* ---------------- Stage2: Warmflow-Humanize ---------------- */
     const talkflowPrompt = [
-      "【Stage2｜Warmflow-Humanize（v2.0.3 Dual-Core + Breath）】",
-      "目的：Stage1のFACTを改変せず、“温度・SEO・構文”を統合整流する。句読点とリズムで“売れる自然文”を形成。",
+      "【Stage2｜Talkflow v2.2.0 “Breath Layer”】",
+      "目的：Stage1のFACTを改変せず、“喋るように”没入感を与える。句読点と呼吸のリズムで読み続けられる流れを作る。",
       "",
-      "Breath制御：",
-      `- sentence_length: ${drift.sentence_length}（${sentenceGuide}）`,
-      `- emoji: ${drift.emoji ? "true" : "false"}（${emojiGuide}）`,
-      `- media: ${String(media)} / temp_offset: ${drift.temp_offset.toFixed(2)} / hits: ${drift.hitKey.join(",") || "none"}`,
-      `- 体裁: ${linebreakGuide}`,
+      "固定原則：",
+      "- ライティングではなく会話の間合い。音読を前提に、過剰な改行や箇条書きは使わない（必要最小限のセクションヘッダのみ）。",
+      "- セクション見出し以外は1〜3文単位の“まとまり”で構成。『、』の連打は禁止。句点は呼吸のために適度に入れる。",
+      "- 事実（型番/容量/仕様/注意）は改変しない。誇張・断定を避け、留保（※使用環境により異なる等）を自然に添える。",
+      "- “ギフト前提”の誘導はしない。原文や文脈にある場合のみ軽く触れる。販売者語（当店/弊社等）は自然に避ける。",
+      "- タイトル（バランス/SEO）は**変更しない**。句読点や語順も維持。",
       "",
-      "構文：Boost Suite Prompt v2.0.3（Dual-Core Warmflow System）を参照。",
+      "表現ガイド：",
+      "- 余計な接続詞や説明臭は削ぎ落とし、目線は『今、手に取った人』に固定する。",
+      "- 具体語をひとつ差し込む（例：手元灯／静かな蒸気／机の隅）ことで、情景を1カット描く。比喩の乱用はしない。",
+      "- 目線の移動：『何ができる→どう楽か→どんな時にちょうどいいか』の順で軽く運ぶ。",
       "",
-      "— Stage1 素体 —",
+      "出力仕様：Boost Suite v2 テンプレの“番号見出し”のみ固定、本文は自然文（箇条書き最小限）。",
+      "— Stage1（素体） —",
       stage1,
       "",
-      "出力は Boost Suite テンプレ全項目を一度で完成。Silent出力。",
-      "AI/生成表現は禁止。"
+      "— 出力フォーマット（見出しは必ず守る。本文は自然文）—",
+      "1.【タイトル※バランス】（Stage1のまま）",
+      "2.【タイトル※SEO】（Stage1のまま）",
+      "3.【sales版】（Tone＝Natural＋Warm）",
+      "3.1 リード（6文前後／改行はしない／没入重視）",
+      "3.2 主な特長・機能（自然文。箇条書きは最小限、必要なら2〜4項まで）",
+      "3.3 他社との差別化（自然文で1段落）",
+      "3.4 利用シーン（自然文で1段落。ギフト前提にしない）",
+      "3.5 注意事項（事実のみ。1段落。必要に応じて短文を『。』で繋ぐ）",
+      "3.6 クロージング（1段落／言い切りすぎない、軽い余韻）",
+      "4.【Objections｜先回りQ&A】（Q→A を3〜5個。各1行ずつ。簡潔に。）",
+      "5.【SNS要約（200字・絵文字2〜4個）】（1段落。最後に1行CTA）",
+      "6.【A/Bテスト提案（指標・仮説付き）】（タイトル軸/訴求軸/画像軸の3枠。各1行ずつ）",
+      "",
+      "注意：",
+      "- セクション見出し以外に“不要な空行”“過剰な改行”を作らない。",
+      "- 『、』を連打して読みづらくしない。長文は分割し、テンポを維持する。",
+      "- 出力全体を“話し言葉寄りの自然さ”で仕上げる。",
     ].join("\n");
 
     const s2Payload: any = {
@@ -279,16 +246,18 @@ export async function POST(req: Request) {
 
     const s2 = await callOpenAI(s2Payload, apiKey, STAGE2_TIMEOUT_MS);
     if (!s2.ok) {
+      // 強化モデルでワンチャン（未使用なら）
       if (!strongHumanize && s2Model !== STRONG_HUMANIZE_MODEL) {
-        const retryPayload = { ...s2Payload, model: STRONG_HUMANIZE_MODEL };
+        const retryPayload = { ...s2Payload, model: STRONG_HUMANIZE_MODEL, top_p: undefined };
         const s2b = await callOpenAI(retryPayload, apiKey, Math.min(60_000, STAGE2_TIMEOUT_MS));
-        if (!s2b.ok) return new Response(JSON.stringify({ error: "stage2_failed", detail: s2 }), { status: 502 });
+        if (!s2b.ok) {
+          return new Response(JSON.stringify({ error: "stage2_failed", detail: s2 }), { status: 502 });
+        }
         const locked = factLock(String(s2b.content || ""));
         return new Response(JSON.stringify({
           text: locked,
           modelUsed: { stage1: DEFAULT_STAGE1_MODEL, stage2: STRONG_HUMANIZE_MODEL },
           strongHumanize: true,
-          breath_debug: { media, drift, baseTemp, s2Temp },
           userId
         }), { status: 200 });
       }
@@ -302,7 +271,6 @@ export async function POST(req: Request) {
       modelUsed: { stage1: DEFAULT_STAGE1_MODEL, stage2: s2Model },
       jitter: !!jitter,
       strongHumanize: !!strongHumanize,
-      breath_debug: { media, drift, baseTemp, s2Temp },
       userId
     }), { status: 200 });
 
@@ -313,7 +281,7 @@ export async function POST(req: Request) {
 }
 
 /* =========================================================================
-   GET : Health
+   GET : Health (最小)
    ========================================================================= */
 export async function GET() {
   try {
@@ -325,9 +293,9 @@ export async function GET() {
       sampleCategory: data?.[0] ?? null,
       localLoaded: { cats: LOCAL_CATS.length, emos: LOCAL_EMO.emotions?.length ?? 0, styles: LOCAL_STYLE.styles?.length ?? 0 },
       promptVersion:
-        CORE_PROMPT === CORE_PROMPT_V203 ? "v2.0.3" :
-        CORE_PROMPT === CORE_PROMPT_V202 ? "v2.0.2" : "custom",
-      emotionDrift: { version: EMO_DRIFT.version || "v1", default: EMO_DRIFT.default || null }
+        CORE_PROMPT === CORE_PROMPT_V203 ? "v2.0.3"
+      : CORE_PROMPT === CORE_PROMPT_V202 ? "v2.0.2"
+      : "custom",
     }), { status: 200 });
   } catch (e:any) {
     return new Response(JSON.stringify({ ok:false, message: e?.message ?? String(e) }), { status: 500 });
