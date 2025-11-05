@@ -224,11 +224,11 @@ export async function POST(req: Request) {
       const s3 = await callOpenAI(s3Payload, apiKey, STAGE3_TIMEOUT_MS);
       if (s3.ok) {
         try {
-          const parsed = JSON.parse(String(s3.content || "{}"));
+          const parsed: { annotations?: any[] } = JSON.parse(String(s3.content || "{}"));
           if (Array.isArray(parsed.annotations)) {
-            annotations = parsed.annotations
-              .filter(x => x && typeof x === "object")
-              .map(x => ({
+            annotations = (parsed.annotations as any[])
+              .filter((x: any) => x && typeof x === "object")
+              .map((x: any) => ({
                 section: String(x.section || ""),
                 text: String(x.text || ""),
                 type: String(x.type || "Structure"),
