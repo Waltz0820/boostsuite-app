@@ -63,6 +63,8 @@ const YAKKI_FILTERS = ["A","B","C","D"]
   .filter(Boolean)
   .join("\n");
 
+const EXPLAIN_PROMPT_V1 = readText("prompts/explain/BoostSuite_Explain_v1.0.txt");
+
 /* =========================================================================
    OpenAI helpers
    ========================================================================= */
@@ -107,7 +109,7 @@ async function sbServer() {
 }
 
 /* =========================================================================
-   Light FactLock（体裁・単位・距離語の軽整形）
+   Light FactLock（単位／語調／改行整形）
    ========================================================================= */
 function factLock(text: string) {
   if (!text) return "";
@@ -122,7 +124,9 @@ function factLock(text: string) {
 }
 
 /* =========================================================================
-   POST : Stage1（FACT＋SmartBullet）→ Stage2（Talkflow）→ Stage3（Explain/赤ペン先生：任意）
+   POST : Stage1（FACT＋SmartBullet）
+        → Stage2（Talkflow）
+        → Stage3（Explain Layer／解説AI・任意）
    ========================================================================= */
 export async function POST(req: Request) {
   try {
@@ -145,14 +149,14 @@ export async function POST(req: Request) {
 
     const compact = String(prompt ?? "").replace(/\r/g,"").slice(0, 16000);
 
-    /* ---------------- Stage1: FACT＋SmartBullet 素体 ---------------- */
+    /* ---------------- Stage1: FACT＋SmartBullet ---------------- */
     const s1Payload:any = {
       model: DEFAULT_STAGE1_MODEL,
       messages: [
         { role: "system", content: CORE_PROMPT },
         { role: "user", content: [
           "【Stage1｜FACT＋SmartBullet v2.2】",
-          "目的：事実・仕様・法規整合＋“売れる構文”の素体生成。誇張は避け、留保は自然に残す。",
+          "目的：事実・仕様・法規整合＋売れる構文素体生成。",
           "",
           YAKKI_FILTERS,
           "",
@@ -160,21 +164,15 @@ export async function POST(req: Request) {
           compact
         ].join("\n") }
       ],
-      stream: false
+      stream: false,
+      temperature: 0.22, top_p: 0.9
     };
-    // gpt-5系は temperature 未サポートを回避
-    if (!isFiveFamily(DEFAULT_STAGE1_MODEL)) {
-      s1Payload.temperature = 0.22;
-      s1Payload.top_p = 0.9;
-    }
 
     const s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
-    if (!s1.ok) {
-      return new Response(JSON.stringify({ error: "stage1_failed", detail: s1.error }), { status: 502 });
-    }
+    if (!s1.ok) return new Response(JSON.stringify({ error: "stage1_failed", detail: s1.error }), { status: 502 });
     const stage1 = String(s1.content || "");
 
-    /* ---------------- Stage2: Talkflow v2.0.7 “Perfect Warmflow” ---------------- */
+    /* ---------------- Stage2: Talkflow “Perfect Warmflow” ---------------- */
     const s2ModelBase = strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL;
     const s2Payload:any = {
       model: s2ModelBase,
@@ -182,68 +180,53 @@ export async function POST(req: Request) {
         { role: "system", content: CORE_PROMPT },
         { role: "user", content: [
           "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow”】",
-          "目的：Stage1の構造（見出しとSmartBullet=5点）を保持しつつ、句読点・温度・未来導線・余白を最適化する。",
+          "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
           "",
           "Warmflow Rules:",
-          "1. SmartBullet 1〜4は機能、5は情緒の役割で保持（順序・本数・情報量を崩さない）。",
-          "2. 1文内の読点は2回までを目安に。余計な改行や箇条書き崩しは禁止。",
-          "3. リードは『状況→即効→機能→体験→データ→余韻』いずれかの形で自然な語りに整える。",
-          "4. クロージングは所有後の未来・習慣化のイメージを必ず含める。",
-          "5. タイトル文言や注意事項の数値・但し書きは改変しない。",
+          "1. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
+          "2. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
           "",
-          "— Stage1（素体：そのまま整流対象） —",
+          "— Stage1 —",
           stage1
         ].join("\n") }
       ],
-      stream: false
+      stream: false,
+      temperature: jitter ? 0.4 : 0.33,
+      top_p: 0.9
     };
-    if (!isFiveFamily(s2Payload.model)) {
-      s2Payload.temperature = jitter ? 0.40 : 0.33;
-      s2Payload.top_p = 0.9;
-    }
 
     let s2 = await callOpenAI(s2Payload, apiKey, STAGE2_TIMEOUT_MS);
     if (!s2.ok) {
-      // 強化モデルで一回だけ再試行
       const retry:any = { ...s2Payload, model: STRONG_HUMANIZE_MODEL };
-      if (isFiveFamily(STRONG_HUMANIZE_MODEL)) { delete retry.temperature; delete retry.top_p; }
-      const s2b = await callOpenAI(retry, apiKey, Math.min(60_000, STAGE2_TIMEOUT_MS));
-      if (!s2b.ok) {
-        return new Response(JSON.stringify({ error: "stage2_failed", detail: s2.error || s2b.error }), { status: 502 });
-      }
+      delete retry.temperature; delete retry.top_p;
+      const s2b = await callOpenAI(retry, apiKey, STAGE2_TIMEOUT_MS);
+      if (!s2b.ok) return new Response(JSON.stringify({ error: "stage2_failed", detail: s2b.error }), { status: 502 });
       s2 = s2b;
     }
 
     const finalText = factLock(String(s2.content || ""));
 
-    /* ---------------- Stage3: Explain Layer（赤ペン先生｜任意） ---------------- */
+    /* ---------------- Stage3: Explain Layer（解説AI） ---------------- */
     let annotations: Array<{ section:string; text:string; type:string; importance:"low"|"medium"|"high" }> = [];
-    if (annotation_mode) {
+
+    if (annotation_mode && EXPLAIN_PROMPT_V1) {
+      const explainContent = EXPLAIN_PROMPT_V1.replace("{{STAGE2_TEXT}}", finalText);
       const s3Payload:any = {
         model: EXPLAIN_LAYER_MODEL,
         messages: [
-          { role: "system", content: "You are Boost Suite Explain Layer (赤ペン先生)。人が読んでわかる言葉で、強化点を明示する。" },
-          { role: "user", content: [
-            "【Stage3｜Explain Layer v0.1】",
-            "目的：Stage2の出力に対し、『どこを・どう強化したか』をユーザー目線で注釈化する。",
-            "出力形式：**JSON配列のみ**。各要素は { section, text, type, importance }。",
-            "section は以下から選ぶ：lead, bullet_1, bullet_2, bullet_3, bullet_4, bullet_5, diff, scene, notice, closing, titles, qa, sns, abtest。",
-            "type は Warmflow / FactLock / SEO / Emotion / FutureFlow / Structure / Humanize のいずれか。",
-            "importance は high / medium / low。",
-            "",
-            "— Stage2出力 —",
-            finalText
-          ].join("\n") }
+          { role: "system", content: "You are Boost Suite Explain Layer. Analyze improvements in natural Japanese and summarize user-facing commentary." },
+          { role: "user", content: explainContent }
         ],
         stream: false,
-        temperature: 0.0
+        temperature: 0.1
       };
+
       const s3 = await callOpenAI(s3Payload, apiKey, STAGE3_TIMEOUT_MS);
       if (s3.ok) {
         try {
-          const parsed = JSON.parse(String(s3.content || "[]"));
-          if (Array.isArray(parsed)) {
-            annotations = parsed
+          const parsed = JSON.parse(String(s3.content || "{}"));
+          if (Array.isArray(parsed.annotations)) {
+            annotations = parsed.annotations
               .filter(x => x && typeof x === "object")
               .map(x => ({
                 section: String(x.section || ""),
@@ -253,14 +236,21 @@ export async function POST(req: Request) {
               }))
               .slice(0, 64);
           }
-        } catch {}
+        } catch {
+          console.warn("⚠️ Explain JSON parse failed:", s3.content?.slice(0,200));
+        }
       }
     }
 
+    /* ---------------- Response ---------------- */
     return new Response(JSON.stringify({
       text: finalText,
       annotations,
-      modelUsed: { stage1: DEFAULT_STAGE1_MODEL, stage2: s2Payload.model, stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null },
+      modelUsed: {
+        stage1: DEFAULT_STAGE1_MODEL,
+        stage2: s2Payload.model,
+        stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null
+      },
       strongHumanize: !!strongHumanize,
       jitter: !!jitter,
       annotation_mode: !!annotation_mode,
