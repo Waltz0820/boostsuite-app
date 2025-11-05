@@ -164,9 +164,12 @@ export async function POST(req: Request) {
           compact
         ].join("\n") }
       ],
-      stream: false,
-      temperature: 0.22, top_p: 0.9
+      stream: false
     };
+    if (!isFiveFamily(DEFAULT_STAGE1_MODEL)) {
+      s1Payload.temperature = 0.22;
+      s1Payload.top_p = 0.9;
+    }
 
     const s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
     if (!s1.ok) return new Response(JSON.stringify({ error: "stage1_failed", detail: s1.error }), { status: 502 });
@@ -190,15 +193,20 @@ export async function POST(req: Request) {
           stage1
         ].join("\n") }
       ],
-      stream: false,
-      temperature: jitter ? 0.4 : 0.33,
-      top_p: 0.9
+      stream: false
     };
+    if (!isFiveFamily(s2Payload.model)) {
+      s2Payload.temperature = jitter ? 0.4 : 0.33;
+      s2Payload.top_p = 0.9;
+    }
 
     let s2 = await callOpenAI(s2Payload, apiKey, STAGE2_TIMEOUT_MS);
     if (!s2.ok) {
       const retry:any = { ...s2Payload, model: STRONG_HUMANIZE_MODEL };
-      delete retry.temperature; delete retry.top_p;
+      if (isFiveFamily(STRONG_HUMANIZE_MODEL)) {
+        delete retry.temperature;
+        delete retry.top_p;
+      }
       const s2b = await callOpenAI(retry, apiKey, STAGE2_TIMEOUT_MS);
       if (!s2b.ok) return new Response(JSON.stringify({ error: "stage2_failed", detail: s2b.error }), { status: 502 });
       s2 = s2b;
