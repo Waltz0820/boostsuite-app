@@ -97,18 +97,27 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
   try { return await fetch(url, { ...init, signal: controller.signal }); }
   finally { clearTimeout(t); }
 }
+
 async function callOpenAI(payload: any, key: string, timeout: number) {
   const init: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify(payload),
   };
+
   const res = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", init, timeout);
   const raw = await res.text();
   let json: any = {};
   try { json = JSON.parse(raw); } catch {}
+
   const content = json?.choices?.[0]?.message?.content ?? "";
-  return res.ok ? { ok: true as const, content } : { ok: false as const, error: json?.error ?? raw || res.statusText };
+  const errorDetail = json?.error ?? raw ?? res.statusText;
+
+  if (res.ok) {
+    return { ok: true as const, content };
+  } else {
+    return { ok: false as const, error: errorDetail };
+  }
 }
 
 /* =========================================================================
@@ -164,7 +173,6 @@ export async function POST(req: Request) {
       messages:[{role:"system",content:CORE_PROMPT},{role:"user",content:s1Prompt}],
       stream: false
     };
-    // gpt-5 ファミリは temperature/top_p を送らない（固定値のみ対応）
     if (!isFiveFamily(DEFAULT_STAGE1_MODEL)) {
       s1Payload.temperature = 0.25;
       s1Payload.top_p = 0.9;
@@ -229,7 +237,7 @@ export async function POST(req: Request) {
       "",
       "注意：",
       "- セクション見出し以外に“不要な空行”“過剰な改行”を作らない。",
-      "- 『、』を連打して読みづらくしない。長文は分割し、テンポを維持する。",
+      "- 『、』を連打して読みづらくしない。",
       "- 出力全体を“話し言葉寄りの自然さ”で仕上げる。",
     ].join("\n");
 
@@ -246,7 +254,6 @@ export async function POST(req: Request) {
 
     const s2 = await callOpenAI(s2Payload, apiKey, STAGE2_TIMEOUT_MS);
     if (!s2.ok) {
-      // 強化モデルでワンチャン（未使用なら）
       if (!strongHumanize && s2Model !== STRONG_HUMANIZE_MODEL) {
         const retryPayload = { ...s2Payload, model: STRONG_HUMANIZE_MODEL, top_p: undefined };
         const s2b = await callOpenAI(retryPayload, apiKey, Math.min(60_000, STAGE2_TIMEOUT_MS));
