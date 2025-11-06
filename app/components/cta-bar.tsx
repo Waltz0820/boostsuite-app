@@ -2,8 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
-export default function CtaBar() {
+type Props = {
+  /** SSRで渡すログイン状態（trueならCTAを描画しない） */
+  loggedIn?: boolean;
+};
+
+export default function CtaBar({ loggedIn = false }: Props) {
+  const pathname = usePathname();
+
+  // /tool 配下では常に非表示（UX優先）
+  const isTool = pathname?.startsWith("/tool");
+  if (loggedIn || isTool) return null;
+
   const [show, setShow] = useState(false);
 
   useEffect(() => {

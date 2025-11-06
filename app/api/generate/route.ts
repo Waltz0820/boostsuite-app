@@ -150,37 +150,68 @@ function factLock(text: string) {
 /* =========================================================================
    Category Hint（軽量カテゴリ別チューニング）
    ========================================================================= */
-function buildCategoryHint(category?: string | null) {
+function buildCategoryHint(category?: string | null, opts?: {
+  scene?: null | "device_15min" | "gift";
+  age?: null | number;
+  comparison_helper?: boolean;
+  diff_comp_price?: boolean;
+}) {
   const cat = (category || "").toLowerCase();
-  if (!cat) return null;
+  const lines: string[] = [];
+
+  if (!cat) {
+    lines.push(
+      "CategoryHint: 一般",
+      "- 仕様は“何ができるか”に接続。専門数値は必要時のみ。",
+      "- 差別化は事実ベース（設計・運用・体験の差）。",
+      "- 価格は非数値CTAで表現可。"
+    );
+  }
 
   if (cat.includes("美容") || cat.includes("beauty") || cat.includes("skincare")) {
-    return [
+    lines.push(
       "CategoryHint: 美容機器",
       "- 専門数値（MHz, nm, 深度）はFAQへ逃がすか削除。温度は体感併記（数値＋体感）。",
       "- 安全・注意は不安を煽らず一般表現で網羅（階層化）。",
       "- 差別化は事実ベース（機能統合、交換ヘッド、運用コスト、アプリ運用）。",
       "- 価格は具体額NG。CTAは非数値で緊急性を伝える。"
-    ].join("\n");
+    );
   }
 
   if (cat.includes("食品") || cat.includes("food") || cat.includes("grocery")) {
-    return [
+    lines.push(
       "CategoryHint: 食品",
       "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
       "- アレルギー表記を簡潔に（必要に応じて“商品ページ参照”へ誘導）。",
       "- ネガ表現は一般化してポジ転（例：『交配種ではない』→『系統が安定した風味（断定回避）』）。",
       "- 栄養・効能は断定しない（一般的説明＋個人差・出典参照）。"
-    ].join("\n");
+    );
   }
 
-  // default fallback
-  return [
-    "CategoryHint: 一般",
-    "- 仕様は“何ができるか”に接続。専門数値は必要時のみ。",
-    "- 差別化は事実ベース（設計・運用・体験の差）。",
-    "- 価格は非数値CTAで表現可。"
-  ].join("\n");
+  // 年代プリセット（文体・Q&Aの焦点）
+  if (opts?.age) {
+    lines.push("AgePreset:");
+    if (opts.age >= 50) lines.push("- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める。");
+    else if (opts.age >= 40) lines.push("- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める。");
+    else lines.push("- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。");
+  }
+
+  // 利用シーンヒント
+  if (opts?.scene === "device_15min") {
+    lines.push("- Scene: device_15min → 入浴後/就寝前 × 週3回 × 1回15分を自然に織り込む。");
+  } else if (opts?.scene === "gift") {
+    lines.push("- Scene: gift → 贈答導線（熨斗/包装/賞味期限/保管方法）を短く触れる。");
+  }
+
+  // 比較ブロック
+  if (opts?.comparison_helper) {
+    lines.push("- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止。");
+  }
+  if (opts?.diff_comp_price) {
+    lines.push("- PricePositioning: 金額や率は出さず、『初期投資のみ・長期運用』など非数値で位置づける。");
+  }
+
+  return lines.join("\n");
 }
 
 /* =========================================================================
@@ -197,18 +228,19 @@ export async function POST(req: Request) {
       jitter = false,
       annotation_mode = false,
 
-      // ▼ v2.0.7a Addenda フラグ（任意）
+      // ▼ v2.0.7a Addenda フラグ
       lead_compact = false,
       bullet_mode = "default",                 // "default" | "one_idea_one_sentence"
       price_cta = false,
-      scene_realism = null as null | "device_15min",
+      scene_realism = null as null | "device_15min" | "gift",
       diff_fact = true,
       numeric_sensory = true,
       compliance_strict = true,
       comparison_helper = false,
+      diff_comp_price = false,                 // ★ 追加：価格ポジショニングを非数値で
       audience_age = null as null | number,
 
-      // 軽量カテゴリヒント（任意）
+      // 軽量カテゴリヒント
       category = null as null | string
     } = body ?? {};
 
@@ -262,10 +294,32 @@ export async function POST(req: Request) {
       `- numeric_sensory=${numeric_sensory ? "true" : "false"}`,
       `- compliance_strict=${compliance_strict ? "true" : "false"}`,
       `- comparison_helper=${comparison_helper ? "true" : "false"}`,
+      `- diff_comp_price=${diff_comp_price ? "true" : "false"}`,
       `- audience_age=${audience_age ?? "none"}`
     ].join("\n");
 
-    const categoryHint = buildCategoryHint(category);
+    const categoryHint = buildCategoryHint(category, {
+      scene: scene_realism,
+      age: audience_age,
+      comparison_helper,
+      diff_comp_price
+    });
+
+    // 年代別Q&Aの出し分けを明示
+    const ageQAHint =
+`Age Q&A Rules:
+- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。
+- age=40 → 継続しやすさ・時短（週3×15分）のQ&Aを1つ含める。
+- age=50 → 刺激感配慮・敏感肌向けTipsのQ&Aを1つ含める。`;
+
+    // 競合比較ブロックの生成ルール
+    const compHint =
+`Comparison Block:
+- タイトル：「【他社との違い】」。
+- A社：単機能（例：RFのみ）/ 固定ヘッド 等
+- B社：単機能（例：EMSのみ）/ アプリ非対応 等
+- 本品：RF+EMS+LED / 交換ヘッド / アプリ履歴・提案
+- 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ短く触れる）。`;
 
     const s2UserContent = [
       "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
@@ -277,6 +331,8 @@ export async function POST(req: Request) {
       "",
       addendaFlags,
       categoryHint ? `\n${categoryHint}\n` : "",
+      ageQAHint,
+      comparison_helper || diff_comp_price ? compHint : "",
       "— Stage1 —",
       stage1
     ].join("\n");
@@ -330,7 +386,6 @@ export async function POST(req: Request) {
         ],
         stream: false
       };
-      // gpt-5系以外のみ温度指定
       if (!isFiveFamily(EXPLAIN_LAYER_MODEL)) {
         s3Payload.temperature = 0.0;
         s3Payload.top_p = 1.0;
@@ -366,14 +421,13 @@ export async function POST(req: Request) {
       annotations,
       modelUsed: {
         stage1: DEFAULT_STAGE1_MODEL,
-        stage2: (s2Payload as any).model,
+        stage2: s2Payload.model,
         stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null
       },
       strongHumanize: !!strongHumanize,
       jitter: !!jitter,
       annotation_mode: !!annotation_mode,
 
-      // v2.0.7a フラグをそのまま返す（UIで利用可能）
       flags: {
         lead_compact: !!lead_compact,
         bullet_mode,
@@ -383,6 +437,7 @@ export async function POST(req: Request) {
         numeric_sensory: !!numeric_sensory,
         compliance_strict: !!compliance_strict,
         comparison_helper: !!comparison_helper,
+        diff_comp_price: !!diff_comp_price,
         audience_age: audience_age ?? null,
         category: category ?? null
       },
