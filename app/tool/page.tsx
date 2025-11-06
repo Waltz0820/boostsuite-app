@@ -1,8 +1,3 @@
-やるやん。Addendaフラグ一式とカテゴリヒント、返却メタ（modelUsed / flags / promptVersion）をUIに統合した版をフルで置いてくね。既存の雰囲気は崩さず、上部ツールバーの右に「整流オプション」を追加。送信ペイロードも `/api/generate` の新フラグに完全対応済み。返却メタはアシスタント気泡のフッターにチップ表示＆JSON保存可。
-
----
-
-```tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1245,4 +1240,3 @@ function presetFood(): Flags {
     category: "食品",
   };
 }
-```
