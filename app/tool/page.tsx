@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
+/* ---------------- Types ---------------- */
+
 type Msg = {
   role: "user" | "assistant";
   content: string;
@@ -21,8 +23,14 @@ type Annotation = {
   tip?: string;
 };
 
+type AnnWithIdx = Annotation & { _idx: number };
+
+/* ---------------- Consts ---------------- */
+
 const MAX_FREE_CREDITS = 5;
 const MAX_INPUT_CHARS = 4000;
+
+/* ---------------- Page ---------------- */
 
 export default function ToolPage() {
   const [input, setInput] = useState("");
@@ -287,6 +295,10 @@ function Bubble({ msg }: { msg: Msg }) {
   const isUser = msg.role === "user";
   const hasAnnotations = !!msg.annotations?.length;
   const [showExplain, setShowExplain] = useState(false);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  // 連番を付与
+  const indexed: AnnWithIdx[] = withIndex(msg.annotations || []);
 
   const handleCopy = async () => {
     try {
@@ -306,7 +318,12 @@ function Bubble({ msg }: { msg: Msg }) {
           : "mr-auto bg-white/5 border border-white/10 text-zinc-100",
       ].join(" ")}
     >
-      <div className="whitespace-pre-wrap text-sm leading-relaxed pr-6">{msg.content}</div>
+      {/* 本文：注釈マーカー同期 */}
+      {isUser ? (
+        <div className="whitespace-pre-wrap text-sm leading-relaxed pr-6">{msg.content}</div>
+      ) : (
+        renderWithMarkers(msg.content, indexed, hoverIdx, setHoverIdx)
+      )}
 
       {!isUser && (
         <>
@@ -319,7 +336,7 @@ function Bubble({ msg }: { msg: Msg }) {
           </button>
 
           {hasAnnotations && (
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
               <button
                 onClick={() => setShowExplain((v) => !v)}
                 className="relative inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-[12px] border border-white/10 text-zinc-200"
@@ -327,16 +344,39 @@ function Bubble({ msg }: { msg: Msg }) {
                 aria-controls="annotations-panel"
               >
                 解説
-                {/* 右上に小さな件数バッジ */}
+                {/* 右上件数バッジ */}
                 <span className="absolute -top-1 -right-1 rounded bg-white/20 border border-white/20 px-1 text-[10px] leading-4">
                   {msg.annotations?.length}
                 </span>
               </button>
-              {showExplain && (
-                <div id="annotations-panel">
-                  <AnnotationsPanel items={msg.annotations!} />
-                </div>
-              )}
+
+              {/* JSON保存 */}
+              <button
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(msg.annotations, null, 2)], {
+                    type: "application/json",
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "annotations.json";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="text-[12px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
+              >
+                JSON保存
+              </button>
+            </div>
+          )}
+
+          {showExplain && hasAnnotations && (
+            <div id="annotations-panel">
+              <AnnotationsPanel
+                items={indexed}
+                hoverIdx={hoverIdx}
+                setHoverIdx={setHoverIdx}
+              />
             </div>
           )}
         </>
@@ -344,6 +384,8 @@ function Bubble({ msg }: { msg: Msg }) {
     </div>
   );
 }
+
+/* ---------------- Annotations ---------------- */
 
 /** type → 小さな表示名（日本語） */
 function typeLabel(t: string): string {
@@ -360,30 +402,81 @@ function typeLabel(t: string): string {
 
 function AnnotationsPanel({
   items,
+  hoverIdx,
+  setHoverIdx,
 }: {
-  items: Array<{ section: string; text: string; type: string; importance: string; quote?: string }>;
+  items: (AnnWithIdx)[];
+  hoverIdx: number | null;
+  setHoverIdx: (n: number | null) => void;
 }) {
   if (!items?.length) return null;
-  const groups: Record<string, typeof items> = {};
-  for (const it of items) {
+
+  const [filter, setFilter] = useState<string | null>(null);
+  const types = Array.from(new Set(items.map((a) => typeLabel(a.type))));
+  const filtered = filter ? items.filter((a) => typeLabel(a.type) === filter) : items;
+
+  // section グループ
+  const groups: Record<string, typeof filtered> = {};
+  for (const it of filtered) {
     const k = it.section || "misc";
     (groups[k] ||= []).push(it);
   }
+
   const badge = (t: string) => (
     <span className="ml-2 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
       {t}
     </span>
   );
+
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+      {/* タイプ絞り込み */}
+      <div className="mb-2 flex flex-wrap gap-2">
+        <button
+          className={`text-[11px] rounded-md px-2 py-1 border ${
+            !filter ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
+          }`}
+          onClick={() => setFilter(null)}
+        >
+          全て
+        </button>
+        {types.map((t) => (
+          <button
+            key={t}
+            className={`text-[11px] rounded-md px-2 py-1 border ${
+              filter === t ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
+            }`}
+            onClick={() => setFilter(t)}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
       {Object.entries(groups).map(([sec, arr]) => (
         <div key={sec} className="mb-3">
           <div className="mb-2 text-xs uppercase tracking-wide text-zinc-400">{sec}</div>
           <ul className="space-y-2">
             {arr.map((a, i) => (
-              <li key={i} className="rounded-lg border border-white/10 bg-black/20 p-2">
+              <li
+                key={`${sec}-${i}-${a._idx}`}
+                className={[
+                  "rounded-lg border border-white/10 bg-black/20 p-2 transition",
+                  hoverIdx === a._idx ? "ring-1 ring-cyan-400/60" : "",
+                ].join(" ")}
+                onMouseEnter={() => setHoverIdx(a._idx)}
+                onMouseLeave={() => setHoverIdx(null)}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-zinc-100 leading-relaxed">{a.text}</div>
+                  <div className="text-zinc-100 leading-relaxed">
+                    {/* 連番バッジ（本文マーカーと同期） */}
+                    {a._idx && (
+                      <span className="mr-1 text-[10px] rounded bg-white/10 border border-white/10 px-1 align-middle">
+                        [{a._idx}]
+                      </span>
+                    )}
+                    {a.text}
+                  </div>
                   <button
                     className="text-[10px] text-zinc-400 hover:text-zinc-200 underline decoration-white/20 shrink-0"
                     onClick={() => navigator.clipboard?.writeText(a.text)}
@@ -393,7 +486,9 @@ function AnnotationsPanel({
                   </button>
                 </div>
                 <div className="mt-1 text-[11px] text-zinc-400 flex items-center">
-                  {badge(typeLabel(a.type))}
+                  <span className="ml-0 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
+                    {typeLabel(a.type)}
+                  </span>
                   {badge(a.importance)}
                 </div>
                 {a.quote && (
@@ -406,6 +501,76 @@ function AnnotationsPanel({
       ))}
     </div>
   );
+}
+
+/* ---------------- Markers (本文 [n]) ---------------- */
+
+/** 注釈配列に連番を付ける */
+function withIndex<T extends Annotation>(items: T[] = []): (T & { _idx: number })[] {
+  return items.map((a, i) => ({ ...a, _idx: i + 1 }));
+}
+
+/**
+ * 本文中に [n] マーカーを挿入。
+ * - quote がある注釈は「最初の一致箇所」の直後に [n]
+ * - quote が無い注釈は末尾にまとめて [n]
+ * - マーカー hover / 注釈 hover で相互ハイライト
+ */
+function renderWithMarkers(
+  text: string,
+  anns: AnnWithIdx[],
+  hoverIdx: number | null,
+  setHoverIdx: (n: number | null) => void
+) {
+  let html = escapeHtml(text);
+
+  for (const a of anns) {
+    if (!a.quote) continue;
+    const quoted = escapeRegExp(a.quote);
+    const re = new RegExp(quoted);
+    html = html.replace(re, (m) => {
+      const marked = markerSup(a._idx, hoverIdx);
+      return `${m}${marked}`;
+    });
+  }
+
+  // quoteの無い注釈は本文末尾にまとめて
+  const noQuote = anns.filter((a) => !a.quote);
+  if (noQuote.length) {
+    const tail = noQuote.map((a) => markerSup(a._idx, hoverIdx, true)).join("");
+    html += tail;
+  }
+
+  return (
+    <div
+      className="whitespace-pre-wrap text-sm leading-relaxed pr-6"
+      dangerouslySetInnerHTML={{ __html: html }}
+      onMouseOver={(e) => {
+        const target = (e.target as HTMLElement).closest("[data-ann]") as HTMLElement | null;
+        if (target) setHoverIdx(Number(target.dataset.ann || "0") || null);
+      }}
+      onMouseOut={() => setHoverIdx(null)}
+    />
+  );
+}
+
+function markerSup(idx: number, hoverIdx: number | null, ml = false) {
+  const hl = hoverIdx === idx ? "outline outline-1 outline-cyan-400/70" : "";
+  const mlc = ml ? " ml-1" : "";
+  return `<sup data-ann="${idx}" class="mx-0.5${mlc} cursor-pointer text-xs align-super rounded px-[2px] bg-white/10 border border-white/10 ${hl}">[${idx}]</sup>`;
+}
+
+/* ---------------- Utils ---------------- */
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function Typing() {
