@@ -1,3 +1,8 @@
+やるやん。Addendaフラグ一式とカテゴリヒント、返却メタ（modelUsed / flags / promptVersion）をUIに統合した版をフルで置いてくね。既存の雰囲気は崩さず、上部ツールバーの右に「整流オプション」を追加。送信ペイロードも `/api/generate` の新フラグに完全対応済み。返却メタはアシスタント気泡のフッターにチップ表示＆JSON保存可。
+
+---
+
+```tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +15,11 @@ type Msg = {
   content: string;
   ts: number;
   annotations?: Annotation[];
+  meta?: {
+    promptVersion?: string | null;
+    modelUsed?: { stage1?: string; stage2?: string; stage3?: string | null } | null;
+    flags?: Flags | null;
+  };
 };
 
 type Annotation = {
@@ -25,6 +35,19 @@ type Annotation = {
 
 type AnnWithIdx = Annotation & { _idx: number };
 
+type Flags = {
+  lead_compact: boolean;
+  bullet_mode: "default" | "one_idea_one_sentence";
+  price_cta: boolean;
+  scene_realism: null | "device_15min";
+  diff_fact: boolean;
+  numeric_sensory: boolean;
+  compliance_strict: boolean;
+  comparison_helper: boolean;
+  audience_age: number | null;
+  category: string | null;
+};
+
 /* ---------------- Consts ---------------- */
 
 const MAX_FREE_CREDITS = 5;
@@ -35,8 +58,21 @@ const MAX_INPUT_CHARS = 4000;
 export default function ToolPage() {
   const [input, setInput] = useState("");
   const [media, setMedia] = useState<"ad" | "social" | "lp">("ad");
-  const [model, setModel] = useState("Boost Suite v0");
+  const [model, setModel] = useState("Boost Suite v2.0.7a");
   const [annotationMode, setAnnotationMode] = useState(true);
+
+  // ▼ Addenda フラグ（ローカルに保存）
+  const [flags, setFlags] = useState<Flags>(() => {
+    if (typeof window === "undefined") {
+      return defaultFlags();
+    }
+    try {
+      const raw = localStorage.getItem("bs_flags_v207a");
+      return raw ? JSON.parse(raw) : defaultFlags();
+    } catch {
+      return defaultFlags();
+    }
+  });
 
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
@@ -54,20 +90,22 @@ export default function ToolPage() {
     return raw ? Number(raw) : MAX_FREE_CREDITS;
   });
   const [showWall, setShowWall] = useState(false);
+  const [showOpts, setShowOpts] = useState(false);
 
   // 保存
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("bs_msgs", JSON.stringify(msgs));
       localStorage.setItem("bs_free_credits", String(credits));
+      localStorage.setItem("bs_flags_v207a", JSON.stringify(flags));
     }
-  }, [msgs, credits]);
+  }, [msgs, credits, flags]);
 
   // スクロール末尾
   const scRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scRef.current?.scrollTo({ top: scRef.current.scrollHeight, behavior: "smooth" });
-  }, [msgs, busy]);
+  }, [msgs, busy, showOpts]);
 
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
@@ -90,7 +128,22 @@ export default function ToolPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ prompt, media, annotation_mode: annotationMode }),
+        body: JSON.stringify({
+          prompt,
+          media,
+          annotation_mode: annotationMode,
+          // ▼ v2.0.7a Addenda フラグを送信
+          lead_compact: flags.lead_compact,
+          bullet_mode: flags.bullet_mode,
+          price_cta: flags.price_cta,
+          scene_realism: flags.scene_realism,
+          diff_fact: flags.diff_fact,
+          numeric_sensory: flags.numeric_sensory,
+          compliance_strict: flags.compliance_strict,
+          comparison_helper: flags.comparison_helper,
+          audience_age: flags.audience_age,
+          category: flags.category,
+        }),
       });
 
       const text = await res.text();
@@ -104,6 +157,11 @@ export default function ToolPage() {
           content: String(data?.text ?? "(応答なし)"),
           ts: Date.now(),
           annotations: data?.annotations ?? [],
+          meta: {
+            promptVersion: data?.promptVersion ?? null,
+            modelUsed: data?.modelUsed ?? null,
+            flags: (data?.flags ?? null) as Flags | null,
+          },
         },
       ]);
     } catch (e: any) {
@@ -142,7 +200,7 @@ export default function ToolPage() {
               onChange={(e) => setModel(e.target.value)}
               className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
             >
-              <option>Boost Suite v0</option>
+              <option>Boost Suite v2.0.7a</option>
               <option disabled>Boost Suite v1（準備中）</option>
             </select>
             <span className="h-4 w-px bg-white/10 ml-3" />
@@ -164,6 +222,16 @@ export default function ToolPage() {
               />
               解説ON
             </label>
+
+            {/* 整流オプション（Addenda） */}
+            <button
+              onClick={() => setShowOpts((v) => !v)}
+              className="ml-2 rounded-md bg-white/5 border border-white/10 px-2 py-1 text-xs text-zinc-200 hover:bg-white/10"
+              aria-expanded={showOpts}
+              aria-controls="opts-panel"
+            >
+              整流オプション
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -179,6 +247,126 @@ export default function ToolPage() {
             </button>
           </div>
         </div>
+
+        {/* Options panel */}
+        {showOpts && (
+          <div id="opts-panel" className="border-t border-white/10 bg-zinc-950/80">
+            <div className="mx-auto max-w-6xl px-4 py-3 grid md:grid-cols-3 gap-3 text-xs">
+              {/* 左列 */}
+              <fieldset className="rounded-xl border border-white/10 p-3 bg-white/5 space-y-2">
+                <legend className="px-1 text-zinc-300">基本</legend>
+                <Toggle
+                  label="リードを短めに（lead_compact）"
+                  checked={flags.lead_compact}
+                  onChange={(v) => setFlags((f) => ({ ...f, lead_compact: v }))}
+                />
+                <Select
+                  label="バレット形式（bullet_mode）"
+                  value={flags.bullet_mode}
+                  onChange={(v) =>
+                    setFlags((f) => ({ ...f, bullet_mode: v as Flags["bullet_mode"] }))
+                  }
+                  options={[
+                    { value: "default", label: "default（55〜90字・仕様→恩恵→留保）" },
+                    { value: "one_idea_one_sentence", label: "1アイデア1文（更に圧縮）" },
+                  ]}
+                />
+                <Toggle
+                  label="価格CTAを許可（数値なし）"
+                  checked={flags.price_cta}
+                  onChange={(v) => setFlags((f) => ({ ...f, price_cta: v }))}
+                />
+                <Select
+                  label="利用シーンの写実化（scene_realism）"
+                  value={flags.scene_realism ?? "none"}
+                  onChange={(v) =>
+                    setFlags((f) => ({ ...f, scene_realism: v === "none" ? null : "device_15min" }))
+                  }
+                  options={[
+                    { value: "none", label: "指定なし" },
+                    { value: "device_15min", label: "機器：夜/週3/15分など" },
+                  ]}
+                />
+              </fieldset>
+
+              {/* 中列 */}
+              <fieldset className="rounded-xl border border-white/10 p-3 bg-white/5 space-y-2">
+                <legend className="px-1 text-zinc-300">品質・整合</legend>
+                <Toggle
+                  label="差別化は事実ベース強化（diff_fact）"
+                  checked={flags.diff_fact}
+                  onChange={(v) => setFlags((f) => ({ ...f, diff_fact: v }))}
+                />
+                <Toggle
+                  label="数値＋体感のハイブリッド表現（numeric_sensory）"
+                  checked={flags.numeric_sensory}
+                  onChange={(v) => setFlags((f) => ({ ...f, numeric_sensory: v }))}
+                />
+                <Toggle
+                  label="法規コンプライアンス厳格（compliance_strict）"
+                  checked={flags.compliance_strict}
+                  onChange={(v) => setFlags((f) => ({ ...f, compliance_strict: v }))}
+                />
+                <Toggle
+                  label="競合比較ヘルパー（comparison_helper）"
+                  checked={flags.comparison_helper}
+                  onChange={(v) => setFlags((f) => ({ ...f, comparison_helper: v }))}
+                />
+              </fieldset>
+
+              {/* 右列 */}
+              <fieldset className="rounded-xl border border-white/10 p-3 bg-white/5 space-y-2">
+                <legend className="px-1 text-zinc-300">対象・カテゴリ</legend>
+                <NumberInput
+                  label="想定年齢（audience_age）"
+                  value={flags.audience_age ?? ""}
+                  placeholder="例：40"
+                  onChange={(v) =>
+                    setFlags((f) => ({
+                      ...f,
+                      audience_age: v ? Math.max(10, Math.min(90, Number(v))) : null,
+                    }))
+                  }
+                />
+                <Select
+                  label="カテゴリヒント（category）"
+                  value={flags.category ?? ""}
+                  onChange={(v) =>
+                    setFlags((f) => ({ ...f, category: v.length ? v : null }))
+                  }
+                  options={[
+                    { value: "", label: "未指定（一般）" },
+                    { value: "美容機器", label: "美容機器" },
+                    { value: "食品", label: "食品" },
+                    { value: "家電", label: "家電" },
+                    { value: "インテリア", label: "インテリア" },
+                    { value: "ファッション", label: "ファッション" },
+                  ]}
+                />
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    onClick={() => setFlags(defaultFlags())}
+                    className="rounded-md bg-black/30 border border-white/10 px-2 py-1 hover:bg-black/40"
+                  >
+                    既定に戻す
+                  </button>
+                  <button
+                    onClick={() => setFlags(presetBeauty())}
+                    className="rounded-md bg-black/30 border border-white/10 px-2 py-1 hover:bg-black/40"
+                  >
+                    美容向けプリセット
+                  </button>
+                  <button
+                    onClick={() => setFlags(presetFood())}
+                    className="rounded-md bg-black/30 border border-white/10 px-2 py-1 hover:bg-black/40"
+                  >
+                    食品向けプリセット
+                  </button>
+                </div>
+              </fieldset>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -323,6 +511,15 @@ function Bubble({ msg }: { msg: Msg }) {
     setTimeout(() => setHoverIdx(null), 1000);
   };
 
+  // レスポンス・メタ
+  const meta = msg.meta;
+  const modelStr = meta?.modelUsed
+    ? [meta.modelUsed.stage1, meta.modelUsed.stage2, meta.modelUsed.stage3]
+        .filter(Boolean)
+        .map((s, i) => (i === 0 ? `s1:${s}` : i === 1 ? `s2:${s}` : `s3:${s}`))
+        .join(" · ")
+    : null;
+
   return (
     <div
       ref={bubbleRef}
@@ -337,7 +534,54 @@ function Bubble({ msg }: { msg: Msg }) {
       {isUser ? (
         <div className="whitespace-pre-wrap text-sm leading-relaxed pr-6">{msg.content}</div>
       ) : (
-        renderWithMarkers(msg.content, indexed, hoverIdx, setHoverIdx)
+        <>
+          {renderWithMarkers(msg.content, indexed, hoverIdx, setHoverIdx)}
+
+          {/* Meta footer */}
+          {(meta?.promptVersion || modelStr || meta?.flags) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {meta?.promptVersion && <Chip>Prompt {meta.promptVersion}</Chip>}
+              {modelStr && <Chip>{modelStr}</Chip>}
+              {meta?.flags?.bullet_mode && <Chip>bullet:{meta.flags.bullet_mode}</Chip>}
+              {meta?.flags?.lead_compact && <Chip>lead:compact</Chip>}
+              {meta?.flags?.price_cta && <Chip>price:cta</Chip>}
+              {meta?.flags?.scene_realism && <Chip>scene:{meta.flags.scene_realism}</Chip>}
+              {meta?.flags?.diff_fact && <Chip>diff:fact</Chip>}
+              {meta?.flags?.numeric_sensory && <Chip>num+sens</Chip>}
+              {meta?.flags?.compliance_strict && <Chip>compliance</Chip>}
+              {meta?.flags?.comparison_helper && <Chip>comp-helper</Chip>}
+              {meta?.flags?.audience_age && <Chip>age:{meta.flags.audience_age}</Chip>}
+              {meta?.flags?.category && <Chip>cat:{meta.flags.category}</Chip>}
+
+              {/* 保存系 */}
+              <button
+                onClick={() =>
+                  downloadBlob(
+                    "response.json",
+                    JSON.stringify({ text: msg.content, meta }, null, 2),
+                    "application/json"
+                  )
+                }
+                className="ml-auto text-[11px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
+              >
+                JSON保存
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(msg.content);
+                    alert("本文をコピーしました");
+                  } catch {
+                    alert("コピーに失敗しました");
+                  }
+                }}
+                className="text-[11px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
+              >
+                まとめてコピー
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {!isUser && (
@@ -366,7 +610,13 @@ function Bubble({ msg }: { msg: Msg }) {
 
               {/* JSON保存 */}
               <button
-                onClick={() => downloadBlob("annotations.json", JSON.stringify(msg.annotations, null, 2), "application/json")}
+                onClick={() =>
+                  downloadBlob(
+                    "annotations.json",
+                    JSON.stringify(msg.annotations, null, 2),
+                    "application/json"
+                  )
+                }
                 className="text-[12px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
               >
                 JSON保存
@@ -423,7 +673,7 @@ function AnnotationsPanel({
   type UIState = {
     filter: string | null;
     search: string;
-    pinned: number[];        // _idx の配列
+    pinned: number[]; // _idx の配列
     collapsedSections: string[]; // 折りたたみ中の section
     expandAll: boolean;
   };
@@ -618,10 +868,16 @@ function AnnotationsPanel({
           >
             JSON
           </button>
-          <button onClick={exportMarkdown} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={exportMarkdown}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             MD
           </button>
-          <button onClick={exportCSV} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={exportCSV}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             CSV
           </button>
         </div>
@@ -679,11 +935,15 @@ function AnnotationsPanel({
                           コピー
                         </button>
                         <button
-                          className={`text-[10px] underline decoration-white/20 ${ui.pinned.includes(a._idx) ? "text-amber-300 hover:text-amber-200" : "text-zinc-400 hover:text-zinc-200"}`}
+                          className={`text-[10px] underline decoration-white/20 ${
+                            (ui.pinned || []).includes(a._idx)
+                              ? "text-amber-300 hover:text-amber-200"
+                              : "text-zinc-400 hover:text-zinc-200"
+                          }`}
                           onClick={() => togglePin(a._idx)}
                           title="ピン留め"
                         >
-                          {ui.pinned.includes(a._idx) ? "★ピン" : "☆ピン"}
+                          {(ui.pinned || []).includes(a._idx) ? "★ピン" : "☆ピン"}
                         </button>
                       </div>
                     </div>
@@ -764,6 +1024,104 @@ function markerSup(idx: number, hoverIdx: number | null, ml = false) {
   return `<sup data-ann="${idx}" class="mx-0.5${mlc} cursor-pointer text-xs align-super rounded px-[2px] bg-white/10 border border-white/10 ${hl}">[${idx}]</sup>`;
 }
 
+/* ---------------- UI Inputs ---------------- */
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="text-zinc-300">{label}</span>
+      <button
+        onClick={() => onChange(!checked)}
+        className={[
+          "relative h-5 w-9 rounded-full transition border",
+          checked
+            ? "bg-cyan-500/80 border-cyan-400"
+            : "bg-white/10 border-white/20 hover:bg-white/15",
+        ].join(" ")}
+        aria-pressed={checked}
+        type="button"
+      >
+        <span
+          className={[
+            "absolute top-0.5 h-4 w-4 rounded-full bg-white transition",
+            checked ? "right-0.5" : "left-0.5",
+          ].join(" ")}
+        />
+      </button>
+    </label>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-zinc-300">{label}</div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md bg-black/30 px-2 py-1 text-xs border border-white/10 outline-none"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: number | string;
+  placeholder?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-zinc-300">{label}</div>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md bg-black/30 px-2 py-1 text-xs border border-white/10 outline-none"
+      />
+    </label>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
+      {children}
+    </span>
+  );
+}
+
 /* ---------------- Utils ---------------- */
 
 function escapeHtml(s: string) {
@@ -842,3 +1200,49 @@ function seedWelcome(): Msg[] {
     },
   ];
 }
+
+function defaultFlags(): Flags {
+  return {
+    lead_compact: false,
+    bullet_mode: "default",
+    price_cta: false,
+    scene_realism: null,
+    diff_fact: true,
+    numeric_sensory: true,
+    compliance_strict: true,
+    comparison_helper: false,
+    audience_age: null,
+    category: null,
+  };
+}
+
+function presetBeauty(): Flags {
+  return {
+    lead_compact: true,
+    bullet_mode: "default",
+    price_cta: true,
+    scene_realism: "device_15min",
+    diff_fact: true,
+    numeric_sensory: true,
+    compliance_strict: true,
+    comparison_helper: true,
+    audience_age: 40,
+    category: "美容機器",
+  };
+}
+
+function presetFood(): Flags {
+  return {
+    lead_compact: true,
+    bullet_mode: "one_idea_one_sentence",
+    price_cta: true,
+    scene_realism: null,
+    diff_fact: true,
+    numeric_sensory: true,
+    compliance_strict: true,
+    comparison_helper: false,
+    audience_age: 35,
+    category: "食品",
+  };
+}
+```

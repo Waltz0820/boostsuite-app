@@ -55,8 +55,9 @@ const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { style
 /* =========================================================================
    Prompts
    ========================================================================= */
+// v2.0.7a を prompts/bs_prompt_v2.0.7.txt に上書き済み想定
 const CORE_PROMPT_V207 = readText("prompts/bs_prompt_v2.0.7.txt");
-const CORE_PROMPT      = CORE_PROMPT_V207 || "You are Boost Suite v2.0.7 copy refiner.";
+const CORE_PROMPT      = CORE_PROMPT_V207 || "You are Boost Suite v2.0.7a copy refiner.";
 
 const YAKKI_FILTERS = ["A","B","C","D"]
   .map(k => readText(`prompts/filters/BoostSuite_薬機法フィルター${k}.txt`))
@@ -110,11 +111,32 @@ async function sbServer() {
 }
 
 /* =========================================================================
-   Light FactLock（単位／語調／改行整形）
+   Light FactLock（単位／語調／改行整形＋注意書きバリエーション）
    ========================================================================= */
+function softenDisclaimers(text: string) {
+  const table: Record<string, string[]> = {
+    "※個人差があります。": [
+      "※感じ方には個人差があります。",
+      "※体感には個人差があります。",
+      "※使用条件により印象は異なります。",
+      "※ご実感には個人差があります。"
+    ],
+    "※使用環境により異なる": [
+      "※使用環境により異なります",
+      "※環境により前後します",
+      "※条件により変動します"
+    ]
+  };
+  let out = text;
+  for (const [key, arr] of Object.entries(table)) {
+    out = out.replace(new RegExp(key, "g"), () => arr[Math.floor(Math.random()*arr.length)]);
+  }
+  return out;
+}
+
 function factLock(text: string) {
   if (!text) return "";
-  return text
+  const t = text
     .replace(/ｍｌ|ＭＬ|㎖/g,"mL")
     .replace(/ｗ|Ｗ/g,"W")
     .replace(/℃/g,"°C")
@@ -122,6 +144,43 @@ function factLock(text: string) {
     .replace(/　/g," ")
     .replace(/\n{3,}/g,"\n\n")
     .trim();
+  return softenDisclaimers(t);
+}
+
+/* =========================================================================
+   Category Hint（軽量カテゴリ別チューニング）
+   ========================================================================= */
+function buildCategoryHint(category?: string | null) {
+  const cat = (category || "").toLowerCase();
+  if (!cat) return null;
+
+  if (cat.includes("美容") || cat.includes("beauty") || cat.includes("skincare")) {
+    return [
+      "CategoryHint: 美容機器",
+      "- 専門数値（MHz, nm, 深度）はFAQへ逃がすか削除。温度は体感併記（数値＋体感）。",
+      "- 安全・注意は不安を煽らず一般表現で網羅（階層化）。",
+      "- 差別化は事実ベース（機能統合、交換ヘッド、運用コスト、アプリ運用）。",
+      "- 価格は具体額NG。CTAは非数値で緊急性を伝える。"
+    ].join("\n");
+  }
+
+  if (cat.includes("食品") || cat.includes("food") || cat.includes("grocery")) {
+    return [
+      "CategoryHint: 食品",
+      "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
+      "- アレルギー表記を簡潔に（必要に応じて“商品ページ参照”へ誘導）。",
+      "- ネガ表現は一般化してポジ転（例：『交配種ではない』→『系統が安定した風味（断定回避）』）。",
+      "- 栄養・効能は断定しない（一般的説明＋個人差・出典参照）。"
+    ].join("\n");
+  }
+
+  // default fallback
+  return [
+    "CategoryHint: 一般",
+    "- 仕様は“何ができるか”に接続。専門数値は必要時のみ。",
+    "- 差別化は事実ベース（設計・運用・体験の差）。",
+    "- 価格は非数値CTAで表現可。"
+  ].join("\n");
 }
 
 /* =========================================================================
@@ -136,7 +195,21 @@ export async function POST(req: Request) {
       prompt,
       strongHumanize = false,
       jitter = false,
-      annotation_mode = false
+      annotation_mode = false,
+
+      // ▼ v2.0.7a Addenda フラグ（任意）
+      lead_compact = false,
+      bullet_mode = "default",                 // "default" | "one_idea_one_sentence"
+      price_cta = false,
+      scene_realism = null as null | "device_15min",
+      diff_fact = true,
+      numeric_sensory = true,
+      compliance_strict = true,
+      comparison_helper = false,
+      audience_age = null as null | number,
+
+      // 軽量カテゴリヒント（任意）
+      category = null as null | string
     } = body ?? {};
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -176,23 +249,43 @@ export async function POST(req: Request) {
     if (!s1.ok) return new Response(JSON.stringify({ error: "stage1_failed", detail: s1.error }), { status: 502 });
     const stage1 = String(s1.content || "");
 
-    /* ---------------- Stage2: Talkflow “Perfect Warmflow” ---------------- */
+    /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda ---------------- */
     const s2ModelBase = strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL;
+
+    const addendaFlags = [
+      "Addenda Flags:",
+      `- lead_compact=${lead_compact ? "true" : "false"}`,
+      `- bullet_mode=${bullet_mode}`,
+      `- price_cta=${price_cta ? "true" : "false"}`,
+      `- scene_realism=${scene_realism ?? "none"}`,
+      `- diff_fact=${diff_fact ? "true" : "false"}`,
+      `- numeric_sensory=${numeric_sensory ? "true" : "false"}`,
+      `- compliance_strict=${compliance_strict ? "true" : "false"}`,
+      `- comparison_helper=${comparison_helper ? "true" : "false"}`,
+      `- audience_age=${audience_age ?? "none"}`
+    ].join("\n");
+
+    const categoryHint = buildCategoryHint(category);
+
+    const s2UserContent = [
+      "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
+      "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
+      "",
+      "Warmflow Rules:",
+      "1. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
+      "2. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
+      "",
+      addendaFlags,
+      categoryHint ? `\n${categoryHint}\n` : "",
+      "— Stage1 —",
+      stage1
+    ].join("\n");
+
     const s2Payload:any = {
       model: s2ModelBase,
       messages: [
         { role: "system", content: CORE_PROMPT },
-        { role: "user", content: [
-          "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow”】",
-          "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
-          "",
-          "Warmflow Rules:",
-          "1. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
-          "2. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
-          "",
-          "— Stage1 —",
-          stage1
-        ].join("\n") }
+        { role: "user", content: s2UserContent }
       ],
       stream: false
     };
@@ -273,13 +366,28 @@ export async function POST(req: Request) {
       annotations,
       modelUsed: {
         stage1: DEFAULT_STAGE1_MODEL,
-        stage2: s2Payload.model,
+        stage2: (s2Payload as any).model,
         stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null
       },
       strongHumanize: !!strongHumanize,
       jitter: !!jitter,
       annotation_mode: !!annotation_mode,
-      promptVersion: "v2.0.7",
+
+      // v2.0.7a フラグをそのまま返す（UIで利用可能）
+      flags: {
+        lead_compact: !!lead_compact,
+        bullet_mode,
+        price_cta: !!price_cta,
+        scene_realism: scene_realism ?? null,
+        diff_fact: !!diff_fact,
+        numeric_sensory: !!numeric_sensory,
+        compliance_strict: !!compliance_strict,
+        comparison_helper: !!comparison_helper,
+        audience_age: audience_age ?? null,
+        category: category ?? null
+      },
+
+      promptVersion: "v2.0.7a",
       userId
     }), { status: 200 });
 
@@ -304,7 +412,7 @@ export async function GET() {
         emos: LOCAL_EMO.emotions?.length ?? 0,
         styles: LOCAL_STYLE.styles?.length ?? 0
       },
-      promptVersion: "v2.0.7"
+      promptVersion: "v2.0.7a"
     }), { status: 200 });
   } catch (e:any) {
     return new Response(JSON.stringify({ ok:false, message: e?.message || String(e) }), { status: 500 });
