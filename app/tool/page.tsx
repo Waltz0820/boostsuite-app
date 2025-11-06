@@ -309,8 +309,23 @@ function Bubble({ msg }: { msg: Msg }) {
     }
   };
 
+  // 本文先頭DOMへの参照（スクロール基点）
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  // マーカーへスクロール
+  const jumpToMarker = (idx: number) => {
+    const root = bubbleRef.current;
+    if (!root) return;
+    const el = root.querySelector(`[data-ann="${idx}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    setHoverIdx(idx);
+    setTimeout(() => setHoverIdx(null), 1000);
+  };
+
   return (
     <div
+      ref={bubbleRef}
       className={[
         "relative w-fit max-w-full break-words rounded-2xl px-4 py-3",
         isUser
@@ -344,7 +359,6 @@ function Bubble({ msg }: { msg: Msg }) {
                 aria-controls="annotations-panel"
               >
                 解説
-                {/* 右上件数バッジ */}
                 <span className="absolute -top-1 -right-1 rounded bg-white/20 border border-white/20 px-1 text-[10px] leading-4">
                   {msg.annotations?.length}
                 </span>
@@ -352,17 +366,7 @@ function Bubble({ msg }: { msg: Msg }) {
 
               {/* JSON保存 */}
               <button
-                onClick={() => {
-                  const blob = new Blob([JSON.stringify(msg.annotations, null, 2)], {
-                    type: "application/json",
-                  });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "annotations.json";
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
+                onClick={() => downloadBlob("annotations.json", JSON.stringify(msg.annotations, null, 2), "application/json")}
                 className="text-[12px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
               >
                 JSON保存
@@ -376,6 +380,7 @@ function Bubble({ msg }: { msg: Msg }) {
                 items={indexed}
                 hoverIdx={hoverIdx}
                 setHoverIdx={setHoverIdx}
+                onJump={jumpToMarker}
               />
             </div>
           )}
@@ -404,101 +409,300 @@ function AnnotationsPanel({
   items,
   hoverIdx,
   setHoverIdx,
+  onJump,
 }: {
-  items: (AnnWithIdx)[];
+  items: AnnWithIdx[];
   hoverIdx: number | null;
   setHoverIdx: (n: number | null) => void;
+  onJump: (idx: number) => void;
 }) {
   if (!items?.length) return null;
 
-  const [filter, setFilter] = useState<string | null>(null);
-  const types = Array.from(new Set(items.map((a) => typeLabel(a.type))));
-  const filtered = filter ? items.filter((a) => typeLabel(a.type) === filter) : items;
+  // ローカル保存キー
+  const STORE = "bs_ann_ui";
+  type UIState = {
+    filter: string | null;
+    search: string;
+    pinned: number[];        // _idx の配列
+    collapsedSections: string[]; // 折りたたみ中の section
+    expandAll: boolean;
+  };
+
+  const loadState = (): UIState => {
+    try {
+      const raw = localStorage.getItem(STORE);
+      return raw
+        ? JSON.parse(raw)
+        : { filter: null, search: "", pinned: [], collapsedSections: [], expandAll: true };
+    } catch {
+      return { filter: null, search: "", pinned: [], collapsedSections: [], expandAll: true };
+    }
+  };
+
+  const [ui, setUi] = useState<UIState>(loadState);
+
+  useEffect(() => {
+    localStorage.setItem(STORE, JSON.stringify(ui));
+  }, [ui]);
+
+  // タイプと検索フィルタ
+  const types = useMemo(() => Array.from(new Set(items.map((a) => typeLabel(a.type)))), [items]);
+  const filtered = useMemo(() => {
+    let arr = items.slice();
+    if (ui.filter) arr = arr.filter((a) => typeLabel(a.type) === ui.filter);
+    if (ui.search.trim()) {
+      const q = ui.search.trim().toLowerCase();
+      arr = arr.filter(
+        (a) =>
+          a.text.toLowerCase().includes(q) ||
+          (a.quote || "").toLowerCase().includes(q) ||
+          (a.section || "").toLowerCase().includes(q)
+      );
+    }
+    // ピン留めを先頭へ
+    const pins = new Set(ui.pinned);
+    arr.sort((x, y) => {
+      const px = pins.has(x._idx) ? -1 : 0;
+      const py = pins.has(y._idx) ? -1 : 0;
+      if (px !== py) return px - py;
+      return x._idx - y._idx;
+    });
+    return arr;
+  }, [items, ui.filter, ui.search, ui.pinned]);
 
   // section グループ
-  const groups: Record<string, typeof filtered> = {};
-  for (const it of filtered) {
-    const k = it.section || "misc";
-    (groups[k] ||= []).push(it);
-  }
+  const groups = useMemo(() => {
+    const g: Record<string, AnnWithIdx[]> = {};
+    for (const it of filtered) {
+      const k = it.section || "misc";
+      (g[k] ||= []).push(it);
+    }
+    return g;
+  }, [filtered]);
 
+  const secList = Object.keys(groups);
+
+  // ユーティリティ
   const badge = (t: string) => (
     <span className="ml-2 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
       {t}
     </span>
   );
 
+  const togglePin = (idx: number) => {
+    setUi((s) => {
+      const set = new Set(s.pinned);
+      if (set.has(idx)) set.delete(idx);
+      else set.add(idx);
+      return { ...s, pinned: Array.from(set) };
+    });
+  };
+
+  const toggleSection = (sec: string) => {
+    setUi((s) => {
+      const set = new Set(s.collapsedSections);
+      if (set.has(sec)) set.delete(sec);
+      else set.add(sec);
+      return { ...s, collapsedSections: Array.from(set) };
+    });
+  };
+
+  const setAllExpand = (open: boolean) => {
+    setUi((s) => ({
+      ...s,
+      expandAll: open,
+      collapsedSections: open ? [] : secList.slice(),
+    }));
+  };
+
+  const copyAll = async () => {
+    try {
+      const text = filtered.map((a) => `[${a._idx}] ${a.text}`).join("\n");
+      await navigator.clipboard.writeText(text);
+      alert("注釈をまとめてコピーしました");
+    } catch {
+      alert("コピーに失敗しました");
+    }
+  };
+
+  const exportMarkdown = () => {
+    const lines: string[] = ["# 解説（Annotations）\n"];
+    for (const sec of secList) {
+      const arr = groups[sec];
+      if (!arr?.length) continue;
+      lines.push(`## ${sec}`);
+      for (const a of arr) {
+        lines.push(`- [${a._idx}] ${a.text}  _(${typeLabel(a.type)} / ${a.importance})_`);
+        if (a.quote) lines.push(`  > “${a.quote}”`);
+      }
+      lines.push("");
+    }
+    downloadBlob("annotations.md", lines.join("\n"), "text/markdown");
+  };
+
+  const exportCSV = () => {
+    const header = ["idx", "section", "type", "importance", "text", "quote"];
+    const rows = filtered.map((a) => [
+      a._idx,
+      csvSafe(a.section),
+      csvSafe(typeLabel(a.type)),
+      csvSafe(a.importance),
+      csvSafe(a.text),
+      csvSafe(a.quote || ""),
+    ]);
+    const csv = [header.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    downloadBlob("annotations.csv", csv, "text/csv;charset=utf-8;");
+  };
+
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
-      {/* タイプ絞り込み */}
-      <div className="mb-2 flex flex-wrap gap-2">
-        <button
-          className={`text-[11px] rounded-md px-2 py-1 border ${
-            !filter ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
-          }`}
-          onClick={() => setFilter(null)}
-        >
-          全て
-        </button>
-        {types.map((t) => (
+      {/* 操作列 */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* タイプ絞り込み */}
+        <div className="flex flex-wrap items-center gap-1">
           <button
-            key={t}
             className={`text-[11px] rounded-md px-2 py-1 border ${
-              filter === t ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
+              !ui.filter ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
             }`}
-            onClick={() => setFilter(t)}
+            onClick={() => setUi((s) => ({ ...s, filter: null }))}
           >
-            {t}
+            全て
           </button>
-        ))}
+          {types.map((t) => (
+            <button
+              key={t}
+              className={`text-[11px] rounded-md px-2 py-1 border ${
+                ui.filter === t ? "bg-white/15 border-white/20" : "bg-white/5 border-white/10"
+              }`}
+              onClick={() => setUi((s) => ({ ...s, filter: t }))}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* 検索 */}
+        <input
+          value={ui.search}
+          onChange={(e) => setUi((s) => ({ ...s, search: e.target.value }))}
+          placeholder="検索（text / quote / section）"
+          className="ml-2 min-w-[180px] flex-1 rounded-md bg-black/30 px-2 py-1 text-xs border border-white/10 outline-none placeholder:text-zinc-500"
+        />
+
+        {/* 一括操作 */}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setAllExpand(true)}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
+            全展開
+          </button>
+          <button
+            onClick={() => setAllExpand(false)}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
+            全閉じ
+          </button>
+          <span className="mx-1 h-4 w-px bg-white/10" />
+          <button
+            onClick={copyAll}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
+            まとめてコピー
+          </button>
+          <button
+            onClick={() =>
+              downloadBlob("annotations.json", JSON.stringify(items, null, 2), "application/json")
+            }
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
+            JSON
+          </button>
+          <button onClick={exportMarkdown} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+            MD
+          </button>
+          <button onClick={exportCSV} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+            CSV
+          </button>
+        </div>
       </div>
 
-      {Object.entries(groups).map(([sec, arr]) => (
-        <div key={sec} className="mb-3">
-          <div className="mb-2 text-xs uppercase tracking-wide text-zinc-400">{sec}</div>
-          <ul className="space-y-2">
-            {arr.map((a, i) => (
-              <li
-                key={`${sec}-${i}-${a._idx}`}
-                className={[
-                  "rounded-lg border border-white/10 bg-black/20 p-2 transition",
-                  hoverIdx === a._idx ? "ring-1 ring-cyan-400/60" : "",
-                ].join(" ")}
-                onMouseEnter={() => setHoverIdx(a._idx)}
-                onMouseLeave={() => setHoverIdx(null)}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-zinc-100 leading-relaxed">
-                    {/* 連番バッジ（本文マーカーと同期） */}
-                    {a._idx && (
-                      <span className="mr-1 text-[10px] rounded bg-white/10 border border-white/10 px-1 align-middle">
-                        [{a._idx}]
-                      </span>
-                    )}
-                    {a.text}
-                  </div>
-                  <button
-                    className="text-[10px] text-zinc-400 hover:text-zinc-200 underline decoration-white/20 shrink-0"
-                    onClick={() => navigator.clipboard?.writeText(a.text)}
-                    aria-label="注釈をコピー"
+      {/* セクションごとに表示 */}
+      {Object.entries(groups).map(([sec, arr]) => {
+        const collapsed =
+          ui.expandAll ? ui.collapsedSections.includes(sec) : !ui.collapsedSections.includes(sec);
+        return (
+          <div key={sec} className="mb-3">
+            <button
+              onClick={() => toggleSection(sec)}
+              className="w-full flex items-center justify-between rounded-md bg-black/20 px-2 py-1 border border-white/10 text-left"
+            >
+              <div className="text-xs uppercase tracking-wide text-zinc-400">
+                {sec}
+                <span className="ml-2 text-[10px] text-zinc-500">({arr.length})</span>
+              </div>
+              <span className="text-[10px] text-zinc-400">{collapsed ? "＋" : "－"}</span>
+            </button>
+
+            {!collapsed && (
+              <ul className="mt-2 space-y-2">
+                {arr.map((a, i) => (
+                  <li
+                    key={`${sec}-${i}-${a._idx}`}
+                    className={[
+                      "rounded-lg border border-white/10 bg-black/20 p-2 transition",
+                      hoverIdx === a._idx ? "ring-1 ring-cyan-400/60" : "",
+                    ].join(" ")}
+                    onMouseEnter={() => setHoverIdx(a._idx)}
+                    onMouseLeave={() => setHoverIdx(null)}
                   >
-                    コピー
-                  </button>
-                </div>
-                <div className="mt-1 text-[11px] text-zinc-400 flex items-center">
-                  <span className="ml-0 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
-                    {typeLabel(a.type)}
-                  </span>
-                  {badge(a.importance)}
-                </div>
-                {a.quote && (
-                  <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-zinc-100 leading-relaxed">
+                        {/* 連番バッジ（本文マーカーと同期） */}
+                        {a._idx && (
+                          <button
+                            onClick={() => onJump(a._idx)}
+                            className="mr-1 text-[10px] rounded bg-white/10 border border-white/10 px-1 align-middle hover:bg-white/20"
+                            title="本文の該当位置へ移動"
+                          >
+                            [{a._idx}]
+                          </button>
+                        )}
+                        {a.text}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          className="text-[10px] text-zinc-400 hover:text-zinc-200 underline decoration-white/20"
+                          onClick={() => navigator.clipboard?.writeText(a.text)}
+                          aria-label="注釈をコピー"
+                        >
+                          コピー
+                        </button>
+                        <button
+                          className={`text-[10px] underline decoration-white/20 ${ui.pinned.includes(a._idx) ? "text-amber-300 hover:text-amber-200" : "text-zinc-400 hover:text-zinc-200"}`}
+                          onClick={() => togglePin(a._idx)}
+                          title="ピン留め"
+                        >
+                          {ui.pinned.includes(a._idx) ? "★ピン" : "☆ピン"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-1 text-[11px] text-zinc-400 flex items-center">
+                      <span className="ml-0 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
+                        {typeLabel(a.type)}
+                      </span>
+                      {badge(a.importance)}
+                    </div>
+                    {a.quote && (
+                      <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -563,14 +767,26 @@ function markerSup(idx: number, hoverIdx: number | null, ml = false) {
 /* ---------------- Utils ---------------- */
 
 function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function downloadBlob(filename: string, data: string, type: string) {
+  const blob = new Blob([data], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvSafe(s: string | undefined | null): string {
+  const v = (s ?? "").replace(/"/g, '""');
+  return `"${v}"`;
 }
 
 function Typing() {
