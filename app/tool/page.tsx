@@ -30,25 +30,176 @@ type AnnWithIdx = Annotation & { _idx: number };
 const MAX_FREE_CREDITS = 5;
 const MAX_INPUT_CHARS = 4000;
 
+/* ---------------- Presets ---------------- */
+
+type ToolState = {
+  category: string;
+  age: string;
+  scene: string;
+  bulletMode: "default" | "one_idea_one_sentence";
+  leadCompact: boolean;
+  priceCta: boolean;
+  diffFact: boolean;
+  numericSensory: boolean;
+  complianceStrict: boolean;
+  comparisonHelper: boolean;
+  annotationMode: boolean;
+};
+
+const PRESETS: Array<{ key: string; label: string; hint?: string; s: Partial<ToolState> }> = [
+  {
+    key: "beauty_40_device",
+    label: "美容機器｜40代・週3×15分（推奨）",
+    hint: "法規強 × 数値+体感 × 事実差別化",
+    s: {
+      category: "美容機器",
+      age: "40代",
+      scene: "週3×15分",
+      bulletMode: "default",
+      leadCompact: true,
+      priceCta: true,
+      diffFact: true,
+      numericSensory: true,
+      complianceStrict: true,
+      comparisonHelper: true,
+      annotationMode: true,
+    },
+  },
+  {
+    key: "beauty_50_slow",
+    label: "美容機器｜50代・就寝前ケア",
+    hint: "エイジング訴求より・体感強め",
+    s: {
+      category: "美容機器",
+      age: "50代",
+      scene: "指定なし",
+      bulletMode: "one_idea_one_sentence",
+      leadCompact: false,
+      priceCta: true,
+      diffFact: true,
+      numericSensory: true,
+      complianceStrict: true,
+      comparisonHelper: true,
+      annotationMode: true,
+    },
+  },
+  {
+    key: "meat_gift",
+    label: "食品（精肉）｜ギフト・認証最優先",
+    hint: "産地/認証/保存・調理ガイド優先",
+    s: {
+      category: "食品（精肉）",
+      age: "指定なし",
+      scene: "ギフト",
+      bulletMode: "default",
+      leadCompact: true,
+      priceCta: false,
+      diffFact: true,
+      numericSensory: true,
+      complianceStrict: true,
+      comparisonHelper: true,
+      annotationMode: true,
+    },
+  },
+  {
+    key: "food_general",
+    label: "食品（一般）｜日常使い",
+    hint: "添加・アレルギー・保存方法を簡潔に",
+    s: {
+      category: "食品（一般）",
+      age: "指定なし",
+      scene: "指定なし",
+      bulletMode: "default",
+      leadCompact: true,
+      priceCta: false,
+      diffFact: true,
+      numericSensory: true,
+      complianceStrict: true,
+      comparisonHelper: false,
+      annotationMode: true,
+    },
+  },
+  {
+    key: "appliance_basic",
+    label: "家電｜仕様→“できること”接続",
+    hint: "数値は必要十分・比較ヘルパーON",
+    s: {
+      category: "家電",
+      age: "指定なし",
+      scene: "指定なし",
+      bulletMode: "default",
+      leadCompact: true,
+      priceCta: true,
+      diffFact: true,
+      numericSensory: true,
+      complianceStrict: true,
+      comparisonHelper: true,
+      annotationMode: true,
+    },
+  },
+  {
+    key: "fashion_min",
+    label: "ファッション｜ミニマル訴求",
+    hint: "素材・縫製・サイズ運用優先",
+    s: {
+      category: "ファッション",
+      age: "指定なし",
+      scene: "指定なし",
+      bulletMode: "one_idea_one_sentence",
+      leadCompact: true,
+      priceCta: false,
+      diffFact: true,
+      numericSensory: false,
+      complianceStrict: true,
+      comparisonHelper: false,
+      annotationMode: true,
+    },
+  },
+];
+
+/* ---------------- Helpers ---------------- */
+
+function mapAgeToNumber(v: string | null): number | null {
+  if (!v) return null;
+  if (v.includes("30")) return 30;
+  if (v.includes("40")) return 40;
+  if (v.includes("50")) return 50;
+  return null;
+}
+
+function loadLocal<T>(k: string, fb: T): T {
+  try {
+    const raw = localStorage.getItem(k);
+    return raw ? (JSON.parse(raw) as T) : fb;
+  } catch {
+    return fb;
+  }
+}
+
 /* ---------------- Page ---------------- */
 
 export default function ToolPage() {
   const [input, setInput] = useState("");
-  const [media, setMedia] = useState<"ad" | "social" | "lp">("ad");
-  const [model, setModel] = useState("Boost Suite v0");
-  const [annotationMode, setAnnotationMode] = useState(true);
+  const [presetKey, setPresetKey] = useState<string>(() => {
+    if (typeof window === "undefined") return PRESETS[0].key;
+    return localStorage.getItem("bs_preset_key") || PRESETS[0].key;
+  });
 
-  // ★ 追加：制御フラグ（UI）
-  const [category, setCategory] = useState<"" | "美容機器" | "食品">("");
-  const [age, setAge] = useState<"" | "30" | "40" | "50">("");
-  const [leadCompact, setLeadCompact] = useState(true);
-  const [priceCta, setPriceCta] = useState(true);
-  const [scene, setScene] = useState<"" | "device_15min" | "gift">("device_15min");
-  const [diffFact, setDiffFact] = useState(true);
-  const [numSens, setNumSens] = useState(true);
-  const [compliance, setCompliance] = useState(true);
-  const [compHelper, setCompHelper] = useState(true);
-  const [diffCompPrice, setDiffCompPrice] = useState(true);
+  // フラグ・選択群（ローカル保存）
+  const [category, setCategory] = useState<string>(() => loadLocal("bs_category", "指定なし"));
+  const [age, setAge] = useState<string>(() => loadLocal("bs_age", "指定なし"));
+  const [scene, setScene] = useState<string>(() => loadLocal("bs_scene", "指定なし"));
+  const [bulletMode, setBulletMode] = useState<"default" | "one_idea_one_sentence">(
+    () => loadLocal("bs_bulletMode", "default")
+  );
+
+  const [leadCompact, setLeadCompact] = useState<boolean>(() => loadLocal("bs_leadCompact", true));
+  const [priceCta, setPriceCta] = useState<boolean>(() => loadLocal("bs_priceCta", true));
+  const [diffFact, setDiffFact] = useState<boolean>(() => loadLocal("bs_diffFact", true));
+  const [numericSensory, setNumericSensory] = useState<boolean>(() => loadLocal("bs_numericSensory", true));
+  const [complianceStrict, setComplianceStrict] = useState<boolean>(() => loadLocal("bs_complianceStrict", true));
+  const [comparisonHelper, setComparisonHelper] = useState<boolean>(() => loadLocal("bs_comparisonHelper", true));
+  const [annotationMode, setAnnotationMode] = useState<boolean>(() => loadLocal("bs_annotationMode", true));
 
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
@@ -67,13 +218,42 @@ export default function ToolPage() {
   });
   const [showWall, setShowWall] = useState(false);
 
+  // 状態保存
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("bs_msgs", JSON.stringify(msgs));
-      localStorage.setItem("bs_free_credits", String(credits));
-    }
-  }, [msgs, credits]);
+    if (typeof window === "undefined") return;
+    localStorage.setItem("bs_msgs", JSON.stringify(msgs));
+    localStorage.setItem("bs_free_credits", String(credits));
+    localStorage.setItem("bs_preset_key", presetKey);
 
+    localStorage.setItem("bs_category", JSON.stringify(category));
+    localStorage.setItem("bs_age", JSON.stringify(age));
+    localStorage.setItem("bs_scene", JSON.stringify(scene));
+    localStorage.setItem("bs_bulletMode", JSON.stringify(bulletMode));
+    localStorage.setItem("bs_leadCompact", JSON.stringify(leadCompact));
+    localStorage.setItem("bs_priceCta", JSON.stringify(priceCta));
+    localStorage.setItem("bs_diffFact", JSON.stringify(diffFact));
+    localStorage.setItem("bs_numericSensory", JSON.stringify(numericSensory));
+    localStorage.setItem("bs_complianceStrict", JSON.stringify(complianceStrict));
+    localStorage.setItem("bs_comparisonHelper", JSON.stringify(comparisonHelper));
+    localStorage.setItem("bs_annotationMode", JSON.stringify(annotationMode));
+  }, [
+    msgs,
+    credits,
+    presetKey,
+    category,
+    age,
+    scene,
+    bulletMode,
+    leadCompact,
+    priceCta,
+    diffFact,
+    numericSensory,
+    complianceStrict,
+    comparisonHelper,
+    annotationMode,
+  ]);
+
+  // スクロール末尾
   const scRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scRef.current?.scrollTo({ top: scRef.current.scrollHeight, behavior: "smooth" });
@@ -81,12 +261,38 @@ export default function ToolPage() {
 
   const canSend = input.trim().length > 0 && !busy && credits > 0;
 
+  const applyPreset = (key: string) => {
+    const p = PRESETS.find((x) => x.key === key);
+    if (!p) return;
+    setPresetKey(key);
+    if (p.s.category !== undefined) setCategory(p.s.category!);
+    if (p.s.age !== undefined) setAge(p.s.age!);
+    if (p.s.scene !== undefined) setScene(p.s.scene!);
+    if (p.s.bulletMode !== undefined) setBulletMode(p.s.bulletMode!);
+    if (p.s.leadCompact !== undefined) setLeadCompact(p.s.leadCompact!);
+    if (p.s.priceCta !== undefined) setPriceCta(p.s.priceCta!);
+    if (p.s.diffFact !== undefined) setDiffFact(p.s.diffFact!);
+    if (p.s.numericSensory !== undefined) setNumericSensory(p.s.numericSensory!);
+    if (p.s.complianceStrict !== undefined) setComplianceStrict(p.s.complianceStrict!);
+    if (p.s.comparisonHelper !== undefined) setComparisonHelper(p.s.comparisonHelper!);
+    if (p.s.annotationMode !== undefined) setAnnotationMode(p.s.annotationMode!);
+  };
+
+  useEffect(() => {
+    // 初回ロード時に一度だけプリセット適用（保存があればそれ優先）
+    if (typeof window === "undefined") return;
+    const already = sessionStorage.getItem("bs_preset_applied");
+    if (already) return;
+    applyPreset(presetKey);
+    sessionStorage.setItem("bs_preset_applied", "1");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSend = async () => {
     if (!canSend) {
       if (credits <= 0) setShowWall(true);
       return;
     }
-
     const raw = input.trim();
     const prompt = raw.length > MAX_INPUT_CHARS ? raw.slice(0, MAX_INPUT_CHARS) : raw;
     const user: Msg = { role: "user", content: prompt, ts: Date.now() };
@@ -95,28 +301,27 @@ export default function ToolPage() {
     setBusy(true);
     setCredits((c) => Math.max(0, c - 1));
 
+    const body = {
+      prompt,
+      annotation_mode: annotationMode,
+      lead_compact: leadCompact,
+      bullet_mode: bulletMode,
+      price_cta: priceCta,
+      scene_realism: scene === "週3×15分" ? "device_15min" : null,
+      diff_fact: diffFact,
+      numeric_sensory: numericSensory,
+      compliance_strict: complianceStrict,
+      comparison_helper: comparisonHelper,
+      audience_age: mapAgeToNumber(age),
+      category: category === "指定なし" ? null : category,
+    };
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          prompt,
-          media,
-          annotation_mode: annotationMode,
-
-          // ★ 追加：APIへ渡すフラグ
-          category: category || null,
-          audience_age: age ? Number(age) : null,
-          lead_compact: !!leadCompact,
-          price_cta: !!priceCta,
-          scene_realism: scene || null,
-          diff_fact: !!diffFact,
-          numeric_sensory: !!numSens,
-          compliance_strict: !!compliance,
-          comparison_helper: !!compHelper,
-          diff_comp_price: !!diffCompPrice
-        }),
+        body: JSON.stringify(body),
       });
 
       const text = await res.text();
@@ -156,117 +361,149 @@ export default function ToolPage() {
 
   return (
     <main className="min-h-[100svh] bg-black text-white">
+      {/* PCドロップダウン白飛び対策 */}
+      <style jsx global>{`
+        select {
+          color: #e5e5e5;
+          background-color: rgba(255, 255, 255, 0.06);
+        }
+        select:focus {
+          outline: none;
+        }
+        option {
+          color: #e5e5e5 !important;
+          background-color: #0b0b0f !important;
+        }
+      `}</style>
+
       {/* Top bar */}
       <div className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-zinc-400">ツール</span>
-            <span className="h-4 w-px bg-white/10" />
-            <span className="text-zinc-300">モデル</span>
+        {/* 1段目：プリセット帯 */}
+        <div className="mx-auto max-w-6xl px-4 py-2">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="text-zinc-300 shrink-0">プリセット</span>
+            <div className="flex-1 overflow-x-auto no-scrollbar">
+              <div className="flex gap-2 min-w-max">
+                {PRESETS.map((p) => {
+                  const active = p.key === presetKey;
+                  return (
+                    <button
+                      key={p.key}
+                      onClick={() => applyPreset(p.key)}
+                      className={[
+                        "rounded-lg px-3 py-1.5 border transition whitespace-nowrap",
+                        active
+                          ? "bg-white/15 border-white/20 text-zinc-50"
+                          : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10",
+                      ].join(" ")}
+                      title={p.hint || ""}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+              value={presetKey}
+              onChange={(e) => applyPreset(e.target.value)}
+              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none shrink-0"
+              aria-label="プリセット選択"
             >
-              <option>Boost Suite v0</option>
-              <option disabled>Boost Suite v1（準備中）</option>
+              {PRESETS.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
             </select>
-
-            <span className="h-4 w-px bg-white/10 ml-3" />
-            <span className="text-zinc-300">媒体</span>
-            <select
-              value={media}
-              onChange={(e) => setMedia(e.target.value as any)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-            >
-              <option value="ad">ad（広告）</option>
-              <option value="social">social（SNS）</option>
-              <option value="lp">lp（LP/詳細）</option>
-            </select>
-
-            {/* ★ 追加：カテゴリ */}
-            <span className="h-4 w-px bg-white/10 ml-3" />
-            <span className="text-zinc-300">カテゴリ</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-            >
-              <option value="">指定なし</option>
-              <option value="美容機器">美容機器</option>
-              <option value="食品">食品</option>
-            </select>
-
-            {/* ★ 追加：年代 */}
-            <span className="h-4 w-px bg-white/10 ml-3" />
-            <span className="text-zinc-300">年代</span>
-            <select
-              value={age}
-              onChange={(e) => setAge(e.target.value as any)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-            >
-              <option value="">指定なし</option>
-              <option value="30">30代</option>
-              <option value="40">40代</option>
-              <option value="50">50代</option>
-            </select>
-
-            {/* ★ 追加：シーン */}
-            <span className="h-4 w-px bg-white/10 ml-3" />
-            <span className="text-zinc-300">シーン</span>
-            <select
-              value={scene}
-              onChange={(e) => setScene(e.target.value as any)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-            >
-              <option value="">指定なし</option>
-              <option value="device_15min">週3×15分</option>
-              <option value="gift">ギフト</option>
-            </select>
-
-            {/* ★ 追加：各種トグル */}
-            <label className="ml-3 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={leadCompact} onChange={(e)=>setLeadCompact(e.target.checked)} />
-              リード簡潔
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={priceCta} onChange={(e)=>setPriceCta(e.target.checked)} />
-              Price CTA
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={diffFact} onChange={(e)=>setDiffFact(e.target.checked)} />
-              事実差別化
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={numSens} onChange={(e)=>setNumSens(e.target.checked)} />
-              数値＋体感
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={compliance} onChange={(e)=>setCompliance(e.target.checked)} />
-              コンプ強
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={compHelper} onChange={(e)=>setCompHelper(e.target.checked)} />
-              比較ヘルパー
-            </label>
-            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
-              <input type="checkbox" checked={diffCompPrice} onChange={(e)=>setDiffCompPrice(e.target.checked)} />
-              非数値価格ポジ
-            </label>
-
-            {/* 解説 */}
-            <span className="h-4 w-px bg-white/10 ml-3" />
-            <label className="ml-3 flex items-center gap-1 text-xs text-zinc-400">
-              <input
-                type="checkbox"
-                checked={annotationMode}
-                onChange={(e) => setAnnotationMode(e.target.checked)}
-              />
-              解説ON
-            </label>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2">
+        {/* 2段目：カテゴリ/年代/シーン/バレット */}
+        <div className="mx-auto max-w-6xl px-4 py-2 flex items-center gap-3 flex-wrap text-sm">
+          <span className="text-zinc-300">ツール</span>
+          <span className="h-4 w-px bg-white/10" />
+          <span className="text-zinc-400">Boost Suite v2</span>
+
+          <span className="h-4 w-px bg-white/10 ml-3" />
+          <span className="text-zinc-300">カテゴリ</span>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+          >
+            <option>指定なし</option>
+            <option>美容機器</option>
+            <option>食品（精肉）</option>
+            <option>食品（一般）</option>
+            <option>家電</option>
+            <option>インテリア</option>
+            <option>ファッション</option>
+          </select>
+
+          <span className="h-4 w-px bg-white/10 ml-3" />
+          <span className="text-zinc-300">年代</span>
+          <select
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+          >
+            <option>指定なし</option>
+            <option>30代</option>
+            <option>40代</option>
+            <option>50代</option>
+          </select>
+
+          <span className="h-4 w-px bg-white/10 ml-3" />
+          <span className="text-zinc-300">シーン</span>
+          <select
+            value={scene}
+            onChange={(e) => setScene(e.target.value)}
+            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+          >
+            <option>指定なし</option>
+            <option>週3×15分</option>
+            <option>ギフト</option>
+          </select>
+
+          <span className="h-4 w-px bg-white/10 ml-3" />
+          <span className="text-zinc-300">バレット</span>
+          <select
+            value={bulletMode}
+            onChange={(e) => setBulletMode(e.target.value as any)}
+            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+          >
+            <option value="default">SmartBullet 標準</option>
+            <option value="one_idea_one_sentence">1機能=1文</option>
+          </select>
+
+          <label className="ml-3 flex items-center gap-1 text-xs text-zinc-400">
+            <input
+              type="checkbox"
+              checked={annotationMode}
+              onChange={(e) => setAnnotationMode(e.target.checked)}
+            />
+            解説ON
+          </label>
+        </div>
+
+        {/* 3段目：フラグ群 */}
+        <div className="border-t border-white/10">
+          <div className="mx-auto max-w-6xl px-4 py-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              <Flag label="リード簡潔" value={leadCompact} onChange={setLeadCompact} />
+              <Flag label="Price CTA" value={priceCta} onChange={setPriceCta} />
+              <Flag label="事実差別化" value={diffFact} onChange={setDiffFact} />
+              <Flag label="数値＋体感" value={numericSensory} onChange={setNumericSensory} />
+              <Flag label="コンプ強" value={complianceStrict} onChange={setComplianceStrict} />
+              <Flag label="比較ヘルパー" value={comparisonHelper} onChange={setComparisonHelper} />
+            </div>
+          </div>
+        </div>
+
+        {/* 4段目：右サマリー＋残数 */}
+        <div className="border-t border-white/10">
+          <div className="mx-auto max-w-6xl px-4 py-2 flex items-center justify-end gap-2">
             <span className="text-xs text-zinc-400">無料体験 残り</span>
             <span className="rounded-md bg-white/5 border border-white/10 px-2 py-[2px] text-xs">
               {credits}/{MAX_FREE_CREDITS}（{remainingBadge}）
@@ -303,9 +540,7 @@ export default function ToolPage() {
                 ))}
             </div>
           </div>
-          <div className="mt-3 text-xs text-zinc-500">
-            ※ 現在は端末ローカルに保存（ログイン後はサーバー保存）
-          </div>
+          <div className="mt-3 text-xs text-zinc-500">※ 現在は端末ローカルに保存（ログイン後はサーバー保存）</div>
         </aside>
 
         {/* Main */}
@@ -363,9 +598,7 @@ export default function ToolPage() {
             <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm">
               <div className="w-[92%] max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 text-center">
                 <h3 className="text-lg font-semibold text-white">無料体験の上限に達しました</h3>
-                <p className="mt-2 text-sm text-zinc-400">
-                  続きは無料アカウント登録で解放できます。
-                </p>
+                <p className="mt-2 text-sm text-zinc-400">続きは無料アカウント登録で解放できます。</p>
                 <div className="mt-5 flex flex-col gap-2">
                   <Link
                     href="/pricing"
@@ -389,7 +622,24 @@ export default function ToolPage() {
   );
 }
 
-/* ---------------- sub components ---------------- */
+/* ---------------- Small components ---------------- */
+
+function Flag({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 border border-white/10 text-xs text-zinc-300">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
 
 function Bubble({ msg }: { msg: Msg }) {
   const isUser = msg.role === "user";
@@ -398,6 +648,7 @@ function Bubble({ msg }: { msg: Msg }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const indexed: AnnWithIdx[] = withIndex(msg.annotations || []);
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   const handleCopy = async () => {
     try {
@@ -407,8 +658,6 @@ function Bubble({ msg }: { msg: Msg }) {
       alert("コピーに失敗しました");
     }
   };
-
-  const bubbleRef = useRef<HTMLDivElement>(null);
 
   const jumpToMarker = (idx: number) => {
     const root = bubbleRef.current;
@@ -425,9 +674,7 @@ function Bubble({ msg }: { msg: Msg }) {
       ref={bubbleRef}
       className={[
         "relative w-fit max-w-full break-words rounded-2xl px-4 py-3",
-        isUser
-          ? "ml-auto bg-white text-zinc-950"
-          : "mr-auto bg-white/5 border border-white/10 text-zinc-100",
+        isUser ? "ml-auto bg-white text-zinc-950" : "mr-auto bg-white/5 border border-white/10 text-zinc-100",
       ].join(" ")}
     >
       {isUser ? (
@@ -461,7 +708,9 @@ function Bubble({ msg }: { msg: Msg }) {
               </button>
 
               <button
-                onClick={() => downloadBlob("annotations.json", JSON.stringify(msg.annotations, null, 2), "application/json")}
+                onClick={() =>
+                  downloadBlob("annotations.json", JSON.stringify(msg.annotations, null, 2), "application/json")
+                }
                 className="text-[12px] text-zinc-300 hover:text-zinc-100 underline decoration-white/20"
               >
                 JSON保存
@@ -512,7 +761,6 @@ function AnnotationsPanel({
 }) {
   if (!items?.length) return null;
 
-  const STORE = "bs_ann_ui";
   type UIState = {
     filter: string | null;
     search: string;
@@ -520,7 +768,7 @@ function AnnotationsPanel({
     collapsedSections: string[];
     expandAll: boolean;
   };
-
+  const STORE = "bs_ann_ui";
   const loadState = (): UIState => {
     try {
       const raw = localStorage.getItem(STORE);
@@ -533,12 +781,12 @@ function AnnotationsPanel({
   };
 
   const [ui, setUi] = useState<UIState>(loadState);
-
   useEffect(() => {
     localStorage.setItem(STORE, JSON.stringify(ui));
   }, [ui]);
 
   const types = useMemo(() => Array.from(new Set(items.map((a) => typeLabel(a.type)))), [items]);
+
   const filtered = useMemo(() => {
     let arr = items.slice();
     if (ui.filter) arr = arr.filter((a) => typeLabel(a.type) === ui.filter);
@@ -645,7 +893,9 @@ function AnnotationsPanel({
 
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+      {/* 操作列 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* タイプ絞り込み */}
         <div className="flex flex-wrap items-center gap-1">
           <button
             className={`text-[11px] rounded-md px-2 py-1 border ${
@@ -668,6 +918,7 @@ function AnnotationsPanel({
           ))}
         </div>
 
+        {/* 検索 */}
         <input
           value={ui.search}
           onChange={(e) => setUi((s) => ({ ...s, search: e.target.value }))}
@@ -675,30 +926,20 @@ function AnnotationsPanel({
           className="ml-2 min-w-[180px] flex-1 rounded-md bg-black/30 px-2 py-1 text-xs border border-white/10 outline-none placeholder:text-zinc-500"
         />
 
+        {/* 一括操作 */}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => setAllExpand(true)}
-            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
-          >
+          <button onClick={() => setAllExpand(true)} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
             全展開
           </button>
-          <button
-            onClick={() => setAllExpand(false)}
-            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
-          >
+          <button onClick={() => setAllExpand(false)} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
             全閉じ
           </button>
           <span className="mx-1 h-4 w-px bg-white/10" />
-          <button
-            onClick={copyAll}
-            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
-          >
+          <button onClick={copyAll} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
             まとめてコピー
           </button>
           <button
-            onClick={() =>
-              downloadBlob("annotations.json", JSON.stringify(items, null, 2), "application/json")
-            }
+            onClick={() => downloadBlob("annotations.json", JSON.stringify(items, null, 2), "application/json")}
             className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
           >
             JSON
@@ -712,9 +953,9 @@ function AnnotationsPanel({
         </div>
       </div>
 
+      {/* セクションごと */}
       {Object.entries(groups).map(([sec, arr]) => {
-        const collapsed =
-          ui.expandAll ? ui.collapsedSections.includes(sec) : !ui.collapsedSections.includes(sec);
+        const collapsed = ui.expandAll ? ui.collapsedSections.includes(sec) : !ui.collapsedSections.includes(sec);
         return (
           <div key={sec} className="mb-3">
             <button
@@ -762,23 +1003,26 @@ function AnnotationsPanel({
                           コピー
                         </button>
                         <button
-                          className={`text-[10px] underline decoration-white/20 ${ui.pinned.includes(a._idx) ? "text-amber-300 hover:text-amber-200" : "text-zinc-400 hover:text-zinc-200"}`}
-                          onClick={() => togglePin(a._idx)}
-                          title="ピン留め"
-                        >
-                          {ui.pinned.includes(a._idx) ? "★ピン" : "☆ピン"}
-                        </button>
+                          className={`text-[10px] underline decoration-white/20 ${
+                            (loadLocal<number[]>("__dummy", []) as any) // no-op
+                          } ${/* keep class merging deterministic */ ""} ${
+                            /* pin visual handled in parent */ ""}`}
+                          onClick={() => {}}
+                          title=""
+                          aria-hidden
+                          style={{ display: "none" }}
+                        />
                       </div>
                     </div>
                     <div className="mt-1 text-[11px] text-zinc-400 flex items-center">
                       <span className="ml-0 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
                         {typeLabel(a.type)}
                       </span>
-                      {badge(a.importance)}
+                      <span className="ml-2 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
+                        {a.importance}
+                      </span>
                     </div>
-                    {a.quote && (
-                      <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>
-                    )}
+                    {a.quote && <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>}
                   </li>
                 ))}
               </ul>
@@ -790,7 +1034,7 @@ function AnnotationsPanel({
   );
 }
 
-/* ---------------- Markers ---------------- */
+/* ---------------- Markers (本文 [n]) ---------------- */
 
 function withIndex<T extends Annotation>(items: T[] = []): (T & { _idx: number })[] {
   return items.map((a, i) => ({ ...a, _idx: i + 1 }));
@@ -803,17 +1047,12 @@ function renderWithMarkers(
   setHoverIdx: (n: number | null) => void
 ) {
   let html = escapeHtml(text);
-
   for (const a of anns) {
     if (!a.quote) continue;
     const quoted = escapeRegExp(a.quote);
     const re = new RegExp(quoted);
-    html = html.replace(re, (m) => {
-      const marked = markerSup(a._idx, hoverIdx);
-      return `${m}${marked}`;
-    });
+    html = html.replace(re, (m) => `${m}${markerSup(a._idx, hoverIdx)}`);
   }
-
   const noQuote = anns.filter((a) => !a.quote);
   if (noQuote.length) {
     const tail = noQuote.map((a) => markerSup(a._idx, hoverIdx, true)).join("");
@@ -844,11 +1083,9 @@ function markerSup(idx: number, hoverIdx: number | null, ml = false) {
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
-
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
 function downloadBlob(filename: string, data: string, type: string) {
   const blob = new Blob([data], { type });
   const url = URL.createObjectURL(blob);
@@ -858,11 +1095,12 @@ function downloadBlob(filename: string, data: string, type: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
 function csvSafe(s: string | undefined | null): string {
   const v = (s ?? "").replace(/"/g, '""');
   return `"${v}"`;
 }
+
+/* ---------------- UI bits ---------------- */
 
 function Typing() {
   return (
@@ -873,8 +1111,12 @@ function Typing() {
         <Dot className="animation-delay-300" />
       </div>
       <style jsx>{`
-        .animation-delay-150 { animation-delay: 0.15s; }
-        .animation-delay-300 { animation-delay: 0.3s; }
+        .animation-delay-150 {
+          animation-delay: 0.15s;
+        }
+        .animation-delay-300 {
+          animation-delay: 0.3s;
+        }
       `}</style>
     </div>
   );
@@ -887,14 +1129,7 @@ function Dot({ className = "" }: { className?: string }) {
 function ArrowRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-90">
-      <path
-        d="M5 12h14M13 5l7 7-7 7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -908,7 +1143,7 @@ function seedWelcome(): Msg[] {
     {
       role: "assistant",
       content:
-        "原文を貼って「Boost」を押してください。\n【解説】ONで、整流後に“どこがどう良くなったか”を注釈表示します。",
+        "原文を貼って「Boost」を押してください。\n上のプリセットを押すだけで“カテゴリ/年齢/シーン/法規”などが自動最適化されます。解説ONで、どこが良くなったかも注釈表示。",
       ts: Date.now(),
     },
   ];
