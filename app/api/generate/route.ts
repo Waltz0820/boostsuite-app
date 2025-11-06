@@ -63,6 +63,7 @@ const YAKKI_FILTERS = ["A","B","C","D"]
   .filter(Boolean)
   .join("\n");
 
+// Explain Layer は 1.0 固定
 const EXPLAIN_PROMPT_V1 = readText("prompts/explain/BoostSuite_Explain_v1.0.txt");
 
 /* =========================================================================
@@ -70,10 +71,10 @@ const EXPLAIN_PROMPT_V1 = readText("prompts/explain/BoostSuite_Explain_v1.0.txt"
    ========================================================================= */
 const isFiveFamily  = (m: string) => /^gpt-5($|-)/i.test(m);
 
-const DEFAULT_STAGE1_MODEL      = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
-const DEFAULT_STAGE2_MODEL      = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
-const STRONG_HUMANIZE_MODEL     = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
-const EXPLAIN_LAYER_MODEL       = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
+const DEFAULT_STAGE1_MODEL  = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
+const DEFAULT_STAGE2_MODEL  = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
+const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+const EXPLAIN_LAYER_MODEL   = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
 
 async function callOpenAI(payload: any, key: string, timeout: number) {
   const controller = new AbortController();
@@ -215,37 +216,53 @@ export async function POST(req: Request) {
     const finalText = factLock(String(s2.content || ""));
 
     /* ---------------- Stage3: Explain Layer（解説AI） ---------------- */
-    let annotations: Array<{ section:string; text:string; type:string; importance:"low"|"medium"|"high" }> = [];
+    let annotations: Array<{
+      section: string;
+      text: string;
+      type: string;
+      importance: "low" | "medium" | "high";
+      quote?: string;
+      before?: string;
+      after?: string;
+      tip?: string;
+    }> = [];
 
     if (annotation_mode && EXPLAIN_PROMPT_V1) {
       const explainContent = EXPLAIN_PROMPT_V1.replace("{{STAGE2_TEXT}}", finalText);
-      const s3Payload:any = {
+      const s3Payload: any = {
         model: EXPLAIN_LAYER_MODEL,
         messages: [
-          { role: "system", content: "You are Boost Suite Explain Layer. Analyze improvements in natural Japanese and summarize user-facing commentary." },
+          { role: "system", content: "You are Boost Suite Explain Layer. Output strictly in JSON with top-level {\"annotations\": [...]}." },
           { role: "user", content: explainContent }
         ],
-        stream: false,
-        temperature: 0.1
+        stream: false
       };
+      // gpt-5系以外のみ温度指定
+      if (!isFiveFamily(EXPLAIN_LAYER_MODEL)) {
+        s3Payload.temperature = 0.0;
+        s3Payload.top_p = 1.0;
+      }
 
       const s3 = await callOpenAI(s3Payload, apiKey, STAGE3_TIMEOUT_MS);
       if (s3.ok) {
         try {
-          const parsed: { annotations?: any[] } = JSON.parse(String(s3.content || "{}"));
-          if (Array.isArray(parsed.annotations)) {
-            annotations = (parsed.annotations as any[])
-              .filter((x: any) => x && typeof x === "object")
-              .map((x: any) => ({
-                section: String(x.section || ""),
-                text: String(x.text || ""),
-                type: String(x.type || "Structure"),
-                importance: (x.importance === "high" || x.importance === "medium") ? x.importance : "low"
-              }))
-              .slice(0, 64);
-          }
+          const parsed = JSON.parse(String(s3.content || "{}"));
+          const arr = Array.isArray(parsed?.annotations) ? parsed.annotations : [];
+          annotations = arr
+            .filter((x:any) => x && typeof x === "object")
+            .map((x:any) => ({
+              section: String(x.section || ""),
+              text: String(x.text || ""),
+              type: String(x.type || "Structure"),
+              importance: (x.importance === "high" || x.importance === "medium") ? x.importance : "low",
+              quote: x.quote ? String(x.quote) : undefined,
+              before: x.before ? String(x.before) : undefined,
+              after: x.after ? String(x.after) : undefined,
+              tip: x.tip ? String(x.tip) : undefined,
+            }))
+            .slice(0, 12);
         } catch {
-          console.warn("⚠️ Explain JSON parse failed:", s3.content?.slice(0,200));
+          console.warn("⚠️ Explain JSON parse failed:", s3.content?.slice(0, 200));
         }
       }
     }

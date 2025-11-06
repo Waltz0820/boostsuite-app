@@ -15,6 +15,10 @@ type Annotation = {
   text: string;
   type: string;
   importance: "low" | "medium" | "high";
+  quote?: string;
+  before?: string;
+  after?: string;
+  tip?: string;
 };
 
 const MAX_FREE_CREDITS = 5;
@@ -150,7 +154,7 @@ export default function ToolPage() {
                 checked={annotationMode}
                 onChange={(e) => setAnnotationMode(e.target.checked)}
               />
-              赤ペン先生ON
+              解説ON
             </label>
           </div>
 
@@ -219,7 +223,7 @@ export default function ToolPage() {
             />
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-zinc-500">
-                CN/EN原文もOK。Boost Suiteが自然な日本語へ整流＋注釈します。
+                CN/EN原文もOK。Boost Suiteが自然な日本語へ整流＋【解説】を返します。
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -282,6 +286,7 @@ export default function ToolPage() {
 function Bubble({ msg }: { msg: Msg }) {
   const isUser = msg.role === "user";
   const hasAnnotations = !!msg.annotations?.length;
+  const [showExplain, setShowExplain] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -314,32 +319,91 @@ function Bubble({ msg }: { msg: Msg }) {
           </button>
 
           {hasAnnotations && (
-            <details className="mt-3 bg-black/20 rounded-lg border border-white/10 p-3">
-              <summary className="cursor-pointer text-sm text-zinc-300">
-                💬 整流注釈を見る（{msg.annotations?.length}）
-              </summary>
-              <div className="mt-2 space-y-1 text-xs text-zinc-400">
-                {msg.annotations?.map((a, i) => (
-                  <div key={i}>
-                    <span
-                      className={`inline-block px-1.5 py-[1px] mr-2 rounded text-[10px] ${
-                        a.importance === "high"
-                          ? "bg-rose-500/40 text-rose-100"
-                          : a.importance === "medium"
-                          ? "bg-amber-500/30 text-amber-100"
-                          : "bg-white/10 text-zinc-300"
-                      }`}
-                    >
-                      {a.type}
-                    </span>
-                    {a.text}
-                  </div>
-                ))}
-              </div>
-            </details>
+            <div className="mt-2">
+              <button
+                onClick={() => setShowExplain((v) => !v)}
+                className="relative inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-[12px] border border-white/10 text-zinc-200"
+                aria-expanded={showExplain}
+                aria-controls="annotations-panel"
+              >
+                解説
+                {/* 右上に小さな件数バッジ */}
+                <span className="absolute -top-1 -right-1 rounded bg-white/20 border border-white/20 px-1 text-[10px] leading-4">
+                  {msg.annotations?.length}
+                </span>
+              </button>
+              {showExplain && (
+                <div id="annotations-panel">
+                  <AnnotationsPanel items={msg.annotations!} />
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/** type → 小さな表示名（日本語） */
+function typeLabel(t: string): string {
+  const k = (t || "").toLowerCase();
+  if (k === "warmflow") return "余韻";
+  if (k === "factlock") return "事実整形";
+  if (k === "seo") return "SEO";
+  if (k === "emotion") return "感情";
+  if (k === "futureflow") return "未来導線";
+  if (k === "structure") return "構造";
+  if (k === "humanize") return "人肌感";
+  return t || "構造";
+}
+
+function AnnotationsPanel({
+  items,
+}: {
+  items: Array<{ section: string; text: string; type: string; importance: string; quote?: string }>;
+}) {
+  if (!items?.length) return null;
+  const groups: Record<string, typeof items> = {};
+  for (const it of items) {
+    const k = it.section || "misc";
+    (groups[k] ||= []).push(it);
+  }
+  const badge = (t: string) => (
+    <span className="ml-2 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
+      {t}
+    </span>
+  );
+  return (
+    <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+      {Object.entries(groups).map(([sec, arr]) => (
+        <div key={sec} className="mb-3">
+          <div className="mb-2 text-xs uppercase tracking-wide text-zinc-400">{sec}</div>
+          <ul className="space-y-2">
+            {arr.map((a, i) => (
+              <li key={i} className="rounded-lg border border-white/10 bg-black/20 p-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-zinc-100 leading-relaxed">{a.text}</div>
+                  <button
+                    className="text-[10px] text-zinc-400 hover:text-zinc-200 underline decoration-white/20 shrink-0"
+                    onClick={() => navigator.clipboard?.writeText(a.text)}
+                    aria-label="注釈をコピー"
+                  >
+                    コピー
+                  </button>
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-400 flex items-center">
+                  {badge(typeLabel(a.type))}
+                  {badge(a.importance)}
+                </div>
+                {a.quote && (
+                  <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -371,7 +435,14 @@ function Dot({ className = "" }: { className?: string }) {
 function ArrowRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-90">
-      <path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M5 12h14M13 5l7 7-7 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -384,7 +455,8 @@ function seedWelcome(): Msg[] {
   return [
     {
       role: "assistant",
-      content: "原文を貼って「Boost」を押してください。\n赤ペン先生ONで、整流後に“どこがどう良くなったか”も注釈表示します。",
+      content:
+        "原文を貼って「Boost」を押してください。\n【解説】ONで、整流後に“どこがどう良くなったか”を注釈表示します。",
       ts: Date.now(),
     },
   ];

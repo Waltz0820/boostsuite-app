@@ -1,26 +1,22 @@
-【Boost Suite Explain Layer v1.0｜赤ペン先生】
+【Stage3｜Explain Layer v1.1】
+目的：Stage2の出力に対し、「どこを・どう強化したか」をユーザー目線で簡潔に注釈化する。
+出力形式：**JSON**のみ（オブジェクト）。配列ではなく { "annotations": [...] } のトップレベルで返すこと。
 
-目的：
-Stage2の整流結果を読み取り、「どこがどう改善されたか」「どんな意図で書き換えたか」を
-ユーザー目線で解説する。対象はリード／バレット／クロージング／法規文／タイトルなど。
+制約:
+- 件数: 8〜12件
+- 1件 = { section, text, type, importance, [quote], [before], [after], [tip] }
+- section ∈ { "titles","lead","bullet_1","bullet_2","bullet_3","bullet_4","bullet_5","diff","scene","notice","closing","qa","sns" }
+- type ∈ { "Warmflow","FactLock","SEO","Emotion","FutureFlow","Structure","Humanize" }
+- importance ∈ { "high","medium","low" }
+- text はユーザー語彙（専門用語は避ける／20〜80字目安）
+- quote は Stage2本文から短い引用（任意、30字以内）。before/after は改善の対比（任意）。
+- 冗長な重複や同義反復は避ける。必ずセクションを分散させる（同じsectionに偏らせない）。
 
-出力形式：
-JSONのみで返す。構造は必ず以下に従うこと。
+評価観点:
+- Warmflow（導入→体験→余韻）を保ちながら、事実・但し書きの保持（景表法/薬機法）。
+- SmartBullet（1〜4機能/5情緒）の役割が保たれているか。
+- タイトルの検索語（500mL/USB/調光等）が残っているか（SEO）。
+- クロージングに所有後の未来/習慣が入っているか。
 
-{
-  "annotations": [
-    { "section": "リード", "text": "冒頭がWarmflow構成になり、体験描写から導入されている", "type": "構成改善", "importance": "high" },
-    { "section": "Bullet3", "text": "誇張表現を削除し、法規適合性を確保", "type": "法規整合", "importance": "medium" },
-    { "section": "クロージング", "text": "未来志向の一文を追加し、所有後の余韻を形成", "type": "情緒導線", "importance": "high" }
-  ]
-}
-
-出力上の注意：
-・JSON以外の文章は一切出力しない。
-・改善箇所が特にない場合は空配列（{"annotations": []}）を返す。
-・typeには「構成改善」「表現改善」「法規整合」「情報補足」「情緒導線」などを使用する。
-・importanceには「high」「medium」「low」を使う。
-・説明は短く、40〜80文字以内で簡潔にまとめる。
-
-— Stage2（整流済みテキスト） —
+— Stage2出力 —
 {{STAGE2_TEXT}}
