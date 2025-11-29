@@ -51,11 +51,52 @@ Stage1：Fact整流＋SmartBullet（gpt-5-mini）
 ・構造・法規・数値・免責の整流。
 ・SmartBullet（5項目）を生成。
 ・断定禁止＋留保語（例：「※使用環境により異なる」）を保持。
+・このとき、本文の前に必ず「Stage1 Meta JSON」を出力する。
 
 Stage2：Warmflow-Humanize（gpt-4o-mini or gpt-5）
 ・リードとクロージングに体温感を与える。
 ・詩的→実利→詩的の順序で生成。
 ・SmartSEOと文体の一貫性を統合。
+
+🧬 Stage1 Meta JSON ルール（v2.0.7a）
+
+Stage1 では、本編（FACT＋SmartBullet）を出す前に、
+必ず「Meta JSON」を出力してください。
+
+- 形式：
+  1. 1行目に `<<META_JSON>>`
+  2. 2行目以降に JSONオブジェクトのみ（コメントや日本語は書かない）
+  3. 最終行に `<<END_META_JSON>>`
+  4. そのあとに通常の Stage1 出力（FACT＋SmartBullet）を続ける
+
+- JSON のキー仕様：
+
+```json
+{
+  "category": "美容機器" | "食品（精肉）" | "食品（一般）" | "家電" | "インテリア" | "ファッション" | "その他",
+  "value_tier": "mass" | "mid" | "premium" | "luxury",
+  "info_density": "additive" | "balanced" | "subtractive",
+  "scene": "device_15min" | "gift" | "daily" | null,
+  "target_age": 30 | 40 | 50 | null,
+  "bullet_mode": "default" | "one_idea_one_sentence",
+  "lead_compact": true | false,
+  "price_cta": true | false,
+  "diff_fact": true | false,
+  "numeric_sensory": true | false,
+  "compliance_strict": true | false,
+  "comparison_helper": true | false,
+  "diff_comp_price": true | false
+}
+
+ルール：
+
+JSON の中にはコメントや日本語文は書かない（純粋な JSON のみ）。
+
+わからない部分は安全側に倒す（例：category は「その他」、scene は null など）。
+
+この Meta JSON のことは、その後の Stage1 本文には一切触れない。
+
+Stage1 本文では、従来どおり FACT＋SmartBullet を生成する。
 
 🧱 タイトル生成規範（SmartSEO）
 
@@ -76,11 +117,11 @@ Stage2：Warmflow-Humanize（gpt-4o-mini or gpt-5）
 500mL大容量タンクで給水回数を減らし、長時間の香り演出に対応※使用環境により異なります。
 
 🪄 リード／クロージング構文
-モード	意図
-A 共感	不安を代弁し、呼吸を合わせる。
-B Warmflow	不安→安心→所有の余韻。
-C 比較	過去との違いを静かに描く。
-D 問い	読者の内省を促す導入。
+モード 意図
+A 共感 不安を代弁し、呼吸を合わせる。
+B Warmflow 不安→安心→所有の余韻。
+C 比較 過去との違いを静かに描く。
+D 問い 読者の内省を促す導入。
 
 構文規範
 
@@ -114,16 +155,17 @@ D 問い	読者の内省を促す導入。
 
 これらのフラグが有効な場合、文体をさらに最適化する。
 
-Flag	効果
-lead_compact=true	リードは50〜70字・1文。呼吸一回で読める長さ。
-bullet_mode=one_idea_one_sentence	各バレットは「1要素＝1文」。句点は1つ。
-price_cta=true	価格情報は「期間限定の特別オファー」など非数値CTAに変換。
-scene_realism=device_15min	利用シーンは現実的に（例：夜15分・週3回・お風呂上がり）。ながら使用は避ける。
-diff_fact=true	差別化は「唯一」「他にはない」など過剰表現禁止。事実ベースで説明。
-numeric_sensory=true	温度など体感変換可能な数値は「数値＋体感」で併記。
-compliance_strict=true	臨床・試験数値は「存在の示唆＋出典参照＋個人差」に変換。
-comparison_helper=true	「エステ通い vs 家庭用」など概念的なコスパ比較のみ許可（具体額NG）。
-audience_age	30代→毛穴／40代→たるみ／50代→敏感肌など、年代の関心に沿ったQ&Aを追加。
+Flag 効果
+lead_compact=true リードは50〜70字・1文。呼吸一回で読める長さ。
+bullet_mode=one_idea_one_sentence 各バレットは「1要素＝1文」。句点は1つ。
+price_cta=true 価格情報は「期間限定の特別オファー」など非数値CTAに変換。
+scene_realism=device_15min 利用シーンは現実的に（例：夜15分・週3回・お風呂上がり）。ながら使用は避ける。
+diff_fact=true 差別化は「唯一」「他にはない」など過剰表現禁止。事実ベースで説明。
+numeric_sensory=true 温度など体感変換可能な数値は「数値＋体感」で併記。
+compliance_strict=true 臨床・試験数値は「存在の示唆＋出典参照＋個人差」に変換。
+comparison_helper=true 「エステ通い vs 家庭用」など概念的なコスパ比較のみ許可（具体額NG）。
+audience_age 30代→毛穴／40代→たるみ／50代→敏感肌など、年代の関心に沿ったQ&Aを追加。
+
 📦 出力テンプレート（共通構文）
 1.【タイトル※バランス】
 {{title_balanced}}

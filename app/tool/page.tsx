@@ -185,6 +185,12 @@ export default function ToolPage() {
     return localStorage.getItem("bs_preset_key") || PRESETS[0].key;
   });
 
+  // 「詳細設定」パネルの開閉（デフォルトは閉じる）
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem("bs_advanced_open") === "1";
+  });
+
   // フラグ・選択群（ローカル保存）
   const [category, setCategory] = useState<string>(() => loadLocal("bs_category", "指定なし"));
   const [age, setAge] = useState<string>(() => loadLocal("bs_age", "指定なし"));
@@ -196,10 +202,18 @@ export default function ToolPage() {
   const [leadCompact, setLeadCompact] = useState<boolean>(() => loadLocal("bs_leadCompact", true));
   const [priceCta, setPriceCta] = useState<boolean>(() => loadLocal("bs_priceCta", true));
   const [diffFact, setDiffFact] = useState<boolean>(() => loadLocal("bs_diffFact", true));
-  const [numericSensory, setNumericSensory] = useState<boolean>(() => loadLocal("bs_numericSensory", true));
-  const [complianceStrict, setComplianceStrict] = useState<boolean>(() => loadLocal("bs_complianceStrict", true));
-  const [comparisonHelper, setComparisonHelper] = useState<boolean>(() => loadLocal("bs_comparisonHelper", true));
-  const [annotationMode, setAnnotationMode] = useState<boolean>(() => loadLocal("bs_annotationMode", true));
+  const [numericSensory, setNumericSensory] = useState<boolean>(() =>
+    loadLocal("bs_numericSensory", true)
+  );
+  const [complianceStrict, setComplianceStrict] = useState<boolean>(() =>
+    loadLocal("bs_complianceStrict", true)
+  );
+  const [comparisonHelper, setComparisonHelper] = useState<boolean>(() =>
+    loadLocal("bs_comparisonHelper", true)
+  );
+  const [annotationMode, setAnnotationMode] = useState<boolean>(() =>
+    loadLocal("bs_annotationMode", true)
+  );
 
   const [msgs, setMsgs] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
@@ -253,6 +267,11 @@ export default function ToolPage() {
     annotationMode,
   ]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem("bs_advanced_open", advancedOpen ? "1" : "0");
+  }, [advancedOpen]);
+
   // スクロール末尾
   const scRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -304,14 +323,18 @@ export default function ToolPage() {
     const body = {
       prompt,
       annotation_mode: annotationMode,
+
+      // v2.0.7a Addenda（UIはあくまで“ヒント”。本決定はStage1 Meta側）
       lead_compact: leadCompact,
       bullet_mode: bulletMode,
       price_cta: priceCta,
-      scene_realism: scene === "週3×15分" ? "device_15min" : null,
+      scene_realism:
+        scene === "週3×15分" ? "device_15min" : scene === "ギフト" ? "gift" : null,
       diff_fact: diffFact,
       numeric_sensory: numericSensory,
       compliance_strict: complianceStrict,
       comparison_helper: comparisonHelper,
+      diff_comp_price: comparisonHelper && priceCta, // 価格ポジショニングは比較ONかつPrice CTA時だけ軽くヒント
       audience_age: mapAgeToNumber(age),
       category: category === "指定なし" ? null : category,
     };
@@ -378,132 +401,26 @@ export default function ToolPage() {
 
       {/* Top bar */}
       <div className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-sm">
-        {/* 1段目：プリセット帯 */}
-        <div className="mx-auto max-w-6xl px-4 py-2">
-          <div className="flex items-center gap-2 text-[13px]">
-            <span className="text-zinc-300 shrink-0">プリセット</span>
-            <div className="flex-1 overflow-x-auto no-scrollbar">
-              <div className="flex gap-2 min-w-max">
-                {PRESETS.map((p) => {
-                  const active = p.key === presetKey;
-                  return (
-                    <button
-                      key={p.key}
-                      onClick={() => applyPreset(p.key)}
-                      className={[
-                        "rounded-lg px-3 py-1.5 border transition whitespace-nowrap",
-                        active
-                          ? "bg-white/15 border-white/20 text-zinc-50"
-                          : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10",
-                      ].join(" ")}
-                      title={p.hint || ""}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* メイン行：タイトル＋解説ON＋残りクレジット＋詳細設定 */}
+        <div className="mx-auto max-w-6xl px-4 py-2 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zinc-50">Boost Suite v2</span>
+              <span className="rounded-full bg-white/10 border border-white/20 px-2 py-[2px] text-[11px] text-zinc-200">
+                Autopilot Warmflow
+              </span>
             </div>
-            <select
-              value={presetKey}
-              onChange={(e) => applyPreset(e.target.value)}
-              className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none shrink-0"
-              aria-label="プリセット選択"
-            >
-              {PRESETS.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+            <label className="ml-2 flex items-center gap-1 text-xs text-zinc-400">
+              <input
+                type="checkbox"
+                checked={annotationMode}
+                onChange={(e) => setAnnotationMode(e.target.checked)}
+              />
+              解説ON
+            </label>
           </div>
-        </div>
 
-        {/* 2段目：カテゴリ/年代/シーン/バレット */}
-        <div className="mx-auto max-w-6xl px-4 py-2 flex items-center gap-3 flex-wrap text-sm">
-          <span className="text-zinc-300">ツール</span>
-          <span className="h-4 w-px bg-white/10" />
-          <span className="text-zinc-400">Boost Suite v2</span>
-
-          <span className="h-4 w-px bg-white/10 ml-3" />
-          <span className="text-zinc-300">カテゴリ</span>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-          >
-            <option>指定なし</option>
-            <option>美容機器</option>
-            <option>食品（精肉）</option>
-            <option>食品（一般）</option>
-            <option>家電</option>
-            <option>インテリア</option>
-            <option>ファッション</option>
-          </select>
-
-          <span className="h-4 w-px bg-white/10 ml-3" />
-          <span className="text-zinc-300">年代</span>
-          <select
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-          >
-            <option>指定なし</option>
-            <option>30代</option>
-            <option>40代</option>
-            <option>50代</option>
-          </select>
-
-          <span className="h-4 w-px bg-white/10 ml-3" />
-          <span className="text-zinc-300">シーン</span>
-          <select
-            value={scene}
-            onChange={(e) => setScene(e.target.value)}
-            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-          >
-            <option>指定なし</option>
-            <option>週3×15分</option>
-            <option>ギフト</option>
-          </select>
-
-          <span className="h-4 w-px bg-white/10 ml-3" />
-          <span className="text-zinc-300">バレット</span>
-          <select
-            value={bulletMode}
-            onChange={(e) => setBulletMode(e.target.value as any)}
-            className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
-          >
-            <option value="default">SmartBullet 標準</option>
-            <option value="one_idea_one_sentence">1機能=1文</option>
-          </select>
-
-          <label className="ml-3 flex items-center gap-1 text-xs text-zinc-400">
-            <input
-              type="checkbox"
-              checked={annotationMode}
-              onChange={(e) => setAnnotationMode(e.target.checked)}
-            />
-            解説ON
-          </label>
-        </div>
-
-        {/* 3段目：フラグ群 */}
-        <div className="border-t border-white/10">
-          <div className="mx-auto max-w-6xl px-4 py-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-              <Flag label="リード簡潔" value={leadCompact} onChange={setLeadCompact} />
-              <Flag label="Price CTA" value={priceCta} onChange={setPriceCta} />
-              <Flag label="事実差別化" value={diffFact} onChange={setDiffFact} />
-              <Flag label="数値＋体感" value={numericSensory} onChange={setNumericSensory} />
-              <Flag label="コンプ強" value={complianceStrict} onChange={setComplianceStrict} />
-              <Flag label="比較ヘルパー" value={comparisonHelper} onChange={setComparisonHelper} />
-            </div>
-          </div>
-        </div>
-
-        {/* 4段目：右サマリー＋残数 */}
-        <div className="border-t border-white/10">
-          <div className="mx-auto max-w-6xl px-4 py-2 flex items-center justify-end gap-2">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-400">無料体験 残り</span>
             <span className="rounded-md bg-white/5 border border-white/10 px-2 py-[2px] text-xs">
               {credits}/{MAX_FREE_CREDITS}（{remainingBadge}）
@@ -514,8 +431,150 @@ export default function ToolPage() {
             >
               リセット
             </button>
+            <button
+              onClick={() => setAdvancedOpen((v) => !v)}
+              className="ml-2 text-xs rounded-md border border-white/15 bg-white/5 px-2 py-1 text-zinc-200 hover:bg-white/10"
+            >
+              {advancedOpen ? "詳細設定を閉じる" : "詳細設定"}
+            </button>
           </div>
         </div>
+
+        {/* 詳細設定パネル：検証者向け（デフォルト閉じ） */}
+        {advancedOpen && (
+          <>
+            {/* 1段目：プリセット帯 */}
+            <div className="mx-auto max-w-6xl px-4 py-2 border-t border-white/10">
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="text-zinc-300 shrink-0">プリセット</span>
+                <div className="flex-1 overflow-x-auto no-scrollbar">
+                  <div className="flex gap-2 min-w-max">
+                    {PRESETS.map((p) => {
+                      const active = p.key === presetKey;
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() => applyPreset(p.key)}
+                          className={[
+                            "rounded-lg px-3 py-1.5 border transition whitespace-nowrap",
+                            active
+                              ? "bg-white/15 border-white/20 text-zinc-50"
+                              : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10",
+                          ].join(" ")}
+                          title={p.hint || ""}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <select
+                  value={presetKey}
+                  onChange={(e) => applyPreset(e.target.value)}
+                  className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none shrink-0"
+                  aria-label="プリセット選択"
+                >
+                  {PRESETS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 2段目：カテゴリ/年代/シーン/バレット */}
+            <div className="mx-auto max-w-6xl px-4 py-2 flex items-center gap-3 flex-wrap text-sm border-t border-white/10">
+              <span className="text-zinc-300">カテゴリ</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+              >
+                <option>指定なし</option>
+                <option>美容機器</option>
+                <option>食品（精肉）</option>
+                <option>食品（一般）</option>
+                <option>家電</option>
+                <option>インテリア</option>
+                <option>ファッション</option>
+              </select>
+
+              <span className="h-4 w-px bg-white/10 ml-3" />
+              <span className="text-zinc-300">年代</span>
+              <select
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+              >
+                <option>指定なし</option>
+                <option>30代</option>
+                <option>40代</option>
+                <option>50代</option>
+              </select>
+
+              <span className="h-4 w-px bg-white/10 ml-3" />
+              <span className="text-zinc-300">シーン</span>
+              <select
+                value={scene}
+                onChange={(e) => setScene(e.target.value)}
+                className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+              >
+                <option>指定なし</option>
+                <option>週3×15分</option>
+                <option>ギフト</option>
+              </select>
+
+              <span className="h-4 w-px bg-white/10 ml-3" />
+              <span className="text-zinc-300">バレット</span>
+              <select
+                value={bulletMode}
+                onChange={(e) => setBulletMode(e.target.value as any)}
+                className="bg-white/5 text-sm rounded-md px-2 py-1 border border-white/10 outline-none"
+              >
+                <option value="default">SmartBullet 標準</option>
+                <option value="one_idea_one_sentence">1機能=1文</option>
+              </select>
+            </div>
+
+            {/* 3段目：フラグ群 */}
+            <div className="border-t border-white/10">
+              <div className="mx-auto max-w-6xl px-4 py-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  <Flag label="リード簡潔" value={leadCompact} onChange={setLeadCompact} />
+                  <Flag label="Price CTA" value={priceCta} onChange={setPriceCta} />
+                  <Flag label="事実差別化" value={diffFact} onChange={setDiffFact} />
+                  <Flag
+                    label="数値＋体感"
+                    value={numericSensory}
+                    onChange={setNumericSensory}
+                  />
+                  <Flag
+                    label="コンプ強"
+                    value={complianceStrict}
+                    onChange={setComplianceStrict}
+                  />
+                  <Flag
+                    label="比較ヘルパー"
+                    value={comparisonHelper}
+                    onChange={setComparisonHelper}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 備考 */}
+            <div className="border-t border-white/10">
+              <div className="mx-auto max-w-6xl px-4 py-2 text-[11px] text-zinc-500">
+                ※ ここは検証者向けの詳細設定です。通常の利用では開く必要はありません。
+                <br />
+                Meta JSON（Stage1）が内部でカテゴリや年代を判断するため、これらは
+                “強めのヒント” として機能します。
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Body */}
@@ -523,7 +582,9 @@ export default function ToolPage() {
         {/* Sidebar */}
         <aside className="hidden md:block">
           <div className="rounded-2xl border border-white/10 bg-white/5">
-            <div className="px-4 py-3 border-b border-white/10 text-sm text-zinc-300">履歴</div>
+            <div className="px-4 py-3 border-b border-white/10 text-sm text-zinc-300">
+              履歴
+            </div>
             <div className="max-h-[50vh] overflow-auto p-3 space-y-2">
               {msgs
                 .filter((m) => m.role === "user")
@@ -540,7 +601,9 @@ export default function ToolPage() {
                 ))}
             </div>
           </div>
-          <div className="mt-3 text-xs text-zinc-500">※ 現在は端末ローカルに保存（ログイン後はサーバー保存）</div>
+          <div className="mt-3 text-xs text-zinc-500">
+            ※ 現在は端末ローカルに保存（ログイン後はサーバー保存）
+          </div>
         </aside>
 
         {/* Main */}
@@ -598,7 +661,9 @@ export default function ToolPage() {
             <div className="fixed inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm">
               <div className="w-[92%] max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 text-center">
                 <h3 className="text-lg font-semibold text-white">無料体験の上限に達しました</h3>
-                <p className="mt-2 text-sm text-zinc-400">続きは無料アカウント登録で解放できます。</p>
+                <p className="mt-2 text-sm text-zinc-400">
+                  続きは無料アカウント登録で解放できます。
+                </p>
                 <div className="mt-5 flex flex-col gap-2">
                   <Link
                     href="/pricing"
@@ -820,30 +885,6 @@ function AnnotationsPanel({
 
   const secList = Object.keys(groups);
 
-  const badge = (t: string) => (
-    <span className="ml-2 inline-flex items-center rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] border border-white/10">
-      {t}
-    </span>
-  );
-
-  const togglePin = (idx: number) => {
-    setUi((s) => {
-      const set = new Set(s.pinned);
-      if (set.has(idx)) set.delete(idx);
-      else set.add(idx);
-      return { ...s, pinned: Array.from(set) };
-    });
-  };
-
-  const toggleSection = (sec: string) => {
-    setUi((s) => {
-      const set = new Set(s.collapsedSections);
-      if (set.has(sec)) set.delete(sec);
-      else set.add(sec);
-      return { ...s, collapsedSections: Array.from(set) };
-    });
-  };
-
   const setAllExpand = (open: boolean) => {
     setUi((s) => ({
       ...s,
@@ -891,6 +932,15 @@ function AnnotationsPanel({
     downloadBlob("annotations.csv", csv, "text/csv;charset=utf-8;");
   };
 
+  const toggleSection = (sec: string) => {
+    setUi((s) => {
+      const set = new Set(s.collapsedSections);
+      if (set.has(sec)) set.delete(sec);
+      else set.add(sec);
+      return { ...s, collapsedSections: Array.from(set) };
+    });
+  };
+
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
       {/* 操作列 */}
@@ -928,14 +978,23 @@ function AnnotationsPanel({
 
         {/* 一括操作 */}
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => setAllExpand(true)} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={() => setAllExpand(true)}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             全展開
           </button>
-          <button onClick={() => setAllExpand(false)} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={() => setAllExpand(false)}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             全閉じ
           </button>
           <span className="mx-1 h-4 w-px bg-white/10" />
-          <button onClick={copyAll} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={copyAll}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             まとめてコピー
           </button>
           <button
@@ -944,10 +1003,16 @@ function AnnotationsPanel({
           >
             JSON
           </button>
-          <button onClick={exportMarkdown} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={exportMarkdown}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             MD
           </button>
-          <button onClick={exportCSV} className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20">
+          <button
+            onClick={exportCSV}
+            className="text-[11px] text-zinc-300 hover:text-white underline decoration-white/20"
+          >
             CSV
           </button>
         </div>
@@ -1002,11 +1067,11 @@ function AnnotationsPanel({
                         >
                           コピー
                         </button>
+                        {/* ダミー（ビルド最適化抑止用） */}
                         <button
                           className={`text-[10px] underline decoration-white/20 ${
-                            (loadLocal<number[]>("__dummy", []) as any) // no-op
-                          } ${/* keep class merging deterministic */ ""} ${
-                            /* pin visual handled in parent */ ""}`}
+                            (loadLocal<number[]>("__dummy", []) as any)
+                          }`}
                           onClick={() => {}}
                           title=""
                           aria-hidden
@@ -1022,7 +1087,9 @@ function AnnotationsPanel({
                         {a.importance}
                       </span>
                     </div>
-                    {a.quote && <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>}
+                    {a.quote && (
+                      <div className="mt-1 text-[11px] text-zinc-500 line-clamp-1">“{a.quote}”</div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1129,7 +1196,14 @@ function Dot({ className = "" }: { className?: string }) {
 function ArrowRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-90">
-      <path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5 12h14M13 5l7 7-7 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -1143,7 +1217,7 @@ function seedWelcome(): Msg[] {
     {
       role: "assistant",
       content:
-        "原文を貼って「Boost」を押してください。\n上のプリセットを押すだけで“カテゴリ/年齢/シーン/法規”などが自動最適化されます。解説ONで、どこが良くなったかも注釈表示。",
+        "原文を貼って「Boost」を押してください。\n基本はAuto運転です。必要な場合だけ右上の「詳細設定」を開いて、カテゴリ/年代/シーンなどをヒントとして渡せます。解説ONで、どこが良くなったかも注釈表示。",
       ts: Date.now(),
     },
   ];
