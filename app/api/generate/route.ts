@@ -89,7 +89,7 @@ const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
 const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
 const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
-// 5.1 清書係。例: gpt-5.1 / gpt-5.1-mini などを環境変数で指定
+// 5.1 清書係。例: gpt-5.1 などを環境変数で指定
 const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "";
 const EXPLAIN_LAYER_MODEL = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
 
@@ -185,6 +185,12 @@ function buildCategoryHint(
   const cat = (category || "").toLowerCase();
   const lines: string[] = [];
 
+  const isFood =
+    cat.includes("食品") ||
+    cat.includes("精肉") ||
+    cat.includes("food") ||
+    cat.includes("grocery");
+
   if (!cat) {
     lines.push(
       "CategoryHint: 一般",
@@ -204,7 +210,7 @@ function buildCategoryHint(
     );
   }
 
-  if (cat.includes("食品") || cat.includes("food") || cat.includes("grocery")) {
+  if (isFood) {
     lines.push(
       "CategoryHint: 食品",
       "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
@@ -215,13 +221,15 @@ function buildCategoryHint(
   }
 
   // 年代プリセット（文体・Q&Aの焦点）
-  if (opts?.age) {
+  // → 食品カテゴリでは頻度・予防などのAgePresetは出さない
+  if (opts?.age && !isFood) {
     lines.push("AgePreset:");
     if (opts.age >= 50)
       lines.push("- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める。");
     else if (opts.age >= 40)
       lines.push("- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める。");
-    else lines.push("- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。");
+    else
+      lines.push("- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。");
   }
 
   // 利用シーンヒント
@@ -236,7 +244,9 @@ function buildCategoryHint(
     lines.push("- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止。");
   }
   if (opts?.diff_comp_price) {
-    lines.push("- PricePositioning: 金額や率は出さず、『初期投資のみ・長期運用』など非数値で位置づける。");
+    lines.push(
+      "- PricePositioning: 金額や率は出さず、『初期投資のみ・長期運用』など非数値で位置づける。"
+    );
   }
 
   return lines.join("\n");
@@ -357,9 +367,7 @@ function deriveFlagsFromMeta(
         ? meta.comparison_helper
         : req.comparison_helper,
     diff_comp_price:
-      typeof meta.diff_comp_price === "boolean"
-        ? meta.diff_comp_price
-        : req.diff_comp_price,
+      typeof meta.diff_comp_price === "boolean" ? meta.diff_comp_price : req.diff_comp_price,
   };
 }
 
@@ -486,6 +494,13 @@ export async function POST(req: Request) {
       diff_comp_price,
     });
 
+    const catForFlags = (mergedFlags.category || stage1Meta.category || "").toLowerCase();
+    const isFoodCategory =
+      catForFlags.includes("食品") ||
+      catForFlags.includes("精肉") ||
+      catForFlags.includes("food") ||
+      catForFlags.includes("grocery");
+
     /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda ---------------- */
     const s2ModelBase = strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL;
 
@@ -511,10 +526,20 @@ export async function POST(req: Request) {
     });
 
     const ageQAHint =
-      "Age Q&A Rules:\n" +
-      "- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。\n" +
-      "- age=40 → 継続しやすさ・時短（週3×15分）のQ&Aを1つ含める。\n" +
-      "- age=50 → 刺激感配慮・敏感肌向けTipsのQ&Aを1つ含める。";
+      mergedFlags.audience_age == null
+        ? ""
+        : isFoodCategory
+        ? [
+            "Age Q&A Rules:",
+            "- 食品カテゴリでは、摂取頻度の『理想回数』を示すQ&Aは作らない。",
+            "- 代わりに、保存方法・解凍の目安・調理のしやすさ・量の目安などにフォーカスした質問を1〜3件にとどめる。",
+          ].join("\n")
+        : [
+            "Age Q&A Rules:",
+            "- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。",
+            "- age=40 → 継続しやすさ・時短（週3×15分）のQ&Aを1つ含める。",
+            "- age=50 → 刺激感配慮・敏感肌向けTipsのQ&Aを1つ含める。",
+          ].join("\n");
 
     const compHint =
       mergedFlags.comparison_helper || mergedFlags.diff_comp_price
@@ -572,12 +597,7 @@ export async function POST(req: Request) {
 
     /* ---------------- Stage3: Final Polish（5.1 清書係） ---------------- */
     if (FINAL_POLISH_MODEL) {
-      const c = (mergedFlags.category || stage1Meta.category || "").toLowerCase();
-      const isFood =
-        c.includes("食品") ||
-        c.includes("精肉") ||
-        c.includes("food") ||
-        c.includes("grocery");
+      const isFood = isFoodCategory;
 
       const polishSystem =
         "You are Boost Suite Final Polish (清書係). " +
@@ -597,9 +617,10 @@ export async function POST(req: Request) {
         "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
         "4. 同じ語の過剰な反復（例：「焼きセット」「週3回」など）は、日本語として自然な範囲で言い換えたり、省略して緩和する。",
         "5. カテゴリにそぐわない表現は静かに中和する。",
-        "   - 食品カテゴリでは、「どのくらいの頻度で食べるのが理想ですか？」のような摂取頻度の推奨は避け、頻度に言及するなら『お好みのタイミングで楽しめます』程度にとどめる。",
+        "   - 食品カテゴリでは、『どのくらいの頻度で食べるのが理想ですか？』のような摂取頻度の推奨は避け、頻度に言及するなら『お好みのタイミングで楽しめます』程度にとどめる。",
         "   - 医療・美容効果や健康効果の断定は書かない。",
-        "6. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
+        "6. 『※個人差があります』『※調理条件により異なります』など意味の重なる免責は、同じセクション内で必要なものだけ残し、それ以外は削除して文そのものを自然に閉じる。",
+        "7. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
         "",
         "参考情報：",
         `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
@@ -688,7 +709,7 @@ export async function POST(req: Request) {
             }))
             .slice(0, 12);
         } catch {
-          console.warn("⚠️ Explain JSON parse failed:", s4.content?.slice(0, 200));
+          console.warn("⚠️ Explain JSON parse failed:", (s4 as any).content?.slice(0, 200));
         }
       }
     }
@@ -701,7 +722,7 @@ export async function POST(req: Request) {
         modelUsed: {
           stage1: DEFAULT_STAGE1_MODEL,
           stage2: s2Payload.model,
-          // Explain 用を維持
+          // Explain 用（従来の stage3）
           stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
           // 5.1 清書係の実績は別フィールドで返す
           finalPolish: finalPolishModelUsed,
