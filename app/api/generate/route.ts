@@ -245,7 +245,9 @@ function buildCategoryHint(
       "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
       "- アレルギー表記を簡潔に（必要に応じて“商品ページ参照”へ誘導）。",
       "- ネガ表現は一般化してポジ転（例：『交配種ではない』→『系統が安定した風味（断定回避）』）。",
-      "- 栄養・効能は断定しない（一般的説明＋個人差・出典参照）。"
+      "- 栄養・効能は断定しない（一般的説明＋個人差・出典参照）。",
+      "- 地域スローガンやグレード表現（清浄・特選・プレミアム等）は、タイトルか本文1か所にとどめ、連呼しない。",
+      "- ギフト推しは『贈り物に“も”使える』トーンに抑え、まずは家庭で楽しむシーンを主軸にする。"
     );
   }
 
@@ -254,7 +256,7 @@ function buildCategoryHint(
     lines.push("AgePreset:");
     if (opts.age >= 50)
       lines.push(
-        "- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める。"
+        "- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める."
       );
     else if (opts.age >= 40)
       lines.push(
@@ -386,7 +388,8 @@ function deriveFlagsFromMeta(
     diff_comp_price: boolean;
   }
 ): DerivedFlags {
-  const catFromMeta = meta.category && meta.category !== "その他" ? meta.category : null;
+  const catFromMeta =
+    meta.category && meta.category !== "その他" ? meta.category : null;
   const sceneFromMeta =
     meta.scene === "device_15min" || meta.scene === "gift" ? meta.scene : null;
   const ageFromMeta = typeof meta.target_age === "number" ? meta.target_age : null;
@@ -462,6 +465,41 @@ function buildValueTierHint(meta: Stage1Meta): string {
   } else if (id === "subtractive") {
     lines.push(
       "- InfoDensity: subtractive → 文をそぎ落として短くまとめる。近い意味の言い換えや同じ留保の繰り返しは削る。"
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/* =========================================================================
+   Scene Balance（シーンのバランス調整）
+   ========================================================================= */
+function buildSceneBalanceHint(meta: Stage1Meta, flags: DerivedFlags): string {
+  const cat = (meta.category || flags.category || "").toLowerCase();
+  const scene = meta.scene || flags.scene_realism;
+
+  // 食品だけを対象にする
+  if (!cat) return "";
+  if (
+    !cat.includes("食品") &&
+    !cat.includes("food") &&
+    !cat.includes("grocery")
+  ) {
+    return "";
+  }
+
+  const lines: string[] = [];
+  lines.push("SceneBalance: 食品カテゴリのシーン設計ルール");
+  lines.push(
+    "- リード文では『贈り物専用』のような書き方は避け、まずは自宅で楽しむ・家族で囲むシーンを主軸にする。"
+  );
+  lines.push(
+    "- ギフトシーンは、3.4 利用シーンやタイトルの一部で『贈り物にも』程度に添える。"
+  );
+
+  if (scene === "gift") {
+    lines.push(
+      "- scene=gift の場合でも、『自宅用としても満足できる品質』をどこか1行含める。"
     );
   }
 
@@ -635,6 +673,7 @@ export async function POST(req: Request) {
         : "";
 
     const valueTierHint = buildValueTierHint(stage1Meta);
+    const sceneBalanceHint = buildSceneBalanceHint(stage1Meta, mergedFlags);
 
     const s2UserContent = [
       "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
@@ -647,6 +686,7 @@ export async function POST(req: Request) {
       addendaFlags,
       categoryHint ? `\n${categoryHint}\n` : "",
       valueTierHint ? `\n${valueTierHint}\n` : "",
+      sceneBalanceHint ? `\n${sceneBalanceHint}\n` : "",
       ageQAHint,
       compHint,
       "— Stage1 —",
@@ -710,7 +750,7 @@ export async function POST(req: Request) {
         "section numbers, or overall template. You MUST NOT change any concrete facts " +
         "(numbers, quantities, durations, certifications, model names) and MUST NOT invent new facts.";
 
-            const polishUser = [
+      const polishUser = [
         "【Stage3｜Final Polish v2.0.8】",
         "目的：Stage2の出力の“違和感”だけを削り、読み心地を整える清書係。",
         "",
