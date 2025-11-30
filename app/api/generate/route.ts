@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
+const SERVER_TIMEOUT_MS = Math.max(
+  60_000,
+  Math.min(295_000, (maxDuration - 5) * 1000)
+);
 const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE3_TIMEOUT_MS = 60_000;
@@ -45,7 +48,12 @@ function readCategoryCsv(rel: string) {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  const out: Array<{ l1: string; l2: string; mode: string; pitch_keywords: string[] }> = [];
+  const out: Array<{
+    l1: string;
+    l2: string;
+    mode: string;
+    pitch_keywords: string[];
+  }> = [];
   for (const line of rows.slice(1)) {
     const cols = line.split(",").map((s) => s.trim());
     if (cols.length >= 3) {
@@ -53,7 +61,12 @@ function readCategoryCsv(rel: string) {
         l1: cols[0],
         l2: cols[1],
         mode: cols[2],
-        pitch_keywords: cols[3] ? cols[3].split("|").map((s) => s.trim()).filter(Boolean) : [],
+        pitch_keywords: cols[3]
+          ? cols[3]
+              .split("|")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
       });
     }
   }
@@ -63,15 +76,20 @@ type EmotionJSON = { emotions: Array<{ id: string }> };
 type StyleJSON = { styles: Array<{ id: string }> };
 
 const LOCAL_CATS = readCategoryCsv("knowledge/CategoryTree_v5.0.csv");
-const LOCAL_EMO = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", { emotions: [] });
-const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { styles: [] });
+const LOCAL_EMO = readJsonSafe<EmotionJSON>("knowledge/EmotionLayer.json", {
+  emotions: [],
+});
+const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", {
+  styles: [],
+});
 
 /* =========================================================================
    Prompts
    ========================================================================= */
 // v2.0.8 を prompts/bs_prompt_v2.0.8.txt に配置済み想定
 const CORE_PROMPT_V208 = readText("prompts/bs_prompt_v2.0.8.txt");
-const CORE_PROMPT = CORE_PROMPT_V208 || "You are Boost Suite v2.0.8 copy refiner.";
+const CORE_PROMPT =
+  CORE_PROMPT_V208 || "You are Boost Suite v2.0.8 copy refiner.";
 
 const YAKKI_FILTERS = ["A", "B", "C", "D"]
   .map((k) => readText(`prompts/filters/BoostSuite_薬機法フィルター${k}.txt`))
@@ -79,19 +97,25 @@ const YAKKI_FILTERS = ["A", "B", "C", "D"]
   .join("\n");
 
 // Explain Layer は 1.0 固定
-const EXPLAIN_PROMPT_V1 = readText("prompts/explain/BoostSuite_Explain_v1.0.txt");
+const EXPLAIN_PROMPT_V1 = readText(
+  "prompts/explain/BoostSuite_Explain_v1.0.txt"
+);
 
 /* =========================================================================
    OpenAI helpers
    ========================================================================= */
 const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 
-const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
-const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
-const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+const DEFAULT_STAGE1_MODEL =
+  process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
+const DEFAULT_STAGE2_MODEL =
+  process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
+const STRONG_HUMANIZE_MODEL =
+  process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
 // 5.1 清書係。例: gpt-5.1 などを環境変数で指定
 const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "gpt-5.1";
-const EXPLAIN_LAYER_MODEL = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
+const EXPLAIN_LAYER_MODEL =
+  process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
 
 async function callOpenAI(payload: any, key: string, timeout: number) {
   const controller = new AbortController();
@@ -99,7 +123,10 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -110,7 +137,10 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
     } catch {}
     const content = json?.choices?.[0]?.message?.content ?? "";
     if (res.ok) return { ok: true as const, content };
-    return { ok: false as const, error: json?.error ?? (raw || res.statusText) };
+    return {
+      ok: false as const,
+      error: json?.error ?? (raw || res.statusText),
+    };
   } catch (e: any) {
     return { ok: false as const, error: e?.message || String(e) };
   } finally {
@@ -124,7 +154,9 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 function sbRead() {
-  return createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: false } });
+  return createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: false },
+  });
 }
 async function sbServer() {
   const ck = await cookies();
@@ -152,7 +184,9 @@ function softenDisclaimers(text: string) {
   };
   let out = text;
   for (const [key, arr] of Object.entries(table)) {
-    out = out.replace(new RegExp(key, "g"), () => arr[Math.floor(Math.random() * arr.length)]);
+    out = out.replace(new RegExp(key, "g"), () => {
+      return arr[Math.floor(Math.random() * arr.length)];
+    });
   }
   return out;
 }
@@ -185,12 +219,6 @@ function buildCategoryHint(
   const cat = (category || "").toLowerCase();
   const lines: string[] = [];
 
-  const isFood =
-    cat.includes("食品") ||
-    cat.includes("精肉") ||
-    cat.includes("food") ||
-    cat.includes("grocery");
-
   if (!cat) {
     lines.push(
       "CategoryHint: 一般",
@@ -210,7 +238,7 @@ function buildCategoryHint(
     );
   }
 
-  if (isFood) {
+  if (cat.includes("食品") || cat.includes("food") || cat.includes("grocery")) {
     lines.push(
       "CategoryHint: 食品",
       "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
@@ -221,27 +249,38 @@ function buildCategoryHint(
   }
 
   // 年代プリセット（文体・Q&Aの焦点）
-  // → 食品カテゴリでは頻度・予防などのAgePresetは出さない
-  if (opts?.age && !isFood) {
+  if (opts?.age) {
     lines.push("AgePreset:");
     if (opts.age >= 50)
-      lines.push("- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める。");
+      lines.push(
+        "- 50代：やさしめの語尾、実感・続けやすさを重視。Q&Aに敏感肌配慮を含める。"
+      );
     else if (opts.age >= 40)
-      lines.push("- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める。");
+      lines.push(
+        "- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める。"
+      );
     else
-      lines.push("- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。");
+      lines.push(
+        "- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。"
+      );
   }
 
   // 利用シーンヒント
   if (opts?.scene === "device_15min") {
-    lines.push("- Scene: device_15min → 入浴後/就寝前 × 週3回 × 1回15分を自然に織り込む。");
+    lines.push(
+      "- Scene: device_15min → 入浴後/就寝前 × 週3回 × 1回15分を自然に織り込む。"
+    );
   } else if (opts?.scene === "gift") {
-    lines.push("- Scene: gift → 贈答導線（熨斗/包装/賞味期限/保管方法）を短く触れる。");
+    lines.push(
+      "- Scene: gift → 贈答導線（熨斗/包装/賞味期限/保管方法）を短く触れる。"
+    );
   }
 
   // 比較ブロック
   if (opts?.comparison_helper) {
-    lines.push("- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止。");
+    lines.push(
+      "- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止。"
+    );
   }
   if (opts?.diff_comp_price) {
     lines.push(
@@ -287,7 +326,10 @@ const DEFAULT_STAGE1_META: Stage1Meta = {
   diff_comp_price: false,
 };
 
-function parseStage1MetaAndBody(raw: string): { meta: Stage1Meta; body: string } {
+function parseStage1MetaAndBody(raw: string): {
+  meta: Stage1Meta;
+  body: string;
+} {
   const text = String(raw || "");
   const start = text.indexOf("<<META_JSON>>");
   const end = text.indexOf("<<END_META_JSON>>");
@@ -303,7 +345,10 @@ function parseStage1MetaAndBody(raw: string): { meta: Stage1Meta; body: string }
     const parsed = JSON.parse(jsonPart);
     meta = { ...meta, ...(parsed || {}) };
   } catch (e) {
-    console.warn("⚠️ Stage1 meta JSON parse failed:", (e as any)?.message || e);
+    console.warn(
+      "⚠️ Stage1 meta JSON parse failed:",
+      (e as any)?.message || e
+    );
   }
 
   const body = text.slice(end + "<<END_META_JSON>>".length).trim();
@@ -351,7 +396,9 @@ function deriveFlagsFromMeta(
     audience_age: ageFromMeta ?? req.audience_age,
     bullet_mode: (meta.bullet_mode as any) || req.bullet_mode || "default",
     lead_compact:
-      typeof meta.lead_compact === "boolean" ? meta.lead_compact : req.lead_compact,
+      typeof meta.lead_compact === "boolean"
+        ? meta.lead_compact
+        : req.lead_compact,
     price_cta: typeof meta.price_cta === "boolean" ? meta.price_cta : req.price_cta,
     diff_fact: typeof meta.diff_fact === "boolean" ? meta.diff_fact : req.diff_fact,
     numeric_sensory:
@@ -367,8 +414,57 @@ function deriveFlagsFromMeta(
         ? meta.comparison_helper
         : req.comparison_helper,
     diff_comp_price:
-      typeof meta.diff_comp_price === "boolean" ? meta.diff_comp_price : req.diff_comp_price,
+      typeof meta.diff_comp_price === "boolean"
+        ? meta.diff_comp_price
+        : req.diff_comp_price,
   };
+}
+
+/* =========================================================================
+   ValueTier / InfoDensity Hint（価値階層レイヤー）
+   ========================================================================= */
+function buildValueTierHint(meta: Stage1Meta): string {
+  const vt = meta.value_tier || "mid";
+  const id = meta.info_density || "balanced";
+
+  const lines: string[] = [];
+  lines.push("ValueTier & InfoDensity Hints:");
+
+  // 価値帯ごとの書き方
+  if (vt === "mass") {
+    lines.push(
+      "- ValueTier: mass → 「手軽・毎日・コスパ」を素直に伝える。説明はやや具体的でOKだが、押しつけずフラットに。"
+    );
+  } else if (vt === "mid") {
+    lines.push(
+      "- ValueTier: mid → 機能と価格のバランスを意識し、「使いやすさ」「続けやすさ」を自然に織り込む。"
+    );
+  } else if (vt === "premium") {
+    lines.push(
+      "- ValueTier: premium → 素材・工程・設計など“こだわり”を描く。ただし感情を煽らず、静かな自信として表現する。"
+    );
+  } else if (vt === "luxury") {
+    lines.push(
+      "- ValueTier: luxury → 説明しすぎず余白を残す。スペックや数値よりも、体験シーンや世界観を短く象徴的に描く。"
+    );
+  }
+
+  // 情報密度のツマミ
+  if (id === "additive") {
+    lines.push(
+      "- InfoDensity: additive → 情報はやや多めでよいが、1文に詰め込みすぎない。仕様→恩恵→留保を分けて書く。"
+    );
+  } else if (id === "balanced") {
+    lines.push(
+      "- InfoDensity: balanced → 重要な仕様・こだわりだけに絞り、それ以外は余白として残す。重複説明は避ける。"
+    );
+  } else if (id === "subtractive") {
+    lines.push(
+      "- InfoDensity: subtractive → 文をそぎ落として短くまとめる。近い意味の言い換えや同じ留保の繰り返しは削る。"
+    );
+  }
+
+  return lines.join("\n");
 }
 
 /* =========================================================================
@@ -377,6 +473,7 @@ function deriveFlagsFromMeta(
 function buildComparisonHint(cat: string | null): string {
   const c = (cat || "").toLowerCase();
 
+  // 美容機器系
   if (c.includes("美容") || c.includes("beauty") || c.includes("skincare")) {
     return `Comparison Block:
 - タイトル：「【他社との違い】」。
@@ -386,6 +483,7 @@ function buildComparisonHint(cat: string | null): string {
 - 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ軽く触れる）。`;
   }
 
+  // 家電
   if (c.includes("家電") || c.includes("appliance")) {
     return `Comparison Block:
 - タイトル：「【他社との違い】」。
@@ -395,6 +493,7 @@ function buildComparisonHint(cat: string | null): string {
 - 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ軽く触れる）。`;
   }
 
+  // 食品・ファッションなどは比較ブロックを特に固定しない
   return "";
 }
 
@@ -471,9 +570,12 @@ export async function POST(req: Request) {
 
     const s1 = await callOpenAI(s1Payload, apiKey, STAGE1_TIMEOUT_MS);
     if (!s1.ok) {
-      return new Response(JSON.stringify({ error: "stage1_failed", detail: s1.error }), {
-        status: 502,
-      });
+      return new Response(
+        JSON.stringify({ error: "stage1_failed", detail: s1.error }),
+        {
+          status: 502,
+        }
+      );
     }
 
     const stage1Raw = String(s1.content || "");
@@ -494,15 +596,10 @@ export async function POST(req: Request) {
       diff_comp_price,
     });
 
-    const catForFlags = (mergedFlags.category || stage1Meta.category || "").toLowerCase();
-    const isFoodCategory =
-      catForFlags.includes("食品") ||
-      catForFlags.includes("精肉") ||
-      catForFlags.includes("food") ||
-      catForFlags.includes("grocery");
-
     /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda ---------------- */
-    const s2ModelBase = strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL;
+    const s2ModelBase = strongHumanize
+      ? STRONG_HUMANIZE_MODEL
+      : DEFAULT_STAGE2_MODEL;
 
     const addendaFlags = [
       "Addenda Flags:",
@@ -526,25 +623,17 @@ export async function POST(req: Request) {
     });
 
     const ageQAHint =
-      mergedFlags.audience_age == null
-        ? ""
-        : isFoodCategory
-        ? [
-            "Age Q&A Rules:",
-            "- 食品カテゴリでは、摂取頻度の『理想回数』を示すQ&Aは作らない。",
-            "- 代わりに、保存方法・解凍の目安・調理のしやすさ・量の目安などにフォーカスした質問を1〜3件にとどめる。",
-          ].join("\n")
-        : [
-            "Age Q&A Rules:",
-            "- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。",
-            "- age=40 → 継続しやすさ・時短（週3×15分）のQ&Aを1つ含める。",
-            "- age=50 → 刺激感配慮・敏感肌向けTipsのQ&Aを1つ含める。",
-          ].join("\n");
+      "Age Q&A Rules:\n" +
+      "- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。\n" +
+      "- age=40 → 継続しやすさ・時短（週3×15分）のQ&Aを1つ含める。\n" +
+      "- age=50 → 刺激感配慮・敏感肌向けTipsのQ&Aを1つ含める。";
 
     const compHint =
       mergedFlags.comparison_helper || mergedFlags.diff_comp_price
         ? buildComparisonHint(mergedFlags.category)
         : "";
+
+    const valueTierHint = buildValueTierHint(stage1Meta);
 
     const s2UserContent = [
       "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
@@ -556,6 +645,7 @@ export async function POST(req: Request) {
       "",
       addendaFlags,
       categoryHint ? `\n${categoryHint}\n` : "",
+      valueTierHint ? `\n${valueTierHint}\n` : "",
       ageQAHint,
       compHint,
       "— Stage1 —",
@@ -584,9 +674,12 @@ export async function POST(req: Request) {
       }
       const s2b = await callOpenAI(retry, apiKey, STAGE2_TIMEOUT_MS);
       if (!s2b.ok) {
-        return new Response(JSON.stringify({ error: "stage2_failed", detail: s2b.error }), {
-          status: 502,
-        });
+        return new Response(
+          JSON.stringify({ error: "stage2_failed", detail: s2b.error }),
+          {
+            status: 502,
+          }
+        );
       }
       s2 = s2b;
     }
@@ -597,7 +690,16 @@ export async function POST(req: Request) {
 
     /* ---------------- Stage3: Final Polish（5.1 清書係） ---------------- */
     if (FINAL_POLISH_MODEL) {
-      const isFood = isFoodCategory;
+      const c = (
+        mergedFlags.category ||
+        stage1Meta.category ||
+        ""
+      ).toLowerCase();
+      const isFood =
+        c.includes("食品") ||
+        c.includes("精肉") ||
+        c.includes("food") ||
+        c.includes("grocery");
 
       const polishSystem =
         "You are Boost Suite Final Polish (清書係). " +
@@ -617,10 +719,9 @@ export async function POST(req: Request) {
         "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
         "4. 同じ語の過剰な反復（例：「焼きセット」「週3回」など）は、日本語として自然な範囲で言い換えたり、省略して緩和する。",
         "5. カテゴリにそぐわない表現は静かに中和する。",
-        "   - 食品カテゴリでは、『どのくらいの頻度で食べるのが理想ですか？』のような摂取頻度の推奨は避け、頻度に言及するなら『お好みのタイミングで楽しめます』程度にとどめる。",
+        "   - 食品カテゴリでは、「どのくらいの頻度で食べるのが理想ですか？」のような摂取頻度の推奨は避け、頻度に言及するなら『お好みのタイミングで楽しめます』程度にとどめる。",
         "   - 医療・美容効果や健康効果の断定は書かない。",
-        "6. 『※個人差があります』『※調理条件により異なります』など意味の重なる免責は、同じセクション内で必要なものだけ残し、それ以外は削除して文そのものを自然に閉じる。",
-        "7. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
+        "6. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
         "",
         "参考情報：",
         `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
@@ -671,7 +772,10 @@ export async function POST(req: Request) {
     }> = [];
 
     if (annotation_mode && EXPLAIN_PROMPT_V1) {
-      const explainContent = EXPLAIN_PROMPT_V1.replace("{{STAGE2_TEXT}}", finalText);
+      const explainContent = EXPLAIN_PROMPT_V1.replace(
+        "{{STAGE2_TEXT}}",
+        finalText
+      );
       const s4Payload: any = {
         model: EXPLAIN_LAYER_MODEL,
         messages: [
@@ -693,7 +797,9 @@ export async function POST(req: Request) {
       if (s4.ok) {
         try {
           const parsed = JSON.parse(String(s4.content || "{}"));
-          const arr = Array.isArray(parsed?.annotations) ? parsed.annotations : [];
+          const arr = Array.isArray(parsed?.annotations)
+            ? parsed.annotations
+            : [];
           annotations = arr
             .filter((x: any) => x && typeof x === "object")
             .map((x: any) => ({
@@ -701,7 +807,9 @@ export async function POST(req: Request) {
               text: String(x.text || ""),
               type: String(x.type || "Structure"),
               importance:
-                x.importance === "high" || x.importance === "medium" ? x.importance : "low",
+                x.importance === "high" || x.importance === "medium"
+                  ? x.importance
+                  : "low",
               quote: x.quote ? String(x.quote) : undefined,
               before: x.before ? String(x.before) : undefined,
               after: x.after ? String(x.after) : undefined,
@@ -709,7 +817,10 @@ export async function POST(req: Request) {
             }))
             .slice(0, 12);
         } catch {
-          console.warn("⚠️ Explain JSON parse failed:", (s4 as any).content?.slice(0, 200));
+          console.warn(
+            "⚠️ Explain JSON parse failed:",
+            s4.content?.slice(0, 200)
+          );
         }
       }
     }
@@ -722,7 +833,7 @@ export async function POST(req: Request) {
         modelUsed: {
           stage1: DEFAULT_STAGE1_MODEL,
           stage2: s2Payload.model,
-          // Explain 用（従来の stage3）
+          // Explain 用を維持
           stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
           // 5.1 清書係の実績は別フィールドで返す
           finalPolish: finalPolishModelUsed,
@@ -753,7 +864,9 @@ export async function POST(req: Request) {
     );
   } catch (e: any) {
     console.error("API route crashed:", e?.stack || e?.message || e);
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+      status: 500,
+    });
   }
 }
 
@@ -763,8 +876,11 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const supabase = sbRead();
-    const { data } = await supabase.from("categories").select("l1,l2,mode").limit(1);
-    return new Response(
+    const { data } = await supabase
+      .from("categories")
+      .select("l1,l2,mode")
+      .limit(1);
+  return new Response(
       JSON.stringify({
         ok: true,
         sampleCategory: data?.[0] ?? null,
