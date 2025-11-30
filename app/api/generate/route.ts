@@ -90,7 +90,7 @@ const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mi
 const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
 const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
 // 5.1 清書係。例: gpt-5.1 などを環境変数で指定
-const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "";
+const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "gpt-5.1";
 const EXPLAIN_LAYER_MODEL = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
 
 async function callOpenAI(payload: any, key: string, timeout: number) {
