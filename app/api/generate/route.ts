@@ -15,8 +15,7 @@ export const dynamic = "force-dynamic";
 const SERVER_TIMEOUT_MS = Math.max(60_000, Math.min(295_000, (maxDuration - 5) * 1000));
 const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
-const STAGE3_TIMEOUT_MS = 60_000; // Final Pass 用
-const EXPLAIN_TIMEOUT_MS = 45_000;
+const STAGE3_TIMEOUT_MS = 60_000;
 
 /* =========================================================================
    File Utils
@@ -70,9 +69,8 @@ const LOCAL_STYLE = readJsonSafe<StyleJSON>("knowledge/StyleLayer.json", { style
 /* =========================================================================
    Prompts
    ========================================================================= */
-// v2.0.8 を prompts/bs_prompt_v2.0.8.txt に配置し、なければ 2.0.7 をフォールバック
-const CORE_PROMPT_V208 =
-  readText("prompts/bs_prompt_v2.0.8.txt") || readText("prompts/bs_prompt_v2.0.7.txt");
+// v2.0.8 を prompts/bs_prompt_v2.0.8.txt に配置済み想定
+const CORE_PROMPT_V208 = readText("prompts/bs_prompt_v2.0.8.txt");
 const CORE_PROMPT = CORE_PROMPT_V208 || "You are Boost Suite v2.0.8 copy refiner.";
 
 const YAKKI_FILTERS = ["A", "B", "C", "D"]
@@ -86,17 +84,14 @@ const EXPLAIN_PROMPT_V1 = readText("prompts/explain/BoostSuite_Explain_v1.0.txt"
 /* =========================================================================
    OpenAI helpers
    ========================================================================= */
-const isFiveFamily = (m: string) => /^gpt-5(\.1)?($|-)/i.test(m);
+const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 
 const DEFAULT_STAGE1_MODEL = process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
 const DEFAULT_STAGE2_MODEL = process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
 const STRONG_HUMANIZE_MODEL = process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+// 5.1 清書係。例: gpt-5.1 / gpt-5.1-mini などを環境変数で指定
+const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "";
 const EXPLAIN_LAYER_MODEL = process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
-
-// Final Pass（Stage3）: 5.1 系を想定
-const FINAL_PASS_MODEL = process.env.BOOST_FINAL_MODEL?.trim() || "gpt-5.1-mini";
-// 環境変数で "0" にすると Final Pass 無効
-const USE_FINAL_PASS = process.env.BOOST_USE_FINAL_PASS !== "0";
 
 async function callOpenAI(payload: any, key: string, timeout: number) {
   const controller = new AbortController();
@@ -248,7 +243,7 @@ function buildCategoryHint(
 }
 
 /* =========================================================================
-   Value Layer Hint（価値階層レイヤー：tone / density）
+   Stage1 Meta JSON（価値レイヤー）パース
    ========================================================================= */
 type Stage1Meta = {
   category?: string | null;
@@ -282,58 +277,13 @@ const DEFAULT_STAGE1_META: Stage1Meta = {
   diff_comp_price: false,
 };
 
-function buildValueLayerHint(meta: Stage1Meta): string {
-  const lines: string[] = [];
-  const vt = meta.value_tier || "mid";
-  const density = meta.info_density || "balanced";
-
-  lines.push("ValueLayer:");
-  lines.push(`- value_tier=${vt}`);
-  lines.push(`- info_density=${density}`);
-
-  if (vt === "luxury") {
-    lines.push(
-      "- Luxury: 静かなトーンで、“高級”“最高”などの直接的表現は避ける。具体的な金額や自慢気な言い回しはNG。"
-    );
-  } else if (vt === "premium") {
-    lines.push(
-      "- Premium: 機能・素材・背景説明を中心に、丁寧で落ち着いたトーン。過度な煽りは避ける。"
-    );
-  } else if (vt === "mass") {
-    lines.push(
-      "- Mass: 日常使い・気軽さ・扱いやすさに触れてよいが、極端な価格訴求や“激安”表現は避ける。"
-    );
-  } else {
-    lines.push("- Mid: 過度に盛らず、必要な情報を丁寧に伝える中庸トーン。");
-  }
-
-  if (density === "subtractive") {
-    lines.push(
-      "- InfoDensity: subtractive → 全てを説明しようとせず、要点を3つ前後に絞り、余白を残す。"
-    );
-  } else if (density === "additive") {
-    lines.push(
-      "- InfoDensity: additive → スペックや仕様の補足を丁寧に載せるが、1文は短めに保つ。"
-    );
-  } else {
-    lines.push(
-      "- InfoDensity: balanced → 説明と余白のバランスをとり、読みやすさを最優先する。"
-    );
-  }
-
-  return lines.join("\n");
-}
-
-/* =========================================================================
-   Stage1 Meta JSON（価値レイヤー）パース
-   ========================================================================= */
 function parseStage1MetaAndBody(raw: string): { meta: Stage1Meta; body: string } {
   const text = String(raw || "");
   const start = text.indexOf("<<META_JSON>>");
   const end = text.indexOf("<<END_META_JSON>>");
 
   if (start === -1 || end === -1 || end <= start) {
-    // まだMeta対応していないプロンプトでも動くようにフォールバック
+    // Meta未対応プロンプトのフォールバック
     return { meta: { ...DEFAULT_STAGE1_META }, body: text.trim() };
   }
 
@@ -380,12 +330,9 @@ function deriveFlagsFromMeta(
     diff_comp_price: boolean;
   }
 ): DerivedFlags {
-  // Meta が出してきたカテゴリ（「その他」は除外）
   const catFromMeta = meta.category && meta.category !== "その他" ? meta.category : null;
-
   const sceneFromMeta =
     meta.scene === "device_15min" || meta.scene === "gift" ? meta.scene : null;
-
   const ageFromMeta = typeof meta.target_age === "number" ? meta.target_age : null;
 
   return {
@@ -422,7 +369,6 @@ function deriveFlagsFromMeta(
 function buildComparisonHint(cat: string | null): string {
   const c = (cat || "").toLowerCase();
 
-  // 美容機器系
   if (c.includes("美容") || c.includes("beauty") || c.includes("skincare")) {
     return `Comparison Block:
 - タイトル：「【他社との違い】」。
@@ -432,7 +378,6 @@ function buildComparisonHint(cat: string | null): string {
 - 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ軽く触れる）。`;
   }
 
-  // 家電
   if (c.includes("家電") || c.includes("appliance")) {
     return `Comparison Block:
 - タイトル：「【他社との違い】」。
@@ -442,15 +387,14 @@ function buildComparisonHint(cat: string | null): string {
 - 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ軽く触れる）。`;
   }
 
-  // 食品・ファッションなどは比較ブロックを特に固定しない
   return "";
 }
 
 /* =========================================================================
-   POST : Stage1（FACT＋SmartBullet＋Meta）
-        → Stage2（Talkflow＋ValueLayer）
-        → Stage3（Final Pass / optional）
-        → StageX（Explain Layer / optional）
+   POST : Stage1（FACT＋SmartBullet）
+        → Stage2（Talkflow）
+        → Stage3（Final Polish / 5.1 清書）
+        → Explain Layer（任意）
    ========================================================================= */
 export async function POST(req: Request) {
   try {
@@ -492,19 +436,7 @@ export async function POST(req: Request) {
       .replace(/\r/g, "")
       .slice(0, 16000);
 
-    /* ---------------- Stage1: FACT＋SmartBullet＋Meta ---------------- */
-    const catGuess = (category || "").toLowerCase();
-    const useYakki =
-      catGuess.includes("美容") ||
-      catGuess.includes("beauty") ||
-      catGuess.includes("skincare") ||
-      catGuess.includes("健康") ||
-      catGuess.includes("health") ||
-      catGuess.includes("supple") ||
-      catGuess.includes("サプリ");
-
-    const yakkiBlock = useYakki && YAKKI_FILTERS ? `${YAKKI_FILTERS}\n` : "";
-
+    /* ---------------- Stage1: FACT＋SmartBullet ---------------- */
     const s1Payload: any = {
       model: DEFAULT_STAGE1_MODEL,
       messages: [
@@ -512,15 +444,14 @@ export async function POST(req: Request) {
         {
           role: "user",
           content: [
-            "【Stage1｜FACT＋SmartBullet v2.2＋MetaLayer】",
-            "目的：事実・仕様・法規整合＋売れる構文素体＋価値階層Meta（JSON）を生成。",
+            "【Stage1｜FACT＋SmartBullet v2.2】",
+            "目的：事実・仕様・法規整合＋売れる構文素体生成。",
             "",
-            yakkiBlock,
+            YAKKI_FILTERS,
+            "",
             "— 原文 —",
             compact,
-          ]
-            .filter(Boolean)
-            .join("\n"),
+          ].join("\n"),
         },
       ],
       stream: false,
@@ -555,7 +486,7 @@ export async function POST(req: Request) {
       diff_comp_price,
     });
 
-    /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda + ValueLayer ---------------- */
+    /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda ---------------- */
     const s2ModelBase = strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL;
 
     const addendaFlags = [
@@ -579,9 +510,6 @@ export async function POST(req: Request) {
       diff_comp_price: mergedFlags.diff_comp_price,
     });
 
-    const valueLayerHint = buildValueLayerHint(stage1Meta);
-
-    // 年代別Q&Aの出し分けを明示
     const ageQAHint =
       "Age Q&A Rules:\n" +
       "- age=30 → 頻度・予防（毎日? 週何回?）のQ&Aを1つ含める。\n" +
@@ -594,16 +522,14 @@ export async function POST(req: Request) {
         : "";
 
     const s2UserContent = [
-      "【Stage2｜Talkflow v2.0.8 “Perfect Warmflow” + ValueLayer + Addenda】",
-      "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化し、価値階層に沿ったトーンへ整流する。",
+      "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
+      "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
       "",
       "Warmflow Rules:",
       "1. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
       "2. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
       "",
       addendaFlags,
-      "",
-      valueLayerHint,
       categoryHint ? `\n${categoryHint}\n` : "",
       ageQAHint,
       compHint,
@@ -640,52 +566,78 @@ export async function POST(req: Request) {
       s2 = s2b;
     }
 
-    const stage2Raw = String(s2.content || "");
+    const stage2Text = String(s2.content || "");
+    let stage3Text = stage2Text;
+    let finalPolishModelUsed: string | null = null;
 
-    /* ---------------- Stage3: Final Pass（5.1想定・任意） ---------------- */
-    const applyFinalPass = USE_FINAL_PASS && !!FINAL_PASS_MODEL && !annotation_mode;
-    let finalTextForUser = stage2Raw;
+    /* ---------------- Stage3: Final Polish（5.1 清書係） ---------------- */
+    if (FINAL_POLISH_MODEL) {
+      const c = (mergedFlags.category || stage1Meta.category || "").toLowerCase();
+      const isFood =
+        c.includes("食品") ||
+        c.includes("精肉") ||
+        c.includes("food") ||
+        c.includes("grocery");
 
-    if (applyFinalPass) {
-      const fpPayload: any = {
-        model: FINAL_PASS_MODEL,
+      const polishSystem =
+        "You are Boost Suite Final Polish (清書係). " +
+        "You receive Stage2 output written in Japanese for an e-commerce product. " +
+        "Your job is ONLY to smooth wording, remove awkward or redundant phrases, " +
+        "and slightly adjust rhythm. You MUST NOT change structure markers, headings, " +
+        "section numbers, or overall template. You MUST NOT change any concrete facts " +
+        "(numbers, quantities, durations, certifications, model names) and MUST NOT invent new facts.";
+
+      const polishUser = [
+        "【Stage3｜Final Polish v2.0.8】",
+        "目的：Stage2の出力の“違和感”だけを削り、読み心地を整える清書係。",
+        "",
+        "絶対ルール：",
+        "1. 見出し番号やラベル（1.【タイトル※バランス】 など）は一切削除・変更しない。",
+        "2. セクション順序やQ&Aの数を変えない（3つなら3つのまま）。",
+        "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
+        "4. 同じ語の過剰な反復（例：「焼きセット」「週3回」など）は、日本語として自然な範囲で言い換えたり、省略して緩和する。",
+        "5. カテゴリにそぐわない表現は静かに中和する。",
+        "   - 食品カテゴリでは、「どのくらいの頻度で食べるのが理想ですか？」のような摂取頻度の推奨は避け、頻度に言及するなら『お好みのタイミングで楽しめます』程度にとどめる。",
+        "   - 医療・美容効果や健康効果の断定は書かない。",
+        "6. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
+        "",
+        "参考情報：",
+        `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
+        `Addenda Flags: ${JSON.stringify(mergedFlags)}`,
+        `isFoodCategory: ${isFood ? "true" : "false"}`,
+        "",
+        "— Stage2 出力 —",
+        stage2Text,
+      ].join("\n");
+
+      const s3Payload: any = {
+        model: FINAL_POLISH_MODEL,
         messages: [
-          {
-            role: "system",
-            content:
-              "You are Boost Suite Final Pass editor.\n" +
-              "役割：Stage2で完成した販売文のトーン・文脈・法規表現を壊さない範囲で、不自然さ・冗長さ・日本語の違和感だけを微調整する。\n" +
-              "禁止事項：構成を崩さない／セクションや番号を増減しない／新しい効能・事実を付け足さない。",
-          },
-          {
-            role: "user",
-            content: [
-              "【入力テキスト（Stage2出力）】",
-              stage2Raw,
-              "",
-              "上記を読みやすく自然な日本語に“ほんの少しだけ”整えてください。",
-            ].join("\n"),
-          },
+          { role: "system", content: polishSystem },
+          { role: "user", content: polishUser },
         ],
         stream: false,
       };
-      if (!isFiveFamily(FINAL_PASS_MODEL)) {
-        fpPayload.temperature = 0.0;
-        fpPayload.top_p = 1.0;
+      if (!isFiveFamily(FINAL_POLISH_MODEL)) {
+        s3Payload.temperature = 0.1;
+        s3Payload.top_p = 0.9;
       }
 
-      const fp = await callOpenAI(fpPayload, apiKey, STAGE3_TIMEOUT_MS);
-      if (fp.ok && fp.content) {
-        finalTextForUser = String(fp.content || stage2Raw);
+      const s3 = await callOpenAI(s3Payload, apiKey, STAGE3_TIMEOUT_MS);
+      if (s3.ok) {
+        const polished = String(s3.content || "").trim();
+        if (polished) {
+          stage3Text = polished;
+          finalPolishModelUsed = FINAL_POLISH_MODEL;
+        }
       } else {
-        console.warn("⚠️ Final pass failed, fallback to Stage2:", fp.error);
-        finalTextForUser = stage2Raw;
+        console.warn("⚠️ FinalPolish failed:", s3.error);
       }
     }
 
-    const finalText = factLock(finalTextForUser);
+    const finalText = factLock(stage3Text);
 
-    /* ---------------- Explain Layer（解説AI） ---------------- */
+    /* ---------------- Explain Layer（Stage4的立ち位置／解説AI） ---------------- */
     let annotations: Array<{
       section: string;
       text: string;
@@ -699,7 +651,7 @@ export async function POST(req: Request) {
 
     if (annotation_mode && EXPLAIN_PROMPT_V1) {
       const explainContent = EXPLAIN_PROMPT_V1.replace("{{STAGE2_TEXT}}", finalText);
-      const s3Payload: any = {
+      const s4Payload: any = {
         model: EXPLAIN_LAYER_MODEL,
         messages: [
           {
@@ -712,14 +664,14 @@ export async function POST(req: Request) {
         stream: false,
       };
       if (!isFiveFamily(EXPLAIN_LAYER_MODEL)) {
-        s3Payload.temperature = 0.0;
-        s3Payload.top_p = 1.0;
+        s4Payload.temperature = 0.0;
+        s4Payload.top_p = 1.0;
       }
 
-      const s3 = await callOpenAI(s3Payload, apiKey, EXPLAIN_TIMEOUT_MS);
-      if (s3.ok) {
+      const s4 = await callOpenAI(s4Payload, apiKey, STAGE3_TIMEOUT_MS);
+      if (s4.ok) {
         try {
-          const parsed = JSON.parse(String(s3.content || "{}"));
+          const parsed = JSON.parse(String(s4.content || "{}"));
           const arr = Array.isArray(parsed?.annotations) ? parsed.annotations : [];
           annotations = arr
             .filter((x: any) => x && typeof x === "object")
@@ -736,7 +688,7 @@ export async function POST(req: Request) {
             }))
             .slice(0, 12);
         } catch {
-          console.warn("⚠️ Explain JSON parse failed:", s3.content?.slice(0, 200));
+          console.warn("⚠️ Explain JSON parse failed:", s4.content?.slice(0, 200));
         }
       }
     }
@@ -749,8 +701,10 @@ export async function POST(req: Request) {
         modelUsed: {
           stage1: DEFAULT_STAGE1_MODEL,
           stage2: s2Payload.model,
-          stage3: applyFinalPass ? FINAL_PASS_MODEL : null,
-          explain: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
+          // Explain 用を維持
+          stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
+          // 5.1 清書係の実績は別フィールドで返す
+          finalPolish: finalPolishModelUsed,
         },
         strongHumanize: !!strongHumanize,
         jitter: !!jitter,
@@ -789,7 +743,7 @@ export async function GET() {
   try {
     const supabase = sbRead();
     const { data } = await supabase.from("categories").select("l1,l2,mode").limit(1);
-  return new Response(
+    return new Response(
       JSON.stringify({
         ok: true,
         sampleCategory: data?.[0] ?? null,
