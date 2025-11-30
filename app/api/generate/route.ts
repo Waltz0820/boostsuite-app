@@ -111,9 +111,10 @@ const DEFAULT_STAGE1_MODEL =
 const DEFAULT_STAGE2_MODEL =
   process.env.BOOST_STAGE2_MODEL?.trim() || "gpt-4o-mini";
 const STRONG_HUMANIZE_MODEL =
-  process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5";
+  process.env.BOOST_STRONG_HUMANIZE_MODEL?.trim() || "gpt-5.1";
 // 5.1 清書係。例: gpt-5.1 などを環境変数で指定
-const FINAL_POLISH_MODEL = process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "gpt-5.1";
+const FINAL_POLISH_MODEL =
+  process.env.BOOST_FINAL_POLISH_MODEL?.trim() || "gpt-5.1";
 const EXPLAIN_LAYER_MODEL =
   process.env.BOOST_EXPLAIN_MODEL?.trim() || "gpt-4o-mini";
 
@@ -723,6 +724,14 @@ export async function POST(req: Request) {
         "   - 医療・美容効果や健康効果の断定は書かない。",
         "6. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
         "",
+        "【食品カテゴリ向けの追加ルール（isFoodCategory=true の場合に特に重視）】",
+        "7. SmartBullet内に「※個体差があります」「※感じ方には差があります」など短い免責だけが付いている場合、",
+        "   それらは削除してよい。食品カテゴリでは、個体差や感じ方の免責は「3.5 注意事項」でまとめて触れる。",
+        "   すでに3.5に『風味や食感は環境や個体差により変動します』等の一文がある場合、Bullet側の「※〜」は不要として削除する。",
+        "8. Q&Aに『どのくらいの頻度で食べるのが良いですか？』『週◯回が理想ですか？』といった頻度推奨の質問が含まれている場合、",
+        "   質問文と回答文を、『どんなシーンに向いていますか？』『保存期間や賞味期限は？』など、",
+        "   摂取頻度を推奨しないテーマに“差し替えて”よい。Q&Aの個数だけは変えないこと。",
+        "",
         "参考情報：",
         `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
         `Addenda Flags: ${JSON.stringify(mergedFlags)}`,
@@ -880,7 +889,7 @@ export async function GET() {
       .from("categories")
       .select("l1,l2,mode")
       .limit(1);
-  return new Response(
+    return new Response(
       JSON.stringify({
         ok: true,
         sampleCategory: data?.[0] ?? null,
