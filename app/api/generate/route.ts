@@ -260,34 +260,34 @@ function buildCategoryHint(
       );
     else if (opts.age >= 40)
       lines.push(
-        "- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める。"
+        "- 40代：時短・習慣化・週3×15分を強調。Q&Aに継続性の質問を含める."
       );
     else
       lines.push(
-        "- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める。"
+        "- 30代：予防・毛穴・軽量運用。Q&Aに使用頻度（毎日？週何回？）を含める."
       );
   }
 
   // 利用シーンヒント
   if (opts?.scene === "device_15min") {
     lines.push(
-      "- Scene: device_15min → 入浴後/就寝前 × 週3回 × 1回15分を自然に織り込む。"
+      "- Scene: device_15min → 入浴後/就寝前 × 週3回 × 1回15分を自然に織り込む."
     );
   } else if (opts?.scene === "gift") {
     lines.push(
-      "- Scene: gift → 贈答導線（熨斗/包装/賞味期限/保管方法）を短く触れる。"
+      "- Scene: gift → 贈答導線（熨斗/包装/賞味期限/保管方法）を短く触れる."
     );
   }
 
   // 比較ブロック
   if (opts?.comparison_helper) {
     lines.push(
-      "- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止。"
+      "- Comparison: 体験軸（通う手間 vs 在宅・共有）で1段。誇大・最上表現は禁止."
     );
   }
   if (opts?.diff_comp_price) {
     lines.push(
-      "- PricePositioning: 金額や率は出さず、『初期投資のみ・長期運用』など非数値で位置づける。"
+      "- PricePositioning: 金額や率は出さず、『初期投資のみ・長期運用』など非数値で位置づける."
     );
   }
 
@@ -729,7 +729,7 @@ export async function POST(req: Request) {
     let stage3Text = stage2Text;
     let finalPolishModelUsed: string | null = null;
 
-    /* ---------------- Stage3: Final Polish（5.1 清書係） ---------------- */
+    /* ---------------- Stage3: Final Polish（5.1 清書係｜Native First） ---------------- */
     if (FINAL_POLISH_MODEL) {
       const c = (
         mergedFlags.category ||
@@ -742,42 +742,56 @@ export async function POST(req: Request) {
         c.includes("food") ||
         c.includes("grocery");
 
-      const polishSystem =
-        "You are Boost Suite Final Polish (清書係). " +
-        "You receive Stage2 output written in Japanese for an e-commerce product. " +
-        "Your job is ONLY to smooth wording, remove awkward or redundant phrases, " +
-        "and slightly adjust rhythm. You MUST NOT change structure markers, headings, " +
-        "section numbers, or overall template. You MUST NOT change any concrete facts " +
-        "(numbers, quantities, durations, certifications, model names) and MUST NOT invent new facts.";
+      const polishSystem = [
+        "You are Boost Suite Native Copywriter / Final Polish (清書係).",
+        "Your primary goal is to turn the Stage2 output into completely natural, modern Japanese,",
+        "as if written by a professional native copywriter in their 20–40s.",
+        "Secondarily, you smooth rhythm and remove awkward or redundant phrasing.",
+        "You MUST keep the structure markers, headings, section numbers, and overall template.",
+        "You MUST NOT change any concrete facts (numbers, quantities, durations, certifications, model names),",
+        "and you MUST NOT invent new facts.",
+      ].join(" ");
 
       const polishUser = [
-        "【Stage3｜Final Polish v2.0.8】",
-        "目的：Stage2の出力の“違和感”だけを削り、読み心地を整える清書係。",
+        "【Stage3｜Native First Final Polish v2.0.8】",
+        "目的：Stage2の内容を保ったまま、日本語として“するっと読める”状態に整えるネイティブコピーライター兼清書係。",
+        "",
+        "最優先方針：",
+        "0. 読み手が引っかからない自然な日本語を最優先する。訴求の強さよりも、読みやすさと信頼感を優先する。",
         "",
         "絶対ルール：",
         "1. 見出し番号やラベル（1.【タイトル※バランス】 など）は一切削除・変更しない。",
         "2. セクション順序やQ&Aの数を変えない（3つなら3つのまま）。",
         "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
-        "4. 同じ語の過剰な反復（例：「焼きセット」「週3回」など）は、日本語として自然な範囲で言い換えたり、省略して緩和する。",
-        "5. カテゴリにそぐわない表現は静かに中和する。",
-        "   - 食品カテゴリでも、新しい健康・栄養効果の主張（例：「不飽和脂肪酸が豊富」「健康をサポート」など）は書き足さない。",
-        "   - すでにある栄養・健康寄りの表現は、『風味』『食べやすさ』『軽さ』などの“味の印象”に中和してよい。",
-        "6. リードとクロージングは少しだけ冗長さを削り、“静かな余韻”を残す方向へ整える。",
+        "",
+        "ネイティブ化ルール：",
+        "4. 直訳調・機械翻訳調・マニュアル調・冗長な“オジ構文”は、意味を変えずに簡潔で自然な言い回しに置き換える。",
+        "   - 不自然な接続詞の多用（なお／ちなみに／そして などの連発）は減らす。",
+        "   - 1文が長すぎる場合は、読みやすい長さに分割するか、重複部分を削る。",
+        "5. 読み手が“売り込み感”を強く感じるような過剰な煽り文句やテンプレ営業トークは、意味を変えない範囲でやわらげるか削除してよい。",
+        "   例：『今すぐ〜しないと損です』『絶対に〜すべきです』など。",
+        "",
+        "ギフト・安全性訴求の扱い：",
+        "6. Meta上でギフト専用シーンが指定されていない場合（scene が gift ではない場合）、",
+        "   『贈り物に最適』『ギフトにぴったり』といった表現は、テキスト全体で0〜1回に抑えるか、",
+        "   不自然に感じられる箇所では削除してよい。ギフトは“サブテーマ”として扱い、主役にはしない。",
+        "7. 安全性・安心感の表現は、必要最低限の事実ベース（認証・検査体制など）のみ残し、",
+        "   同じ趣旨の繰り返しや、読み手に不要な不安を与える表現は削ってよい。",
         "",
         "【食品カテゴリ向けの追加ルール（isFoodCategory=true の場合に特に重視）】",
-        "7. SmartBullet内に「※個人差があります」「※感じ方には差があります」など短い免責だけが付いている場合、",
+        "8. SmartBullet内に『※個人差があります』『※感じ方には差があります』など短い免責だけが付いている場合、",
         "   それらは削除してよい。食品カテゴリでは、個体差や感じ方の免責は「3.5 注意事項」でまとめて触れる。",
-        "   すでに3.5に『風味や食感は環境や個体差により変動します』等の一文がある場合、Bullet側の「※〜」は不要として削除する。",
-        "8. Q&Aに『どのくらいの頻度で食べるのが良いですか？』『週◯回が理想ですか？』といった頻度推奨の質問が含まれている場合、",
-        "   質問文と回答文を、『どんなシーンに向いていますか？』『保存期間や賞味期限は？』など、",
+        "   すでに3.5に『風味や食感は個体差や調理条件により変わる』等の一文がある場合、Bullet側の「※〜」は不要として削除する。",
+        "9. Q&Aに『どのくらいの頻度で食べるのが良いですか？』『週◯回が理想ですか？』といった摂取頻度の推奨が含まれている場合、",
+        "   質問文と回答文を、『どんなシーンに向いていますか？』『保存方法や賞味期限は？』など、",
         "   摂取頻度を推奨しないテーマに“差し替えて”よい。Q&Aの個数だけは変えないこと。",
-        "9. 3.5 注意事項は、食品らしい基本事項にとどめる。",
-        "   - 調理時の加熱・解凍方法・保存方法・アレルギー確認・風味の個体差などに絞る。",
+        "10. 3.5 注意事項は、食品らしい基本事項にとどめる。",
+        "   - 加熱・解凍方法・保存方法・アレルギー確認・風味の個体差などに絞る。",
         "   - 『医薬品ではありません』『妊娠中や通院中の方は医師に相談』といった医療寄りの文言は、新たに追加しない。",
         "   - すでにそうした医療寄りの文言が含まれている場合は、食品として自然な注意書き（加熱・保存・アレルゲン確認など）に置き換えてよい。",
         "",
-        "【編集スタイル】",
-        "10. 原則として、新しい文を一から書き足すことは避ける。既存の文を整理して短くする・2文を1文にまとめるなど、",
+        "編集スタイル：",
+        "11. 原則として、新しい文を一から書き足すことは避ける。既存の文を整理して短くする・2文を1文にまとめるなど、",
         "    「削る」「整える」方向を優先する。どうしても必要な場合のみ、既存内容の言い換えレベルで1文程度なら追加してよい。",
         "",
         "参考情報：",
