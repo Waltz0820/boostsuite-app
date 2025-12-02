@@ -551,7 +551,7 @@ export async function POST(req: Request) {
       jitter = false,
       annotation_mode = false,
 
-      // ▼ v2.0.7a Addenda フラグ（リクエスト側ヒント）
+      // ▼ v2.0.8 Addenda フラグ（リクエスト側ヒント）
       lead_compact = false,
       bullet_mode = "default" as "default" | "one_idea_one_sentence",
       price_cta = false,
@@ -676,12 +676,18 @@ export async function POST(req: Request) {
     const sceneBalanceHint = buildSceneBalanceHint(stage1Meta, mergedFlags);
 
     const s2UserContent = [
-      "【Stage2｜Talkflow v2.0.7 “Perfect Warmflow” + v2.0.7a Addenda】",
+      "【Stage2｜Talkflow v2.0.8 “Perfect Warmflow” + v2.0.8 Addenda】",
       "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
       "",
+      "Hard Rules:",
+      "0. Stage1 に存在しない新しい数値（g, mL, kcal, %, °C, 日数・回数など）や認証名を作らない。",
+      "   - 容量・サイズ・栄養成分などのスペックは、必ず Stage1 内にすでに出ているものだけを使う。",
+      "   - Stage1 に栄養成分の行が 1 行もない場合、Stage2 で新たに『100gあたり〜』『1食あたり〜』などの栄養行を追加しない。",
+      "1. SmartBullet の項目数と大まかな意味内容は変えない（まとめるのは可／意味の追加は不可）。",
+      "",
       "Warmflow Rules:",
-      "1. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
-      "2. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
+      "2. SmartBulletは5点構成を保持（1〜4機能、5情緒）。",
+      "3. リードはWarmflow構文、クロージングは未来導線を必ず含む。",
       "",
       "Native Rules (最優先):",
       " - まず『自然な日本語として読めるか』を最優先する。訴求や情報量よりも、ネイティブが違和感なく読めるリズムを優先する。",
@@ -761,14 +767,17 @@ export async function POST(req: Request) {
       const polishUser = [
   "【Stage3｜Native First Final Polish v2.0.8】",
   "目的：Stage2の内容を保ったまま、日本語として“するっと読める”状態に整えるネイティブコピーライター兼清書係。",
+
   "",
   "最優先方針：",
   "0. 読み手が引っかからない自然な日本語を最優先する。訴求の強さよりも、読みやすさと信頼感を優先する。",
+
   "",
   "絶対ルール：",
   "1. 見出し番号やラベル（1.【タイトル※バランス】 など）は一切削除・変更しない。",
   "2. セクション順序やQ&Aの数を変えない（3つなら3つのまま）。",
   "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
+
   "",
   "ネイティブ化ルール：",
   "4. 直訳調・機械翻訳調・マニュアル調・冗長な“オジ構文”は、意味を変えずに簡潔で自然な言い回しに置き換える。",
@@ -776,6 +785,7 @@ export async function POST(req: Request) {
   "   - 1文が長すぎる場合は、読みやすい長さに分割するか、重複部分を削る。",
   "5. 読み手が“売り込み感”を強く感じるような過剰な煽り文句やテンプレ営業トークは、意味を変えない範囲でやわらげるか削除してよい。",
   "   例：『今すぐ〜しないと損です』『絶対に〜すべきです』など。",
+
   "",
   "ギフト・安全性訴求の扱い：",
   "6. Meta上でギフト専用シーンが指定されていない場合（scene が gift ではない場合）、",
@@ -787,6 +797,7 @@ export async function POST(req: Request) {
   "   ギフトは『シーンによっては贈り物としても使える』程度の一文にとどめる。ギフト専用の長い説明は削除してよい。",
   "9. 安全性・安心感の表現は、必要最低限の事実ベース（認証・検査体制など）のみ残し、",
   "   同じ趣旨の繰り返しや、読み手に不要な不安を与える表現は削ってよい。",
+
   "",
   "【食品カテゴリ向けの追加ルール（isFoodCategory=true の場合に特に重視）】",
   "10. SmartBullet内に『※個人差があります』『※感じ方には差があります』など短い免責だけが付いている場合、",
@@ -801,6 +812,7 @@ export async function POST(req: Request) {
   "    - 加熱・解凍方法・保存方法・アレルギー確認・風味の個体差などに絞る。",
   "    - 『医薬品ではありません』『妊娠中や通院中の方は医師に相談』といった医療寄りの文言は、新たに追加しない。",
   "    - すでにそうした医療寄りの文言が含まれている場合は、食品として自然な注意書き（加熱・保存・アレルゲン確認など）に置き換えてよい。",
+
   "",
   "編集スタイル：",
   "14. 原則として、新しい文を一から書き足すことは避ける。既存の文を整理して短くする・2文を1文にまとめるなど、",
@@ -809,11 +821,13 @@ export async function POST(req: Request) {
   "    scene ≠ gift の場合は、『贈り物にも』といったギフト訴求を入れず、“おうちでどう楽しめるか”にフォーカスしてよい。",
   "16. A/Bテスト提案でも、scene ≠ gift の場合は、ギフトをメインテーマにした軸（『贈り物にも最適』など）は1軸までに抑えるか、",
   "    産地・味わい・調理の手軽さなど、家庭利用を主役にした軸へ置き換えてよい。",
+
   "",
   "参考情報：",
   `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
   `Addenda Flags: ${JSON.stringify(mergedFlags)}`,
   `isFoodCategory: ${isFood ? "true" : "false"}`,
+
   "",
   "— Stage2 出力 —",
   stage2Text,
