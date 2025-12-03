@@ -16,6 +16,9 @@ const SERVER_TIMEOUT_MS = Math.max(
   60_000,
   Math.min(295_000, (maxDuration - 5) * 1000)
 );
+
+// ★ Stage0用タイムアウト（やや短め）
+const STAGE0_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 45_000);
 const STAGE1_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE2_TIMEOUT_MS = Math.min(SERVER_TIMEOUT_MS, 120_000);
 const STAGE3_TIMEOUT_MS = 60_000;
@@ -106,6 +109,10 @@ const EXPLAIN_PROMPT_V1 = readText(
    ========================================================================= */
 const isFiveFamily = (m: string) => /^gpt-5($|-)/i.test(m);
 
+// ★ Stage0用モデル
+const DEFAULT_STAGE0_MODEL =
+  process.env.BOOST_STAGE0_MODEL?.trim() || "gpt-4o-mini";
+
 const DEFAULT_STAGE1_MODEL =
   process.env.BOOST_STAGE1_MODEL?.trim() || "gpt-5-mini";
 const DEFAULT_STAGE2_MODEL =
@@ -146,6 +153,127 @@ async function callOpenAI(payload: any, key: string, timeout: number) {
     return { ok: false as const, error: e?.message || String(e) };
   } finally {
     clearTimeout(t);
+  }
+}
+
+/* =========================================================================
+   Stage0 Meta & Persona Analyzer
+   ========================================================================= */
+type Stage0Meta = {
+  category?: string | null;
+  value_tier?: "mass" | "mid" | "premium" | "luxury" | null;
+  info_density?: "additive" | "balanced" | "subtractive" | null;
+  scene?: "device_15min" | "gift" | "daily" | null;
+  target_age?: number | null;
+  persona?: string | null;
+  tone_keywords?: string[];
+  forbidden_patterns?: string[];
+  encouraged_patterns?: string[];
+  emotional_highlights?: string[];
+  final_cadence?: string | null;
+};
+
+const DEFAULT_STAGE0_META: Stage0Meta = {
+  category: null,
+  value_tier: null,
+  info_density: null,
+  scene: null,
+  target_age: null,
+  persona: null,
+  tone_keywords: [],
+  forbidden_patterns: [],
+  encouraged_patterns: [],
+  emotional_highlights: [],
+  final_cadence: null,
+};
+
+async function runStage0Meta(
+  compact: string,
+  apiKey: string
+): Promise<Stage0Meta> {
+  if (!compact) return { ...DEFAULT_STAGE0_META };
+
+  const payload: any = {
+    model: DEFAULT_STAGE0_MODEL,
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are Boost Suite Stage0 Meta & Persona Analyzer.",
+          "You read the original product text and output ONLY JSON with fields:",
+          "{",
+          '  "category": string|null,',
+          '  "value_tier": "mass"|"mid"|"premium"|"luxury"|null,',
+          '  "info_density": "additive"|"balanced"|"subtractive"|null,',
+          '  "scene": "device_15min"|"gift"|"daily"|null,',
+          '  "target_age": number|null,',
+          '  "persona": string|null,',
+          '  "tone_keywords": string[],',
+          '  "forbidden_patterns": string[],',
+          '  "encouraged_patterns": string[],',
+          '  "emotional_highlights": string[],',
+          '  "final_cadence": string|null',
+          "}",
+          "Use short Japanese labels for category (例: \"美容家電\",\"食品\",\"ネイルツール\" など).",
+          "Do not add any explanation text. Return JSON only.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          "【入力テキスト】",
+          compact,
+          "",
+          "上記をもとに、説明なしで JSON だけを返してください。",
+        ].join("\n"),
+      },
+    ],
+    stream: false,
+    temperature: 0.0,
+    top_p: 1.0,
+  };
+
+  const res = await callOpenAI(payload, apiKey, STAGE0_TIMEOUT_MS);
+  if (!res.ok) {
+    console.warn("⚠️ Stage0 meta failed:", res.error);
+    return { ...DEFAULT_STAGE0_META };
+  }
+
+  try {
+    const parsed = JSON.parse(String(res.content || "{}"));
+    const m: Stage0Meta = {
+      category: parsed?.category ?? null,
+      value_tier: parsed?.value_tier ?? null,
+      info_density: parsed?.info_density ?? null,
+      scene: parsed?.scene ?? null,
+      target_age:
+        typeof parsed?.target_age === "number" ? parsed.target_age : null,
+      persona: parsed?.persona ?? null,
+      tone_keywords: Array.isArray(parsed?.tone_keywords)
+        ? parsed.tone_keywords.map((x: any) => String(x)).filter(Boolean)
+        : [],
+      forbidden_patterns: Array.isArray(parsed?.forbidden_patterns)
+        ? parsed.forbidden_patterns.map((x: any) => String(x)).filter(Boolean)
+        : [],
+      encouraged_patterns: Array.isArray(parsed?.encouraged_patterns)
+        ? parsed.encouraged_patterns.map((x: any) => String(x)).filter(Boolean)
+        : [],
+      emotional_highlights: Array.isArray(parsed?.emotional_highlights)
+        ? parsed.emotional_highlights
+            .map((x: any) => String(x))
+            .filter(Boolean)
+        : [],
+      final_cadence: parsed?.final_cadence ?? null,
+    };
+    return { ...DEFAULT_STAGE0_META, ...m };
+  } catch (e) {
+    console.warn(
+      "⚠️ Stage0 meta JSON parse failed:",
+      (e as any)?.message || e,
+      "raw:",
+      String(res.content || "").slice(0, 200)
+    );
+    return { ...DEFAULT_STAGE0_META };
   }
 }
 
@@ -370,6 +498,8 @@ type DerivedFlags = {
   compliance_strict: boolean;
   comparison_helper: boolean;
   diff_comp_price: boolean;
+  // ★ Stage0 Persona
+  persona: string | null;
 };
 
 function deriveFlagsFromMeta(
@@ -386,18 +516,31 @@ function deriveFlagsFromMeta(
     compliance_strict: boolean;
     comparison_helper: boolean;
     diff_comp_price: boolean;
-  }
+  },
+  // ★ Stage0からの補正
+  s0?: Stage0Meta | null
 ): DerivedFlags {
+  const catFromStage0 =
+    s0?.category && s0.category !== "その他" ? s0.category : null;
   const catFromMeta =
     meta.category && meta.category !== "その他" ? meta.category : null;
+
+  const sceneFromStage0 =
+    s0?.scene === "device_15min" || s0?.scene === "gift" ? s0.scene : null;
   const sceneFromMeta =
     meta.scene === "device_15min" || meta.scene === "gift" ? meta.scene : null;
+
+  const ageFromStage0 =
+    typeof s0?.target_age === "number" ? s0.target_age : null;
   const ageFromMeta = typeof meta.target_age === "number" ? meta.target_age : null;
 
   return {
-    category: catFromMeta ?? req.category,
-    scene_realism: (sceneFromMeta as any) ?? req.scene_realism,
-    audience_age: ageFromMeta ?? req.audience_age,
+    category: catFromStage0 ?? catFromMeta ?? req.category,
+    scene_realism:
+      ((sceneFromStage0 as any) ??
+        (sceneFromMeta as any) ??
+        req.scene_realism) || null,
+    audience_age: ageFromStage0 ?? ageFromMeta ?? req.audience_age,
     bullet_mode: (meta.bullet_mode as any) || req.bullet_mode || "default",
     lead_compact:
       typeof meta.lead_compact === "boolean"
@@ -421,6 +564,8 @@ function deriveFlagsFromMeta(
       typeof meta.diff_comp_price === "boolean"
         ? meta.diff_comp_price
         : req.diff_comp_price,
+    // persona は Stage0 専任
+    persona: s0?.persona ?? null,
   };
 }
 
@@ -537,7 +682,8 @@ function buildComparisonHint(cat: string | null): string {
 }
 
 /* =========================================================================
-   POST : Stage1（FACT＋SmartBullet）
+   POST : Stage0（Meta & Persona）
+        → Stage1（FACT＋SmartBullet）
         → Stage2（Talkflow）
         → Stage3（Final Polish / 5.1 清書）
         → Explain Layer（任意）
@@ -582,6 +728,9 @@ export async function POST(req: Request) {
       .replace(/\r/g, "")
       .slice(0, 16000);
 
+    /* ---------------- Stage0: Meta & Persona Analyzer ---------------- */
+    const stage0Meta = await runStage0Meta(compact, apiKey);
+
     /* ---------------- Stage1: FACT＋SmartBullet ---------------- */
     const s1Payload: any = {
       model: DEFAULT_STAGE1_MODEL,
@@ -620,20 +769,24 @@ export async function POST(req: Request) {
     const stage1Raw = String(s1.content || "");
     const { meta: stage1Meta, body: stage1 } = parseStage1MetaAndBody(stage1Raw);
 
-    /* ---------------- Stage2 flags: UIヒント × Meta をマージ ---------------- */
-    const mergedFlags = deriveFlagsFromMeta(stage1Meta, {
-      category,
-      scene_realism,
-      audience_age,
-      bullet_mode,
-      lead_compact,
-      price_cta,
-      diff_fact,
-      numeric_sensory,
-      compliance_strict,
-      comparison_helper,
-      diff_comp_price,
-    });
+    /* ---------------- Stage2 flags: UIヒント × Meta × Stage0 をマージ ---------------- */
+    const mergedFlags = deriveFlagsFromMeta(
+      stage1Meta,
+      {
+        category,
+        scene_realism,
+        audience_age,
+        bullet_mode,
+        lead_compact,
+        price_cta,
+        diff_fact,
+        numeric_sensory,
+        compliance_strict,
+        comparison_helper,
+        diff_comp_price,
+      },
+      stage0Meta
+    );
 
     /* ---------------- Stage2: Talkflow “Perfect Warmflow” + Addenda ---------------- */
     const s2ModelBase = strongHumanize
@@ -654,6 +807,7 @@ export async function POST(req: Request) {
       }`,
       `- diff_comp_price=${mergedFlags.diff_comp_price ? "true" : "false"}`,
       `- audience_age=${mergedFlags.audience_age ?? "none"}`,
+      `- persona=${mergedFlags.persona ?? "none"}`,
     ].join("\n");
 
     const categoryHint = buildCategoryHint(mergedFlags.category, {
@@ -677,6 +831,37 @@ export async function POST(req: Request) {
     const valueTierHint = buildValueTierHint(stage1Meta);
     const sceneBalanceHint = buildSceneBalanceHint(stage1Meta, mergedFlags);
 
+    // ★ Persona 情報を文字列化
+    const personaLines: string[] = [];
+    if (stage0Meta?.persona) {
+      personaLines.push(`- persona=${stage0Meta.persona}`);
+    }
+    if (stage0Meta?.tone_keywords?.length) {
+      personaLines.push(
+        `- tone_keywords=${stage0Meta.tone_keywords.join(", ")}`
+      );
+    }
+    if (stage0Meta?.forbidden_patterns?.length) {
+      personaLines.push(
+        `- forbidden_patterns=${stage0Meta.forbidden_patterns.join(" / ")}`
+      );
+    }
+    if (stage0Meta?.encouraged_patterns?.length) {
+      personaLines.push(
+        `- encouraged_patterns=${stage0Meta.encouraged_patterns.join(" / ")}`
+      );
+    }
+    if (stage0Meta?.emotional_highlights?.length) {
+      personaLines.push(
+        `- emotional_highlights=${stage0Meta.emotional_highlights.join(
+          " / "
+        )}`
+      );
+    }
+    const personaBlock = personaLines.length
+      ? ["Persona Layer (Stage0):", ...personaLines].join("\n")
+      : "";
+
     const s2UserContent = [
       "【Stage2｜Talkflow v2.0.8 “Perfect Warmflow” + v2.0.8 Addenda】",
       "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
@@ -694,8 +879,15 @@ export async function POST(req: Request) {
       "Native Rules (最優先):",
       " - まず『自然な日本語として読めるか』を最優先する。訴求や情報量よりも、ネイティブが違和感なく読めるリズムを優先する。",
       " - 原文にある情報でも、日本語として不自然になるなら削ってよい（特に過剰な安全性アピールやギフト連呼）。",
-      " - ギフト訴求や心理テクニックは、原文や商品特性から自然に求められる場合だけ軽く添える。無理に盛り込まない。",
+      " - ギフト訴求や心理テクニックは、原文や商品特性から自然に求められる場合だけ軽く添える。",
       " - 『お得』『今だけ』などの煽り表現は、新たに付け足さない。読みやすさと信頼感を損ねる表現は避ける。",
+      "",
+      "Persona & Style Rules:",
+      " - Stage0 で推定された persona / tone_keywords / forbidden_patterns / encouraged_patterns / emotional_highlights があれば、それに沿って語り口を決める。",
+      " - forbidden_patterns に挙がっている表現は避け、意味が必要な場合はニュアンスを弱めた言い換えにする。",
+      " - encouraged_patterns は、過度にならない範囲でリード・Bullet・クロージングに散らす。",
+      " - emotional_highlights は、直訳ではなく『どこに熱量を載せるか』のヒントとして扱う。",
+      personaBlock ? `\n${personaBlock}\n` : "",
       "",
       addendaFlags,
       categoryHint ? `\n${categoryHint}\n` : "",
@@ -830,6 +1022,7 @@ export async function POST(req: Request) {
         "    Cランク：文章を重くするだけの場合は、思い切って削除してよい。",
         "",
         "参考情報：",
+        `Stage0 Meta JSON: ${JSON.stringify(stage0Meta)}`,
         `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
         `Addenda Flags: ${JSON.stringify(mergedFlags)}`,
         `isFoodCategory: ${isFood ? "true" : "false"}`,
@@ -960,8 +1153,10 @@ export async function POST(req: Request) {
           diff_comp_price: mergedFlags.diff_comp_price,
           audience_age: mergedFlags.audience_age,
           category: mergedFlags.category,
+          persona: mergedFlags.persona,
         },
 
+        stage0Meta,
         stage1Meta,
         promptVersion: "v2.0.8",
         userId,
