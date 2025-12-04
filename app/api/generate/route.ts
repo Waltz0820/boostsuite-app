@@ -99,6 +99,11 @@ const YAKKI_FILTERS = ["A", "B", "C", "D"]
   .filter(Boolean)
   .join("\n");
 
+// ★ Talkflow 用 few-shot サンプル（SUNLUM）
+const TALKFLOW_FEWSHOT = readText(
+  "prompts/fewshots/BoostSuite_Talkflow_SUNLUM_v1.txt"
+);
+
 // Explain Layer は 1.0 固定
 const EXPLAIN_PROMPT_V1 = readText(
   "prompts/explain/BoostSuite_Explain_v1.0.txt"
@@ -532,7 +537,8 @@ function deriveFlagsFromMeta(
 
   const ageFromStage0 =
     typeof s0?.target_age === "number" ? s0.target_age : null;
-  const ageFromMeta = typeof meta.target_age === "number" ? meta.target_age : null;
+  const ageFromMeta =
+    typeof meta.target_age === "number" ? meta.target_age : null;
 
   return {
     category: catFromStage0 ?? catFromMeta ?? req.category,
@@ -546,8 +552,10 @@ function deriveFlagsFromMeta(
       typeof meta.lead_compact === "boolean"
         ? meta.lead_compact
         : req.lead_compact,
-    price_cta: typeof meta.price_cta === "boolean" ? meta.price_cta : req.price_cta,
-    diff_fact: typeof meta.diff_fact === "boolean" ? meta.diff_fact : req.diff_fact,
+    price_cta:
+      typeof meta.price_cta === "boolean" ? meta.price_cta : req.price_cta,
+    diff_fact:
+      typeof meta.diff_fact === "boolean" ? meta.diff_fact : req.diff_fact,
     numeric_sensory:
       typeof meta.numeric_sensory === "boolean"
         ? meta.numeric_sensory
@@ -682,7 +690,7 @@ function buildComparisonHint(cat: string | null): string {
 }
 
 /* =========================================================================
-   POST : Stage0（Meta & Persona）
+   POST : Stage0（Meta & Persona） 
         → Stage1（FACT＋SmartBullet）
         → Stage2（Talkflow）
         → Stage3（Final Polish / 5.1 清書）
@@ -831,6 +839,20 @@ export async function POST(req: Request) {
     const valueTierHint = buildValueTierHint(stage1Meta);
     const sceneBalanceHint = buildSceneBalanceHint(stage1Meta, mergedFlags);
 
+    // ★ Talkflow few-shot（SUNLUM）の参考ブロック
+    const fewshotBlock = TALKFLOW_FEWSHOT
+      ? [
+          "【参考サンプル｜Talkflow 完成イメージ】",
+          "以下は、同じテンプレートで理想的に仕上がっている出力例です。",
+          "商品カテゴリや内容は異なってよいので、構造・リズム・余白の取り方・Q&Aの粒度を参考にしてください。",
+          "ただし、ここに書かれている数値・容量・認証名・ブランド名などの事実は絶対にコピーせず、",
+          "今回の Stage1 内に存在する事実だけを使って書いてください。",
+          "",
+          TALKFLOW_FEWSHOT,
+          "",
+        ].join("\n")
+      : "";
+
     // ★ Persona 情報を文字列化
     const personaLines: string[] = [];
     if (stage0Meta?.persona) {
@@ -895,6 +917,7 @@ export async function POST(req: Request) {
       sceneBalanceHint ? `\n${sceneBalanceHint}\n` : "",
       ageQAHint,
       compHint,
+      fewshotBlock ? `\n${fewshotBlock}\n` : "",
       "— Stage1 —",
       stage1,
     ].join("\n");
