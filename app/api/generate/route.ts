@@ -329,11 +329,8 @@ function factLock(text: string) {
   if (!text) return "";
   const t = text
     .replace(/ｍｌ|ＭＬ|㎖/g, "mL")
-    .replace(/ｍｇ|ＭＧ/g, "mg")
-    .replace(/ｋｇ|ＫＧ/g, "kg")
     .replace(/ｗ|Ｗ/g, "W")
     .replace(/℃/g, "°C")
-    .replace(/％/g, "%")
     .replace(/本製品/g, "このアイテム")
     .replace(/　/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -365,11 +362,7 @@ function buildCategoryHint(
     );
   }
 
-  if (
-    cat.includes("美容") ||
-    cat.includes("beauty") ||
-    cat.includes("skincare")
-  ) {
+  if (cat.includes("美容") || cat.includes("beauty") || cat.includes("skincare")) {
     lines.push(
       "CategoryHint: 美容機器",
       "- 専門数値（MHz, nm, 深度）はFAQへ逃がすか削除。温度は体感併記（数値＋体感）。",
@@ -379,11 +372,7 @@ function buildCategoryHint(
     );
   }
 
-  if (
-    cat.includes("食品") ||
-    cat.includes("food") ||
-    cat.includes("grocery")
-  ) {
+  if (cat.includes("食品") || cat.includes("food") || cat.includes("grocery")) {
     lines.push(
       "CategoryHint: 食品",
       "- 認証（例：HACCP/GAP）・産地・品種は優先度高。加工・保存・調理ガイドは構造化。",
@@ -439,6 +428,29 @@ function buildCategoryHint(
 }
 
 /* =========================================================================
+   SEO Keyword Extractor（料理名・商品名の保持）
+   ========================================================================= */
+function extractSeoKeywords(compact: string): string[] {
+  const text = String(compact || "");
+  if (!text) return [];
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // 冒頭〜数行を「商品名ブロック」とみなす
+  const firstBlock = lines.slice(0, 5).join(" ");
+
+  const katakana = firstBlock.match(/[ァ-ヴー]{3,}/g) || [];
+  const hangul = firstBlock.match(/[가-힣]{2,}/g) || [];
+  const latin = firstBlock.match(/[A-Za-z][A-Za-z0-9\-]{3,}/g) || [];
+
+  const merged = [...katakana, ...hangul, ...latin];
+  const uniq = Array.from(new Set(merged));
+  return uniq;
+}
+
+/* =========================================================================
    Stage1 Meta JSON（価値レイヤー）パース
    ========================================================================= */
 type Stage1Meta = {
@@ -473,54 +485,17 @@ const DEFAULT_STAGE1_META: Stage1Meta = {
   diff_comp_price: false,
 };
 
-type Stage1FactLedger = {
-  numbers?: string[];
-  certifications?: string[];
-  awards?: string[];
-  [k: string]: any;
-} | null;
-
 function parseStage1MetaAndBody(raw: string): {
   meta: Stage1Meta;
   body: string;
-  factLedger: Stage1FactLedger;
 } {
-  const full = String(raw || "");
-  let text = full;
-  let factLedger: Stage1FactLedger = null;
-
-  // 1) FACT_LEDGER ブロック
-  const flStart = text.indexOf("<<FACT_LEDGER>>");
-  const flEnd = text.indexOf("<<END_FACT_LEDGER>>");
-  if (flStart !== -1 && flEnd !== -1 && flEnd > flStart) {
-    const jsonPart = text
-      .slice(flStart + "<<FACT_LEDGER>>".length, flEnd)
-      .trim();
-    try {
-      const parsed = JSON.parse(jsonPart);
-      if (parsed && typeof parsed === "object") {
-        factLedger = parsed as Stage1FactLedger;
-      }
-    } catch (e) {
-      console.warn(
-        "⚠️ Stage1 FACT_LEDGER JSON parse failed:",
-        (e as any)?.message || e
-      );
-    }
-    text = text.slice(flEnd + "<<END_FACT_LEDGER>>".length);
-  }
-
-  // 2) META_JSON ブロック
+  const text = String(raw || "");
   const start = text.indexOf("<<META_JSON>>");
   const end = text.indexOf("<<END_META_JSON>>");
 
   if (start === -1 || end === -1 || end <= start) {
     // Meta未対応プロンプトのフォールバック
-    return {
-      meta: { ...DEFAULT_STAGE1_META },
-      body: text.trim(),
-      factLedger,
-    };
+    return { meta: { ...DEFAULT_STAGE1_META }, body: text.trim() };
   }
 
   const jsonPart = text.slice(start + "<<META_JSON>>".length, end).trim();
@@ -536,7 +511,7 @@ function parseStage1MetaAndBody(raw: string): {
   }
 
   const body = text.slice(end + "<<END_META_JSON>>".length).trim();
-  return { meta, body, factLedger };
+  return { meta, body };
 }
 
 type DerivedFlags = {
@@ -738,101 +713,8 @@ function buildComparisonHint(cat: string | null): string {
 }
 
 /* =========================================================================
-   Fact Guard（Stage2 vs Stage3 の数値・認証 diff チェック）
-   ========================================================================= */
-type FactSnapshot = {
-  quantities: string[];
-  certs: string[];
-};
-
-function normalizeUnit(unit: string): string {
-  const u = unit.toLowerCase();
-  if (u === "ml") return "mL";
-  if (u === "l") return "L";
-  if (u === "％") return "%";
-  return unit;
-}
-
-// 数量＋単位の簡易抽出（過剰検知を避けるため、単位は絞る）
-const QUANTITY_RE =
-  /(\d+(?:\.\d+)?)\s*(g|kg|mg|ml|mL|l|L|kcal|%|％|°C|℃|パック|人前|個|袋|枚|錠|本|cm|mm|m|W|V)/gi;
-
-const CERT_KEYWORDS = [
-  "HACCP",
-  "GAP",
-  "ハラル",
-  "ハラール",
-  "HALAL",
-  "有機JAS",
-  "JAS",
-  "動物福祉",
-  "無抗生剤",
-  "無抗生物質",
-  "ノンGMO",
-  "Non-GMO",
-  "GMOフリー",
-  "グルテンフリー",
-  "Gluten-free",
-  "コーシャ",
-  "KOSHER",
-];
-
-function extractFactSnapshot(text: string): FactSnapshot {
-  const src = String(text || "");
-  const quantities = new Set<string>();
-  let m: RegExpExecArray | null;
-
-  while ((m = QUANTITY_RE.exec(src)) !== null) {
-    const value = m[1];
-    const unit = normalizeUnit(m[2]);
-    const key = `${value}${unit}`;
-    quantities.add(key);
-  }
-
-  const upper = src.toUpperCase();
-  const certs = new Set<string>();
-  for (const kw of CERT_KEYWORDS) {
-    const keyUpper = kw.toUpperCase();
-    if (upper.includes(keyUpper)) {
-      certs.add(kw);
-    }
-  }
-
-  return {
-    quantities: Array.from(quantities),
-    certs: Array.from(certs),
-  };
-}
-
-function diffFactSnapshots(base: FactSnapshot, candidate: FactSnapshot) {
-  const missingQuantities = base.quantities.filter(
-    (q) => !candidate.quantities.includes(q)
-  );
-  const extraQuantities = candidate.quantities.filter(
-    (q) => !base.quantities.includes(q)
-  );
-  const missingCerts = base.certs.filter(
-    (c) => !candidate.certs.includes(c)
-  );
-  const extraCerts = candidate.certs.filter(
-    (c) => !base.certs.includes(c)
-  );
-  return {
-    missingQuantities,
-    extraQuantities,
-    missingCerts,
-    extraCerts,
-    hasIssue:
-      missingQuantities.length > 0 ||
-      extraQuantities.length > 0 ||
-      missingCerts.length > 0 ||
-      extraCerts.length > 0,
-  };
-}
-
-/* =========================================================================
    POST : Stage0（Meta & Persona） 
-        → Stage1（FACT＋SmartBullet＋FactLedger）
+        → Stage1（FACT＋SmartBullet）
         → Stage2（Talkflow）
         → Stage3（Final Polish / 5.1 清書）
         → Explain Layer（任意）
@@ -877,53 +759,33 @@ export async function POST(req: Request) {
       .replace(/\r/g, "")
       .slice(0, 16000);
 
+    // ★ SEOキーワード抽出（例：サムギョプサル）
+    const seoKeywords = extractSeoKeywords(compact);
+
     /* ---------------- Stage0: Meta & Persona Analyzer ---------------- */
     const stage0Meta = await runStage0Meta(compact, apiKey);
 
-    /* ---------------- Stage1: FACT＋SmartBullet（naniライク＋FactLedger） ---------------- */
-    const s1UserContent = [
-      "【Stage1｜FACT＋SmartBullet v2.3 + FactLedger】",
-      "目的：原文の事実を1つも落とさず、誇張も追加もせずに、日本語構造を整えたベーステキストを作ること。",
-      "翻訳品質でいうと、nani のように『原文より悪くならない』ことを最優先とする最低保証レイヤーです。",
+    /* ---------------- Stage1: FACT＋SmartBullet ---------------- */
+    const s1SeoBlock =
+      seoKeywords.length > 0
+        ? [
+            "【SEOキーワードヒント】",
+            "原文の商品名・料理名・ブランド名として含まれている以下のカタカナ／英字／ハングル表現は、タイトルや本文のいずれかに必ず残してください。",
+            "必要であれば一般的な日本語訳（三枚肉など）を括弧書きで併記しても構いませんが、これらの表現だけを別の語に完全に置き換えたり削除しないでください。",
+            seoKeywords.map((k) => `- ${k}`).join("\n"),
+          ].join("\n")
+        : "";
+
+    const s1UserLines: string[] = [
+      "【Stage1｜FACT＋SmartBullet v2.2】",
+      "目的：事実・仕様・法規整合＋売れる構文素体生成。",
       "",
-      "出力フォーマットは必ず次の順番で統一してください：",
-      "1) <<FACT_LEDGER>> と <<END_FACT_LEDGER>> に挟んだ JSON（1つ）",
-      "2) <<META_JSON>> と <<END_META_JSON>> に挟んだ JSON（1つ）",
-      "3) その下に、人間に見せるべき Stage1 本文（SmartBullet を含む）",
-      "",
-      "【FACT_LEDGER JSON のスキーマ】",
-      "{",
-      '  "numbers": string[]  // 例: "500g x 4パック", "100gあたり342kcal", "オーブン200°Cで約10分" など、数値＋単位や量を含む重要な事実。',
-      '  "certifications": string[] // 例: "HACCP", "無抗生剤畜産物認証", "動物福祉認証", "GAP" など。',
-      '  "awards": string[] // 例: "2024年大韓民国畜産大展 金賞", "農林畜産食品部長官賞" など。',
-      "}",
-      "・いずれかの情報が存在しない場合は、空配列 [] にしてください。",
-      "・補足的な豆知識やストーリーは FactLedger には含めず、numbers/certifications/awards に絞ってください。",
-      "",
-      "【META_JSON】は、既存の Stage1 Meta 用 JSON（category/value_tier/info_density など）を従来通り出力してください。",
-      "",
-      "【ルール：事実に関する制約】",
-      "- 原文に存在する事実（数値・容量・サイズ・構成・保存期間・温度・認証名・受賞歴など）は削除しない。",
-      "- どうしても冗長な場合は『意味を変えずに短くする』だけにとどめ、事実そのものを消さない。",
-      "- 新しい数値や認証名、受賞歴、効能、保証内容などを勝手に追加してはいけません。",
-      "- あいまいな表現を断定的な表現に変えない（例：『〜と言われています』→『〜です』にはしない）。",
-      "",
-      "【ルール：日本語と構造】",
-      "- 文法的に不自然な日本語や直訳調の表現は、意味を変えずに自然な日本語へ修正してよい。",
-      "- 機械翻訳っぽい重たい文は、2文に分けて読みやすくするなど、構造化は積極的に行う。",
-      "- 箇条書き（SmartBullet）・見出し・段落分けを使って、『後続のStage2が扱いやすい構造』を作ることを意識する。",
-      "- ただし、売り込みトーンを勝手に強めたり、過度な感情表現を追加しない。",
-      "",
-      "【禁止事項】",
-      "- 原文にない事実やエピソードを創作しない。",
-      "- 数値や認証・受賞歴を盛ったり、改ざんしたりしない。",
-      "- 『〜が保証されます』『絶対〜』など、保証や断定のニュアンスを勝手に付与しない。",
-      "",
-      "以上を踏まえ、指定のフォーマットで Stage1 のみを出力してください。説明文やコメント行を追加してはいけません。",
-      "",
-      "— 原文 —",
-      compact,
-    ].join("\n");
+      YAKKI_FILTERS,
+    ];
+    if (s1SeoBlock) {
+      s1UserLines.push("", s1SeoBlock);
+    }
+    s1UserLines.push("", "— 原文 —", compact);
 
     const s1Payload: any = {
       model: DEFAULT_STAGE1_MODEL,
@@ -931,7 +793,7 @@ export async function POST(req: Request) {
         { role: "system", content: CORE_PROMPT },
         {
           role: "user",
-          content: s1UserContent,
+          content: s1UserLines.join("\n"),
         },
       ],
       stream: false,
@@ -952,11 +814,7 @@ export async function POST(req: Request) {
     }
 
     const stage1Raw = String(s1.content || "");
-    const {
-      meta: stage1Meta,
-      body: stage1,
-      factLedger: stage1FactLedger,
-    } = parseStage1MetaAndBody(stage1Raw);
+    const { meta: stage1Meta, body: stage1 } = parseStage1MetaAndBody(stage1Raw);
 
     /* ---------------- Stage2 flags: UIヒント × Meta × Stage0 をマージ ---------------- */
     const mergedFlags = deriveFlagsFromMeta(
@@ -1067,22 +925,24 @@ export async function POST(req: Request) {
       ? ["Persona Layer (Stage0):", ...personaLines].join("\n")
       : "";
 
-    const factLedgerBlock = stage1FactLedger
-      ? [
-          "Stage1 FactLedger JSON:",
-          JSON.stringify(stage1FactLedger),
-        ].join("\n")
-      : "Stage1 FactLedger JSON: {}";
+    const seoKeywordLines =
+      seoKeywords.length > 0
+        ? [
+            "SEO Keyword Rules:",
+            " - 以下のカタカナ／英字／ハングルの固有名詞は、そのままの表記で必ずどこかに含めてください。",
+            " - 必要であれば『サムギョプサル（三枚肉）』のように日本語訳を併記しても構いませんが、カタカナ表記を削除したり、別の語に言い換えないでください。",
+            seoKeywords.map((k) => `   - ${k}`).join("\n"),
+          ].join("\n")
+        : "";
 
     const s2UserContent = [
       "【Stage2｜Talkflow v2.0.8 “Perfect Warmflow” + v2.0.8 Addenda】",
       "目的：Stage1構造を保持しつつ、句読点・温度・未来導線・余白を最適化。",
       "",
       "Hard Rules:",
-      "0. Stage1 と FactLedger に存在しない新しい数値（g, mL, kcal, %, °C など）や認証名・受賞歴を作らない。",
+      "0. Stage1 に存在しない新しい数値（g, mL, kcal, %, °C, 日数・回数など）や認証名を作らない。",
       "   - 容量・サイズ・栄養成分などのスペックは、必ず Stage1 内にすでに出ているものだけを使う。",
       "   - Stage1 に栄養成分の行が 1 行もない場合、Stage2 で新たに『100gあたり〜』『1食あたり〜』などの栄養行を追加しない。",
-      "   - Stage1 FactLedger JSON の numbers / certifications / awards に列挙された要素は、意味を変えず、どこかのセクションで少なくとも1回は触れること。",
       "1. SmartBullet の項目数と大まかな意味内容は変えない（まとめるのは可／意味の追加は不可）。",
       "",
       "Warmflow Rules:",
@@ -1101,6 +961,7 @@ export async function POST(req: Request) {
       " - encouraged_patterns は、過度にならない範囲でリード・Bullet・クロージングに散らす。",
       " - emotional_highlights は、直訳ではなく『どこに熱量を載せるか』のヒントとして扱う。",
       personaBlock ? `\n${personaBlock}\n` : "",
+      seoKeywordLines ? `\n${seoKeywordLines}\n` : "",
       "",
       addendaFlags,
       categoryHint ? `\n${categoryHint}\n` : "",
@@ -1108,7 +969,6 @@ export async function POST(req: Request) {
       sceneBalanceHint ? `\n${sceneBalanceHint}\n` : "",
       ageQAHint,
       compHint,
-      factLedgerBlock ? `\n${factLedgerBlock}\n` : "",
       fewshotBlock ? `\n${fewshotBlock}\n` : "",
       "— Stage1 —",
       stage1,
@@ -1147,23 +1007,8 @@ export async function POST(req: Request) {
     }
 
     const stage2Text = String(s2.content || "");
-
-    // FactGuard 用に Stage2 のスナップショットを保存
-    const stage2Facts = extractFactSnapshot(stage2Text);
-
     let stage3Text = stage2Text;
     let finalPolishModelUsed: string | null = null;
-
-    // FactGuard レポート
-    const factGuard = {
-      enabled: !!FINAL_POLISH_MODEL,
-      checked: false,
-      fallbackToStage2: false,
-      missingQuantities: [] as string[],
-      extraQuantities: [] as string[],
-      missingCerts: [] as string[],
-      extraCerts: [] as string[],
-    };
 
     /* ---------------- Stage3: Final Polish（5.1 清書係｜Native First） ---------------- */
     if (FINAL_POLISH_MODEL) {
@@ -1198,7 +1043,7 @@ export async function POST(req: Request) {
         "絶対ルール：",
         "1. 見出し番号やラベル（1.【タイトル※バランス】 など）は一切削除・変更しない。",
         "2. セクション順序やQ&Aの数を変えない（3つなら3つのまま）。",
-        "3. 数値・分量・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
+        "3. 数値・分量・日数・温度・認証名などの事実は変更しない。新しい事実を書き足さない。",
         "",
         "ネイティブ化ルール：",
         "4. 直訳調・機械翻訳調・マニュアル調で、情報が詰め込まれて息苦しく感じる文は、意味を変えずに簡潔で自然な言い回しに置き換える。",
@@ -1251,12 +1096,18 @@ export async function POST(req: Request) {
         "    Bランク：必要なものだけを短く残し、重複している説明は削るか1行にまとめる。",
         "    Cランク：文章を重くするだけの場合は、思い切って削除してよい。",
         "",
+        "SEOキーワード（商品名・料理名）の扱い：",
+        "19. 原文やStage1/Stage2時点で登場しているカタカナの商品名・料理名など、SEOキーワードとして指定された語（例：サムギョプサル、チェジュなど）は、その表記のまま残してください。",
+        "    - これらの語を漢字の一般名称（『三枚肉』など）だけに置き換えてしまうことは禁止です。",
+        "    - 日本語訳を補いたい場合は、『サムギョプサル（三枚肉）』のように併記してください。",
+        "20. 上記SEOキーワードがStage2出力内にすでに含まれている場合は、その出現箇所を維持しつつ文脈だけ整えてください。新たに削除したり、別表現に置き換えないでください。",
+        "",
         "参考情報：",
         `Stage0 Meta JSON: ${JSON.stringify(stage0Meta)}`,
         `Stage1 Meta JSON: ${JSON.stringify(stage1Meta)}`,
         `Addenda Flags: ${JSON.stringify(mergedFlags)}`,
-        `Stage1 FactLedger JSON: ${JSON.stringify(stage1FactLedger || {})}`,
         `isFoodCategory: ${isFood ? "true" : "false"}`,
+        `SEO Keywords: ${seoKeywords.length ? seoKeywords.join(", ") : "none"}`,
         "",
         "— Stage2 出力 —",
         stage2Text,
@@ -1279,27 +1130,8 @@ export async function POST(req: Request) {
       if (s3.ok) {
         const polished = String(s3.content || "").trim();
         if (polished) {
-          // ★ FactGuard: Stage2 vs Stage3 で数値＆認証差分チェック
-          const stage3Facts = extractFactSnapshot(polished);
-          const diff = diffFactSnapshots(stage2Facts, stage3Facts);
-          factGuard.checked = true;
-          factGuard.missingQuantities = diff.missingQuantities;
-          factGuard.extraQuantities = diff.extraQuantities;
-          factGuard.missingCerts = diff.missingCerts;
-          factGuard.extraCerts = diff.extraCerts;
-
-          if (diff.hasIssue) {
-            console.warn(
-              "⚠️ FinalPolish fact diff detected, fallback to Stage2:",
-              diff
-            );
-            factGuard.fallbackToStage2 = true;
-            stage3Text = stage2Text;
-            finalPolishModelUsed = null;
-          } else {
-            stage3Text = polished;
-            finalPolishModelUsed = FINAL_POLISH_MODEL;
-          }
+          stage3Text = polished;
+          finalPolishModelUsed = FINAL_POLISH_MODEL;
         }
       } else {
         console.warn("⚠️ FinalPolish failed:", s3.error);
@@ -1331,7 +1163,7 @@ export async function POST(req: Request) {
           {
             role: "system",
             content:
-              'You are Boost Suite Explain Layer. Output strictly in JSON with top-level {"annotations": [...]}.',
+              'You are Boost Suite Explain Layer. Output strictly in JSON with top-level {"annotations": [...]}.' ,
           },
           { role: "user", content: explainContent },
         ],
@@ -1381,8 +1213,8 @@ export async function POST(req: Request) {
         annotations,
         modelUsed: {
           stage1: DEFAULT_STAGE1_MODEL,
-          stage2: s2Payload.model,
-          // Explain 用を維持（既存互換）
+          stage2: (strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL),
+          // Explain 用を維持
           stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
           // 5.1 清書係の実績は別フィールドで返す
           finalPolish: finalPolishModelUsed,
@@ -1404,13 +1236,11 @@ export async function POST(req: Request) {
           audience_age: mergedFlags.audience_age,
           category: mergedFlags.category,
           persona: mergedFlags.persona,
+          seo_keywords: seoKeywords,
         },
 
         stage0Meta,
         stage1Meta,
-        stage1FactLedger,
-        factGuard,
-
         promptVersion: "v2.0.8",
         userId,
       }),
