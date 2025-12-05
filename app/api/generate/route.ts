@@ -338,6 +338,16 @@ function factLock(text: string) {
   return softenDisclaimers(t);
 }
 
+/* ★ 亡霊機能（交換ヘッドなど）を潰すフィルタ */
+function stripPhantomFeatures(stage1Text: string, text: string) {
+  const stage1HasHead = /ヘッド|head|アタッチメント/i.test(stage1Text);
+  if (stage1HasHead) return text;
+
+  // Stage1にヘッド系ワードが一度も出てこないなら、
+  // 「交換ヘッド」を含む行は丸ごと削除する（安全側に倒す）
+  return text.replace(/^.*交換ヘッド.*$/gm, "");
+}
+
 /* =========================================================================
    Category Hint（軽量カテゴリ別チューニング）
    ========================================================================= */
@@ -362,12 +372,16 @@ function buildCategoryHint(
     );
   }
 
-  if (cat.includes("美容") || cat.includes("beauty") || cat.includes("skincare")) {
+  if (
+    cat.includes("美容") ||
+    cat.includes("beauty") ||
+    cat.includes("skincare")
+  ) {
     lines.push(
       "CategoryHint: 美容機器",
       "- 専門数値（MHz, nm, 深度）はFAQへ逃がすか削除。温度は体感併記（数値＋体感）。",
       "- 安全・注意は不安を煽らず一般表現で網羅（階層化）。",
-      "- 差別化は事実ベース（機能統合、交換ヘッド、運用コスト、アプリ運用）。",
+      "- 差別化は“実際の仕様・運用”だけに基づくこと（どの機能を1台にまとめているか、どのような使い方がしやすいかなど）。",
       "- 価格は具体額NG。CTAは非数値で緊急性を伝える。"
     );
   }
@@ -692,9 +706,9 @@ function buildComparisonHint(cat: string | null): string {
   if (c.includes("美容") || c.includes("beauty") || c.includes("skincare")) {
     return `Comparison Block:
 - タイトル：「【他社との違い】」。
-- A社：単機能のみ（例：RFのみ）や固定ヘッドなど、使い方が限定されるもの。
-- B社：EMSのみ・アプリ非対応など、機能が分散しているもの。
-- 本品：複合機能や交換ヘッド、在宅で続けやすい運用など、“事実”で差別化する。
+- A社：単機能のみ（例：RFのみ）など、使い方が限定されるモデル。
+- B社：機能が分散していて、持ち替えや使い分けが多くなるモデル。
+- 本品：複数の機能を1台にまとめた設計や、自宅で続けやすい運用など、“Stage1内に存在する事実”だけで差別化する。
 - 価格は非数値の位置づけだけ（diff_comp_price=true の場合のみ軽く触れる）。`;
   }
 
@@ -943,6 +957,10 @@ export async function POST(req: Request) {
       "0. Stage1 に存在しない新しい数値（g, mL, kcal, %, °C, 日数・回数など）や認証名を作らない。",
       "   - 容量・サイズ・栄養成分などのスペックは、必ず Stage1 内にすでに出ているものだけを使う。",
       "   - Stage1 に栄養成分の行が 1 行もない場合、Stage2 で新たに『100gあたり〜』『1食あたり〜』などの栄養行を追加しない。",
+      "0-b. Stage1 内に一度も登場していない「機能名・構造名・付属品名」",
+      "     （例：交換ヘッド／専用ヘッド／専用ジェル／専用スタンド／防水◯m など）を、",
+      "     SmartBullet や【他社との違い】セクションに新たに書き足してはいけません。",
+      "     そうした要素が必要な場合は、人間が後から追記する前提とし、AI側では生やさないでください。",
       "1. SmartBullet の項目数と大まかな意味内容は変えない（まとめるのは可／意味の追加は不可）。",
       "",
       "Warmflow Rules:",
@@ -1138,7 +1156,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const finalText = factLock(stage3Text);
+    // ★ Stage1に存在しないヘッド系機能の亡霊を削ってから FactLock
+    const cleanedText = stripPhantomFeatures(stage1, stage3Text);
+    const finalText = factLock(cleanedText);
 
     /* ---------------- Explain Layer（Stage4的立ち位置／解説AI） ---------------- */
     let annotations: Array<{
@@ -1163,7 +1183,7 @@ export async function POST(req: Request) {
           {
             role: "system",
             content:
-              'You are Boost Suite Explain Layer. Output strictly in JSON with top-level {"annotations": [...]}.' ,
+              'You are Boost Suite Explain Layer. Output strictly in JSON with top-level {"annotations": [...]}.',
           },
           { role: "user", content: explainContent },
         ],
@@ -1213,7 +1233,7 @@ export async function POST(req: Request) {
         annotations,
         modelUsed: {
           stage1: DEFAULT_STAGE1_MODEL,
-          stage2: (strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL),
+          stage2: strongHumanize ? STRONG_HUMANIZE_MODEL : DEFAULT_STAGE2_MODEL,
           // Explain 用を維持
           stage3: annotation_mode ? EXPLAIN_LAYER_MODEL : null,
           // 5.1 清書係の実績は別フィールドで返す
