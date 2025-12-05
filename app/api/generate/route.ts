@@ -348,6 +348,38 @@ function stripPhantomFeatures(stage1Text: string, text: string) {
   return text.replace(/^.*交換ヘッド.*$/gm, "");
 }
 
+/* ★ Stage2 のタイトルセクションを Stage3 に強制的に戻すロック処理 */
+function restoreSectionFromStage2(
+  stage2: string,
+  stage3: string,
+  headerPrefix: string
+): string {
+  const extractRange = (
+    src: string
+  ): { lines: string[]; start: number; end: number } | null => {
+    const lines = src.split("\n");
+    const start = lines.findIndex((l) => l.startsWith(headerPrefix));
+    if (start === -1) return null;
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (/^\d+\.\s*【/.test(lines[i])) {
+        end = i;
+        break;
+      }
+    }
+    return { lines, start, end };
+  };
+
+  const s2 = extractRange(stage2);
+  const s3 = extractRange(stage3);
+  if (!s2 || !s3) return stage3;
+
+  const before = s3.lines.slice(0, s3.start);
+  const after = s3.lines.slice(s3.end);
+  const replacement = s2.lines.slice(s2.start, s2.end);
+  return [...before, ...replacement, ...after].join("\n");
+}
+
 /* =========================================================================
    Category Hint（軽量カテゴリ別チューニング）
    ========================================================================= */
@@ -1114,7 +1146,7 @@ export async function POST(req: Request) {
         "    Bランク：必要なものだけを短く残し、重複している説明は削るか1行にまとめる。",
         "    Cランク：文章を重くするだけの場合は、思い切って削除してよい。",
         "",
-                "SEOキーワード（商品名・料理名）の扱い：",
+        "SEOキーワード（商品名・料理名）の扱い：",
         "19. 原文やStage1/Stage2時点で登場しているカタカナ／ハングルの商品名・料理名など、SEOキーワードとして指定された語（例：サムギョプサル、チェジュなど）は、その表記のまま残してください。",
         "    - これらの語を漢字の一般名称（『三枚肉』など）だけに置き換えてしまうことは禁止です。",
         "    - 日本語訳を補いたい場合は、『サムギョプサル（三枚肉）』のように併記してください。",
@@ -1153,6 +1185,18 @@ export async function POST(req: Request) {
         if (polished) {
           stage3Text = polished;
           finalPolishModelUsed = FINAL_POLISH_MODEL;
+
+          // ★ タイトル2セクションは Stage2 で生成されたものをそのまま採用（ハングルロック）
+          stage3Text = restoreSectionFromStage2(
+            stage2Text,
+            stage3Text,
+            "1.【タイトル"
+          );
+          stage3Text = restoreSectionFromStage2(
+            stage2Text,
+            stage3Text,
+            "2.【タイトル"
+          );
         }
       } else {
         console.warn("⚠️ FinalPolish failed:", s3.error);
